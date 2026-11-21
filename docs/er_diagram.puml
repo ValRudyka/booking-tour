@@ -1,0 +1,351 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam linetype ortho
+hide circle
+hide methods
+skinparam class {
+ BackgroundColor #FBFBFB
+ BorderColor #555555
+}
+package "Користувачі" #EEF4FB {
+entity favorites {
+ * user_id : int <<PK,FK>>
+ * tour_id : int <<PK,FK>>
+ --
+ * created_at : timestamptz
+}
+entity loyalty_transactions {
+ * id : int <<PK>>
+ --
+ * user_id : int <<FK>>
+   order_id : int <<FK>>
+ * points : int
+ * reason : varchar(200)
+ * created_at : timestamptz
+}
+entity notifications {
+ * id : int <<PK>>
+ --
+ * user_id : int <<FK>>
+   order_id : int <<FK>>
+ * title : varchar(200)
+ * body : text
+ * is_read : bool
+ * created_at : timestamptz
+}
+entity saved_passports {
+ * id : int <<PK>>
+ --
+ * user_id : int <<FK>>
+ * last_name_lat : varchar(100)
+ * first_name_lat : varchar(100)
+ * passport_number : varchar(20)
+   issuing_authority : varchar(4)
+ * expiry_date : date
+}
+entity search_history {
+ * id : int <<PK>>
+ --
+ * user_id : int <<FK>>
+ * params : jsonb
+ * created_at : timestamptz
+}
+entity users {
+ * id : int <<PK>>
+ --
+ * phone : varchar(20) <<UQ>>
+ * email : varchar(255) <<UQ>>
+ * password_hash : varchar(255)
+ * role : enum
+ * last_name : varchar(100)
+ * first_name : varchar(100)
+   birth_date : date
+   citizenship_id : int <<FK>>
+   consent_at : timestamptz
+ * loyalty_points : int
+ * is_active : bool
+ * updated_at : timestamptz
+ * created_at : timestamptz
+}
+}
+package "Довідники та налаштування" #F3F3F3 {
+entity cities {
+ * id : int <<PK>>
+ --
+ * country_id : int <<FK>>
+ * name_uk : varchar(100)
+   name_en : varchar(100)
+   iata_code : varchar(3)
+ * is_archived : bool
+}
+entity countries {
+ * id : int <<PK>>
+ --
+ * iso_code : varchar(2) <<UQ>>
+ * name_uk : varchar(100)
+   name_en : varchar(100)
+ * is_archived : bool
+}
+entity currency_rates {
+ * currency : enum <<PK>>
+ --
+ * rate_to_uah : numeric(12,4)
+ * updated_at : timestamptz
+   updated_by : int <<FK>>
+}
+entity hotels {
+ * id : int <<PK>>
+ --
+ * resort_id : int <<FK>>
+ * name : varchar(150)
+   stars : smallint
+   description : text
+   rating_avg : numeric(3,2)
+ * is_archived : bool
+}
+entity insurance_types {
+ * id : int <<PK>>
+ --
+ * name_uk : varchar(100)
+ * price_uah : numeric(12,2)
+ * is_default : bool
+ * is_archived : bool
+}
+entity languages {
+ * code : varchar(5) <<PK>>
+ --
+ * name : varchar(50)
+ * is_enabled : bool
+}
+entity resorts {
+ * id : int <<PK>>
+ --
+ * country_id : int <<FK>>
+ * name_uk : varchar(100)
+   name_en : varchar(100)
+ * is_archived : bool
+}
+entity settings {
+ * key : varchar(50) <<PK>>
+ --
+ * value : jsonb
+ * updated_at : timestamptz
+   updated_by : int <<FK>>
+}
+entity transfer_types {
+ * id : int <<PK>>
+ --
+ * name_uk : varchar(100)
+ * price_uah : numeric(12,2)
+ * is_default : bool
+ * is_archived : bool
+}
+}
+package "Каталог" #EEF8EE {
+entity tour_images {
+ * id : int <<PK>>
+ --
+ * tour_id : int <<FK>>
+ * file_path : varchar(300)
+ * sort_order : smallint
+}
+entity tour_program_days {
+ * id : int <<PK>>
+ --
+ * tour_id : int <<FK>>
+ * day_number : smallint
+ * description : text
+}
+entity tours {
+ * id : int <<PK>>
+ --
+ * title_uk : varchar(200)
+ * title_en : varchar(200)
+ * hotel_id : int <<FK>>
+ * transport_type : enum
+   departure_city_id : int <<FK>>
+   flight_out : varchar(10)
+   flight_back : varchar(10)
+ * departure_from : date
+ * departure_to : date
+ * nights : smallint
+ * seats_total : int
+ * seats_sold : int
+ * base_price : numeric(12,2)
+   child_price : numeric(12,2)
+ * currency : enum
+   description : text
+ * is_featured : bool
+ * status : enum
+ * created_by : int <<FK>>
+ * updated_at : timestamptz
+ * created_at : timestamptz
+}
+}
+package "Замовлення" #FDF3E7 {
+entity order_documents {
+ * id : int <<PK>>
+ --
+ * order_id : int <<FK>>
+ * doc_type : enum
+ * file_path : varchar(300)
+ * uploaded_by : int <<FK>>
+ * uploaded_at : timestamptz
+}
+entity order_status_history {
+ * id : int <<PK>>
+ --
+ * order_id : int <<FK>>
+   old_status : varchar(32)
+ * new_status : varchar(32)
+   changed_by : int <<FK>>
+   comment : text
+ * changed_at : timestamptz
+}
+entity order_tourists {
+ * id : int <<PK>>
+ --
+ * order_id : int <<FK>>
+ * last_name_lat : varchar(100)
+ * first_name_lat : varchar(100)
+ * birth_date : date
+ * passport_number : varchar(20)
+ * passport_expiry : date
+}
+entity orders {
+ * id : int <<PK>>
+ --
+ * number : varchar(20) <<UQ>>
+ * client_id : int <<FK>>
+ * tour_id : int <<FK>>
+   manager_id : int <<FK>>
+ * status : enum
+ * payment_status : enum
+ * start_date : date
+ * end_date : date
+ * adults : smallint
+ * children : smallint
+   insurance_type_id : int <<FK>>
+   transfer_type_id : int <<FK>>
+   promo_code_id : int <<FK>>
+   wishes : text
+ * total_uah : numeric(12,2)
+ * discount_uah : numeric(12,2)
+ * rate_used : numeric(12,4)
+   hold_expires_at : timestamptz
+   pnr : varchar(20)
+   operator_deadline : date
+   internal_comment : text
+   reject_reason : text
+   cancel_reason : text
+ * updated_at : timestamptz
+ * created_at : timestamptz
+}
+entity promo_codes {
+ * id : int <<PK>>
+ --
+ * code : varchar(20) <<UQ>>
+ * discount_type : enum
+ * discount_value : numeric(12,2)
+   min_order_uah : numeric(12,2)
+ * valid_from : date
+ * valid_to : date
+   usage_limit : int
+ * is_active : bool
+ * created_by : int <<FK>>
+ * created_at : timestamptz
+}
+}
+package "Фінанси, відгуки, аудит" #F7EEF8 {
+entity audit_log {
+ * id : int <<PK>>
+ --
+   user_id : int <<FK>>
+ * entity : varchar(50)
+ * entity_id : varchar(50)
+ * action : varchar(50)
+   old_value : jsonb
+   new_value : jsonb
+ * created_at : timestamptz
+}
+entity payments {
+ * id : int <<PK>>
+ --
+ * order_id : int <<FK>>
+ * type : enum
+ * method : enum
+ * status : enum
+ * amount_uah : numeric(12,2)
+   paid_amount : numeric(12,2)
+ * currency : enum
+   purpose : varchar(300)
+   received_at : timestamptz
+   bank_statement_path : varchar(300)
+   controller_comment : text
+   stripe_session_id : varchar(255) <<UQ>>
+   stripe_payment_intent : varchar(255)
+   stripe_refund_id : varchar(255)
+   confirmed_by : int <<FK>>
+ * created_at : timestamptz
+}
+entity review_photos {
+ * id : int <<PK>>
+ --
+ * review_id : int <<FK>>
+ * file_path : varchar(300)
+}
+entity reviews {
+ * id : int <<PK>>
+ --
+ * order_id : int <<FK,UQ>>
+ * tour_id : int <<FK>>
+ * user_id : int <<FK>>
+ * hotel_rating : smallint
+ * service_rating : smallint
+   positive : text
+   negative : text
+ * name_display : enum
+ * is_published : bool
+ * created_at : timestamptz
+}
+}
+countries ||--o{ cities
+countries ||--o{ resorts
+countries |o--o{ users
+users |o--o{ audit_log
+users |o--o{ currency_rates
+resorts ||--o{ hotels
+users ||--o{ promo_codes
+users ||--o{ saved_passports
+users ||--o{ search_history
+users |o--o{ settings
+hotels ||--o{ tours
+cities |o--o{ tours
+users ||--o{ tours
+users ||--o{ favorites
+tours ||--o{ favorites
+users ||--o{ orders
+tours ||--o{ orders
+insurance_types |o--o{ orders
+transfer_types |o--o{ orders
+promo_codes |o--o{ orders
+tours ||--o{ tour_images
+tours ||--o{ tour_program_days
+users ||--o{ loyalty_transactions
+orders |o--o{ loyalty_transactions
+users ||--o{ notifications
+orders |o--o{ notifications
+orders ||--o{ order_documents
+users ||--o{ order_documents
+orders ||--o{ order_status_history
+users |o--o{ order_status_history
+orders ||--o{ order_tourists
+orders ||--o{ payments
+users |o--o{ payments
+orders ||--o| reviews
+tours ||--o{ reviews
+users ||--o{ reviews
+reviews ||--o{ review_photos
+@enduml
