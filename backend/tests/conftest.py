@@ -1,0 +1,44 @@
+"""Test setup: migrate the TEST database to head, give each test a session that is rolled back."""
+import os
+from collections.abc import Iterator
+
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql+psycopg://tour_app:change_me@localhost:5432/tour_website_test",
+)
+# Make app.config / Alembic point at the test database, never at the real one.
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+
+from alembic import command  # noqa: E402
+from alembic.config import Config  # noqa: E402
+
+BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+@pytest.fixture(scope="session")
+def engine():
+    cfg = Config(os.path.join(BACKEND_DIR, "alembic.ini"))
+    cfg.set_main_option("script_location", os.path.join(BACKEND_DIR, "alembic"))
+    command.downgrade(cfg, "base")   # start from an empty schema every run
+    command.upgrade(cfg, "head")
+    eng = create_engine(TEST_DATABASE_URL)
+    yield eng
+    eng.dispose()
+
+
+@pytest.fixture()
+def db(engine) -> Iterator[Session]:
+    """Each test runs inside a transaction that is rolled back afterwards."""
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = Session(bind=connection, join_transaction_mode="create_savepoint")
+    try:
+        yield session
+    finally:
+        session.close()
+        transaction.rollback()
+        connection.close()
