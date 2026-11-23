@@ -1,5 +1,8 @@
 """Test setup: migrate the TEST database to head, give each test a session that is rolled back."""
+import atexit
 import os
+import shutil
+import tempfile
 from collections.abc import Iterator
 
 import pytest
@@ -20,6 +23,11 @@ class _TestSettings(BaseSettings):
 
 TEST_DATABASE_URL = _TestSettings().test_database_url
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+
+# Uploaded photos go to a throw-away folder, never into backend/uploads.
+UPLOAD_DIR = tempfile.mkdtemp(prefix="tour-test-uploads-")
+os.environ["UPLOAD_DIR"] = UPLOAD_DIR
+atexit.register(shutil.rmtree, UPLOAD_DIR, ignore_errors=True)
 
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
@@ -62,3 +70,18 @@ def db(engine) -> Iterator[Session]:
         session.close()
         transaction.rollback()
         connection.close()
+
+
+@pytest.fixture()
+def manager(db):
+    from tests.factories import make_user
+    from app.models.enums import UserRole
+
+    return make_user(db, role=UserRole.MANAGER)
+
+
+@pytest.fixture()
+def manager_headers(manager):
+    from tests.factories import headers_for
+
+    return headers_for(manager)

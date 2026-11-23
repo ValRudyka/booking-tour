@@ -49,10 +49,11 @@ pytest -q                             # uses TEST_DATABASE_URL (wiped every run)
 uvicorn app.main:app --reload         # http://127.0.0.1:8000/docs
 python -m scripts.create_user --role admin --phone +380500000001 --email admin@tour.local --password "Admin-pass-1" --last-name Адмін --first-name Системний
 python -m scripts.generate_er         # regenerate docs/er_diagram.puml from models
+python -m scripts.seed_demo           # demo hotels + published tours (needs a manager user)
 ```
 
 `backend/.env` (never committed; template in `.env.example`): `DATABASE_URL`,
-`TEST_DATABASE_URL`, `SECRET_KEY`, later `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
+`TEST_DATABASE_URL`, `SECRET_KEY`, optional `UPLOAD_DIR`/`MAX_IMAGE_MB`/`MAX_IMAGES_PER_TOUR`, later `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
 DB user is **`tour_app`** (owns the databases `tour_website` and `tour_website_test`).
 
 ## Architecture
@@ -64,10 +65,13 @@ backend/app/
   models/        SQLAlchemy models, 27 tables (enums.py = all status codes)
   schemas/       Pydantic request/response models
   routers/       thin HTTP layer: validate -> call service -> commit -> return
-  services/      business rules (raise a domain error; routers map it to HTTPException)
+  services/      business rules (raise DomainError from services/errors.py; routers map it to HTTPException)
   core/          security.py (hash/JWT), deps.py (DbSession, CurrentUser, require_roles)
 backend/alembic/versions/   migrations = source of truth for the schema
-backend/tests/              conftest: per-test transaction rolled back; `client` fixture
+backend/tests/              conftest: per-test transaction rolled back; `client`, `manager`,
+                            `manager_headers` fixtures; factories.py = data builders;
+                            uploads go to a temp dir
+backend/uploads/            uploaded photos (gitignored), served at /uploads
 database/                   SQL exports of migrations for running in pgAdmin
 docs/                       ER diagram (generated), ТЗ
 ```
@@ -103,8 +107,14 @@ insurance × tourists + transfer − promo discount`, child = under 12 at tour s
 
 Done: `feature/project-skeleton` (models, migrations, reference data, schema tests) →
 merged to `develop`, released as `v0.1.0` on `main`. `feature/auth` (register, login by
-phone or e-mail, `/me`, password change, `require_roles`, create_user CLI) — **ready, PR to
-`develop` pending**. `fix(db)` script `database/04_fix_owner_to_tour_app.sql` on `develop`.
+phone or e-mail, `/me`, password change, `require_roles`, create_user CLI) → merged to
+`develop` (PR #1). `fix/tests-read-env` (pytest reads `TEST_DATABASE_URL` from
+`backend/.env`, README points to the ТЗ) → merged to `develop` (PR #2, #3).
+`fix(db)` script `database/04_fix_owner_to_tour_app.sql` on `develop`.
+
+`feature/tours-catalog` (manager CRUD, copy, statuses + audit_log, photos; public catalog
+with filters/sort/pagination, tour page, reference lists; `scripts.seed_demo`) — **ready,
+PR to `develop` pending**.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — manager CRUD + publish/archive, program days, images; public
