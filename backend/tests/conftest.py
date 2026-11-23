@@ -6,11 +6,19 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-TEST_DATABASE_URL = os.environ.get(
-    "TEST_DATABASE_URL",
-    "postgresql+psycopg://tour_app:change_me@localhost:5432/tour_website_test",
-)
-# Make app.config / Alembic point at the test database, never at the real one.
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+class _TestSettings(BaseSettings):
+    """Reads TEST_DATABASE_URL from the environment or backend/.env (like app.config does)."""
+    model_config = SettingsConfigDict(env_file=os.path.join(BACKEND_DIR, ".env"),
+                                      env_file_encoding="utf-8", extra="ignore")
+    test_database_url: str = "postgresql+psycopg://tour_app:change_me@localhost:5432/tour_website_test"
+
+
+TEST_DATABASE_URL = _TestSettings().test_database_url
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 from alembic import command  # noqa: E402
