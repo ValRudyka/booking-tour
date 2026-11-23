@@ -6,7 +6,6 @@ is never extended. An order whose hold has run out is cancelled by the System on
 (and by the background job, see services/order_expiry.py).
 """
 import calendar
-import re
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
@@ -20,12 +19,11 @@ from app.services import order_status
 from app.services.app_settings import booking_timeout_min
 from app.services.errors import DomainError
 from app.services.order_expiry import HOLD_EXPIRED_COMMENT
+from app.services.passports import clean_latin_name, clean_passport_number
 from app.services.pricing import PriceBreakdown, calculate, is_child
 from app.services.promo import find_valid_promo
 from app.services.seats import HOLDING_STATUSES, free_seats, lock_tour
 
-LATIN_NAME = re.compile(r"^[A-Za-z][A-Za-z '\-]*$")
-PASSPORT_NUMBER = re.compile(r"^[A-Z0-9]{4,20}$")
 PASSPORT_MONTHS_AFTER_RETURN = 6      # form 4.6.1.2, field 3.5
 MAX_TOURISTS = 20
 MAX_WISHES = 1000
@@ -95,13 +93,9 @@ def _check_categories(birth_dates: list[date], adults: int, children: int, start
 def _clean_tourist(data: dict[str, Any], end_date: date) -> dict[str, Any]:
     """Form 4.6.1.2, fields 3.2–3.5: Latin names, passport number, validity after the return."""
     name = f"{data['last_name_lat']} {data['first_name_lat']}".strip()
-    for field in ("last_name_lat", "first_name_lat"):
-        data[field] = " ".join(data[field].split())
-        if not LATIN_NAME.match(data[field]) or len(data[field]) > 100:
-            raise DomainError("Прізвище та ім'я туриста — латиницею, як у закордонному паспорті", 422)
-    data["passport_number"] = "".join(data["passport_number"].split()).upper()
-    if not PASSPORT_NUMBER.match(data["passport_number"]):
-        raise DomainError("Серія та номер паспорта — лише латинські літери й цифри, 4–20 символів", 422)
+    data["last_name_lat"] = clean_latin_name(data["last_name_lat"])
+    data["first_name_lat"] = clean_latin_name(data["first_name_lat"])
+    data["passport_number"] = clean_passport_number(data["passport_number"])
     must_be_valid_until = add_months(end_date, PASSPORT_MONTHS_AFTER_RETURN)
     if data["passport_expiry"] < must_be_valid_until:
         raise DomainError(f"Паспорт туриста {name} має діяти щонайменше 6 місяців після "
