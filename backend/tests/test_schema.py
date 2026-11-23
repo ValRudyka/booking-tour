@@ -6,10 +6,9 @@ import pytest
 from sqlalchemy import func, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 
-from app.models import (Base, Country, Hotel, Order, OrderStatusHistory, OrderTourist, Payment,
-                        Resort, Review, Tour, User)
-from app.models.enums import (Currency, OrderStatus, PaymentMethod, PaymentType, TourStatus,
-                              TransportType, UserRole)
+from app.models import Base, Country, OrderStatusHistory, OrderTourist, Payment, Review
+from app.models.enums import (OrderStatus, PaymentMethod, PaymentType, TourStatus, TransportType,
+                              UserRole)
 from tests.factories import make_order, make_tour, make_user
 
 
