@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
-    # Uploaded files (tour photos). Served by the API at /uploads/...
+    # Uploaded files. Only upload_dir/tours (tour photos) is public, at /uploads/tours/...
     upload_dir: Path = BACKEND_DIR / "uploads"
     max_image_mb: int = 5
     max_images_per_tour: int = 20

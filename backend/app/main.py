@@ -21,9 +21,13 @@ app.include_router(manager_tours.router, prefix="/api")
 app.include_router(catalog.router, prefix="/api")
 app.include_router(reference.router, prefix="/api")
 
-# Uploaded photos. StaticFiles refuses to start if the folder is missing, so create it first.
-Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
+# Only tour photos are public. Mounting the whole upload_dir would also publish anything stored
+# there later (order documents, passports), so private files live outside uploads/tours and are
+# downloaded only through endpoints that check the user's rights.
+# StaticFiles refuses to start if the folder is missing, so create it first.
+TOUR_PHOTOS_DIR = Path(settings.upload_dir) / "tours"
+TOUR_PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads/tours", StaticFiles(directory=TOUR_PHOTOS_DIR), name="tour-photos")
 
 
 @app.get("/health", tags=["service"], summary="Перевірка стану сервісу та БД")

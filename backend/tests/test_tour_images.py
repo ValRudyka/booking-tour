@@ -1,5 +1,6 @@
 """Tour photos: JPG/PNG only, size limit, files on disk, order (form 4.6.2.1, field 18)."""
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -137,6 +138,21 @@ def test_copy_duplicates_photo_files(client, manager_headers, tour):
     # deleting a photo of the copy keeps the source file
     client.delete(f"{URL}/{copy['id']}/images/{copy['images'][0]['id']}", headers=manager_headers)
     assert len(files_on_disk(tour.id)) == 2
+
+
+@pytest.mark.parametrize("filename", ["../../x.png", "..\\..\\x.png", "/etc/x.png"])
+def test_client_file_name_never_becomes_the_path(client, manager_headers, tour, tmp_path,
+                                                monkeypatch, filename):
+    """The server names the file itself (tours/<id>/<uuid>.png); a path in the uploaded
+    name cannot write outside the upload folder."""
+    uploads = tmp_path / "srv" / "uploads"
+    monkeypatch.setattr(settings, "upload_dir", uploads)
+    response = upload(client, manager_headers, tour.id, (filename, PNG, "image/png"))
+    assert response.status_code == 201, response.text
+    url = response.json()[0]["url"]
+    assert re.fullmatch(rf"/uploads/tours/{tour.id}/[0-9a-f]{{32}}\.png", url), url
+    written = [path for path in tmp_path.rglob("*") if path.is_file()]
+    assert written == [uploads / "tours" / str(tour.id) / url.rsplit("/", 1)[1]]
 
 
 def test_upload_dir_is_the_test_folder():
