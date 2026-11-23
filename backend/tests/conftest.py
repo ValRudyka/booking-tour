@@ -85,3 +85,18 @@ def manager_headers(manager):
     from tests.factories import headers_for
 
     return headers_for(manager)
+
+
+@pytest.fixture()
+def customer(db):
+    """A client (the `client` name is taken by the HTTP test client)."""
+    from tests.factories import make_user
+
+    return make_user(db)
+
+
+@pytest.fixture()
+def customer_headers(customer):
+    from tests.factories import headers_for
+
+    return headers_for(customer)
