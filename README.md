@@ -2,13 +2,14 @@
 
 Курсовий проєкт: вебсайт туристичної компанії з каталогом турів, онлайн-бронюванням,
 оплатою (Stripe, тестовий режим), обробкою заявок менеджером, поверненням коштів і відгуками.
-Вимоги — у Технічному завданні (`docs/`).
+Вимоги — у Технічному завданні: `docs/tz/TZ_tour_website_v2.md`
+(офіційний документ — `docs/tz/TZ_tour_website_v2.docx`).
 
-| Частина | Технології |
-|---|---|
-| Backend | Python 3.12, FastAPI, SQLAlchemy 2.0 (sync), Alembic, PostgreSQL 16 |
-| Frontend | React, TypeScript, Vite, Tailwind CSS, react-i18next *(з етапу 5)* |
-| Тести | pytest |
+| Частина  | Технології                                                          |
+| -------- | ------------------------------------------------------------------- |
+| Backend  | Python 3.12, FastAPI, SQLAlchemy 2.0 (sync), Alembic, PostgreSQL 16 |
+| Frontend | React, TypeScript, Vite, Tailwind CSS, react-i18next _(з етапу 5)_  |
+| Тести    | pytest                                                              |
 
 ## Структура
 
@@ -28,7 +29,7 @@ tour-website/
 │   ├── scripts/           # службові скрипти (генерація ER-діаграми)
 │   └── tests/
 ├── database/              # SQL-скрипти для ручного запуску в pgAdmin
-└── docs/                  # ER-діаграма
+└── docs/                  # ER-діаграма, ТЗ (docs/tz/)
 ```
 
 ## Перший запуск (Windows)
@@ -38,7 +39,7 @@ tour-website/
 1. Підключіться до сервера як `postgres`, відкрийте **Query Tool** на базі `postgres`.
 2. Відкрийте `database/01_create_roles_and_databases.sql`, **замініть пароль**
    і виконайте **три блоки по черзі** (виділити блок → F5).
-3. У дереві pgAdmin натисніть *Refresh*, з'являться бази `tour_website` і `tour_website_test`.
+3. У дереві pgAdmin натисніть _Refresh_, з'являться бази `tour_website` і `tour_website_test`.
 
 Далі таблиці можна створити **одним із двох способів** (обидва дають однаковий результат):
 
@@ -66,6 +67,10 @@ alembic upgrade head        # створює/оновлює таблиці (пр
 pytest                      # тести працюють з базою tour_website_test
 uvicorn app.main:app --reload
 ```
+
+`pytest` бере `TEST_DATABASE_URL` зі змінних середовища або з `backend/.env`,
+тож його можна запускати як з `backend/`, так і з кореня репозиторію.
+Дані тестової бази **видаляються** при кожному запуску — ніколи не вказуйте там основну базу.
 
 - API: http://127.0.0.1:8000
 - Документація Swagger: http://127.0.0.1:8000/docs
