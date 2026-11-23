@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.routers import auth, manager_tours
+from app.routers import auth, catalog, manager_tours, reference
 
 app = FastAPI(
     title="Tour website API",
@@ -18,6 +18,8 @@ app = FastAPI(
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(manager_tours.router, prefix="/api")
+app.include_router(catalog.router, prefix="/api")
+app.include_router(reference.router, prefix="/api")
 
 # Uploaded photos. StaticFiles refuses to start if the folder is missing, so create it first.
 Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
