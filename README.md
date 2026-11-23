@@ -71,6 +71,27 @@ uvicorn app.main:app --reload
 - Документація Swagger: http://127.0.0.1:8000/docs
 - Перевірка: http://127.0.0.1:8000/health → `{"status":"ok","database":"ok"}`
 
+## Автентифікація та ролі
+
+- `POST /api/auth/register` — реєстрація клієнта (роль завжди `client`).
+- `POST /api/auth/login` — вхід: поле `username` = телефон **або** e-mail, `password`.
+  Повертає JWT (`access_token`), який передається в заголовку `Authorization: Bearer <token>`.
+  У Swagger (`/docs`) — кнопка **Authorize**.
+- `GET/PATCH /api/auth/me`, `POST /api/auth/me/password` — профіль і зміна пароля.
+
+Паролі зберігаються як хеш **Argon2id** (бібліотека `pwdlib`), токени — **PyJWT** (HS256),
+як рекомендує документація FastAPI. Ролі перевіряє залежність `require_roles(...)` (`app/core/deps.py`).
+
+Співробітники (менеджер, фінансовий контролер, адміністратор) не реєструються самі —
+їх створює скрипт:
+
+```bash
+python -m scripts.create_user --role admin --phone +380500000001 \
+    --email admin@tour.local --password "Admin-pass-1" --last-name Адмін --first-name Системний
+```
+
+Ролі: `client`, `manager`, `finance`, `admin`.
+
 ## База даних
 
 27 таблиць, 37 зв'язків, 34 іменовані CHECK-обмеження. Схема описана в `app/models/`,
@@ -97,7 +118,7 @@ alembic upgrade base:head --sql > ../database/schema_full.sql
 
 - [x] 1. ER-діаграма
 - [x] 2. Каркас проєкту, моделі, міграції, довідники, тести схеми
-- [ ] 3. Автентифікація (JWT) і ролі
+- [x] 3. Автентифікація (JWT) і ролі
 - [ ] 4. Тури та каталог (пошук, фільтри, сортування)
 - [ ] 5. Замовлення: чекаут, утримання квоти, статуси
 - [ ] 6. Оплата Stripe (test mode) і повернення коштів

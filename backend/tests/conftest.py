@@ -31,6 +31,20 @@ def engine():
 
 
 @pytest.fixture()
+def client(db):
+    """HTTP client whose requests use the test session (everything is rolled back after the test)."""
+    from fastapi.testclient import TestClient
+
+    from app.db import get_db
+    from app.main import app
+
+    app.dependency_overrides[get_db] = lambda: db
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture()
 def db(engine) -> Iterator[Session]:
     """Each test runs inside a transaction that is rolled back afterwards."""
     connection = engine.connect()

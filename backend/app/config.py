@@ -8,5 +8,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://tour_app:change_me@localhost:5432/tour_website"
     sql_echo: bool = False
 
+    # JWT. Generate your own key: python -c "import secrets; print(secrets.token_hex(32))"
+    secret_key: str = "dev-insecure-key-change-me-in-env-file-0000000000"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60
+
 
 settings = Settings()
