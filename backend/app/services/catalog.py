@@ -12,15 +12,12 @@ from typing import Literal
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import CurrencyRate, Hotel, Order, Resort, Tour
-from app.models.enums import OrderStatus, TourStatus, TransportType
+from app.models import CurrencyRate, Hotel, Resort, Tour
+from app.models.enums import TourStatus, TransportType
 from app.schemas.reference import CityOut, CountryOut, HotelOut, ResortOut
 from app.schemas.tours import ProgramDayOut, TourCardOut, TourDetailOut, TourImageOut
 from app.services.errors import DomainError
-
-# Orders that hold seats until hold_expires_at (ТЗ 4.4.1). Holds are created by the checkout
-# (feature/orders-checkout); the catalog already subtracts them so free seats stay correct then.
-HOLDING_STATUSES = (OrderStatus.CHECKOUT, OrderStatus.AWAITING_PAYMENT)
+from app.services.seats import free_seats_expr
 
 SortKey = Literal["price_asc", "price_desc", "date_asc", "date_desc", "rating_desc"]
 
@@ -43,16 +40,8 @@ class CatalogFilters:
     has_seats: bool | None = None
 
 
-def held_seats():
-    """Seats in unexpired holds of this tour (correlated subquery)."""
-    return (select(func.coalesce(func.sum(Order.adults + Order.children), 0))
-            .where(Order.tour_id == Tour.id, Order.status.in_(HOLDING_STATUSES),
-                   Order.hold_expires_at > func.now())
-            .correlate(Tour).scalar_subquery())
-
-
 def _query() -> tuple[Select, dict]:
-    free_seats = Tour.seats_total - Tour.seats_sold - held_seats()
+    free_seats = free_seats_expr()  # same rule as the checkout (services/seats.py)
     price_uah = func.round(Tour.base_price * CurrencyRate.rate_to_uah, 2)
     query = (select(Tour, price_uah.label("price_from_uah"), free_seats.label("free_seats"),
                     CurrencyRate.rate_to_uah)

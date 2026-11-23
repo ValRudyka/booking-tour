@@ -23,6 +23,8 @@ class _TestSettings(BaseSettings):
 
 TEST_DATABASE_URL = _TestSettings().test_database_url
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+# The `client` fixture runs the app lifespan; tests call the expiry job themselves.
+os.environ["ORDER_EXPIRY_INTERVAL_SEC"] = "0"
 
 # Uploaded photos go to a throw-away folder, never into backend/uploads.
 UPLOAD_DIR = tempfile.mkdtemp(prefix="tour-test-uploads-")
@@ -85,3 +87,18 @@ def manager_headers(manager):
     from tests.factories import headers_for
 
     return headers_for(manager)
+
+
+@pytest.fixture()
+def customer(db):
+    """A client (the `client` name is taken by the HTTP test client)."""
+    from tests.factories import make_user
+
+    return make_user(db)
+
+
+@pytest.fixture()
+def customer_headers(customer):
+    from tests.factories import headers_for
+
+    return headers_for(customer)
