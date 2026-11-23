@@ -75,8 +75,8 @@ def calculate(tour: Tour, rate: Decimal, adults: int, children: int,
     subtotal = tour_uah + insurance_uah + transfer_uah
     discount = promo_discount(promo, subtotal) if promo else Decimal("0.00")
     return PriceBreakdown(
-        adults=adults, children=children, currency=tour.currency, base_price=tour.base_price,
-        child_price=child_price, rate=rate, tour_uah=tour_uah,
+        adults=adults, children=children, currency=tour.currency, base_price=money(tour.base_price),
+        child_price=money(child_price), rate=rate, tour_uah=tour_uah,
         insurance_id=insurance.id if insurance else None,
         insurance_name=insurance.name_uk if insurance else None,
         insurance_per_tourist_uah=money(per_tourist), insurance_uah=insurance_uah,

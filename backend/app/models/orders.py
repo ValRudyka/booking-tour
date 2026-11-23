@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, str_enum
 from app.models.catalog import Tour
 from app.models.enums import DiscountType, OrderDocumentType, OrderStatus, PaymentStatus
+from app.models.reference import InsuranceType, TransferType
 
 # Source of order numbers TU-<year>-<nnnnnn>. A sequence hands out each value exactly once even
 # under concurrent checkouts (MAX()+1 would race), and the number is known before the INSERT.
@@ -81,12 +82,17 @@ class Order(TimestampMixin, Base):
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     tour: Mapped[Tour] = relationship()
+    promo: Mapped[PromoCode | None] = relationship()
+    insurance_type: Mapped[InsuranceType | None] = relationship()
+    transfer_type: Mapped[TransferType | None] = relationship()
     tourists: Mapped[list["OrderTourist"]] = relationship(back_populates="order",
-                                                          cascade="all, delete-orphan")
+                                                          cascade="all, delete-orphan",
+                                                          order_by="OrderTourist.id")
     documents: Mapped[list["OrderDocument"]] = relationship(back_populates="order",
                                                             cascade="all, delete-orphan")
+    # By id, not changed_at: changes made in one transaction share the same now().
     history: Mapped[list["OrderStatusHistory"]] = relationship(
-        back_populates="order", cascade="all, delete-orphan", order_by="OrderStatusHistory.changed_at")
+        back_populates="order", cascade="all, delete-orphan", order_by="OrderStatusHistory.id")
 
 
 class OrderTourist(Base):

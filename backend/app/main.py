@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.routers import auth, catalog, manager_tours, reference
+from app.routers import auth, catalog, manager_tours, orders, reference
 
 app = FastAPI(
     title="Tour website API",
@@ -20,6 +20,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(manager_tours.router, prefix="/api")
 app.include_router(catalog.router, prefix="/api")
 app.include_router(reference.router, prefix="/api")
+app.include_router(orders.router, prefix="/api")
 
 # Only tour photos are public. Mounting the whole upload_dir would also publish anything stored
 # there later (order documents, passports), so private files live outside uploads/tours and are

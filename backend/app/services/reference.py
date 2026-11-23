@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import City, Country, Hotel, Resort
+from app.models import City, Country, Hotel, InsuranceType, Resort, TransferType
 
 
 def countries(db: Session) -> Sequence[Country]:
@@ -31,3 +31,13 @@ def hotels(db: Session, resort_id: int | None, country_id: int | None) -> Sequen
 
 def cities(db: Session) -> Sequence[City]:
     return db.scalars(select(City).where(City.is_archived.is_(False)).order_by(City.name_uk)).all()
+
+
+def insurance_types(db: Session) -> Sequence[InsuranceType]:
+    return db.scalars(select(InsuranceType).where(InsuranceType.is_archived.is_(False))
+                      .order_by(InsuranceType.price_uah, InsuranceType.id)).all()
+
+
+def transfer_types(db: Session) -> Sequence[TransferType]:
+    return db.scalars(select(TransferType).where(TransferType.is_archived.is_(False))
+                      .order_by(TransferType.price_uah, TransferType.id)).all()

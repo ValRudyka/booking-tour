@@ -40,3 +40,13 @@ class HotelOut(BaseModel):
     name: str
     stars: int | None
     rating_avg: Decimal | None
+
+
+class ServiceOptionOut(BaseModel):
+    """Insurance or transfer option of the checkout (form 4.6.1.2, fields 4–5)."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name_uk: str
+    price_uah: Decimal   # insurance: per tourist; transfer: per order
+    is_default: bool
