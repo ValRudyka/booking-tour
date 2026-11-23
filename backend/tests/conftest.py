@@ -24,8 +24,6 @@ os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
 
-BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 
 @pytest.fixture(scope="session")
 def engine():
