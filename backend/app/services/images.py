@@ -1,6 +1,7 @@
 """Tour photo files (ТЗ form 4.6.2.1, field 18): validation, storage on disk, cleanup.
 
-Files live in settings.upload_dir/tours/<tour_id>/<random>.jpg|png and are served at /uploads/...
+Files live in settings.upload_dir/tours/<tour_id>/<random>.jpg|png and are served publicly at
+/uploads/tours/... (only the tours subfolder is mounted, see main.py).
 The database keeps only the relative path. The type is detected from the first bytes of the
 file (its "magic number"), not from the name or the Content-Type header, which the client controls.
 """
