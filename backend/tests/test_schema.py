@@ -10,44 +10,10 @@ from app.models import (Base, Country, Hotel, Order, OrderStatusHistory, OrderTo
                         Resort, Review, Tour, User)
 from app.models.enums import (Currency, OrderStatus, PaymentMethod, PaymentType, TourStatus,
                               TransportType, UserRole)
+from tests.factories import make_order, make_tour, make_user
 
 
 # ---------- helpers
-def make_user(db, phone="+380501111111", email="client@test.ua", role=UserRole.CLIENT) -> User:
-    user = User(phone=phone, email=email, password_hash="x", role=role,
-                last_name="Шевченко", first_name="Тарас")
-    db.add(user)
-    db.flush()
-    return user
-
-
-def make_tour(db, manager: User, **overrides) -> Tour:
-    resort = db.scalar(select(Resort).join(Country).where(Country.iso_code == "TR"))
-    hotel = Hotel(resort_id=resort.id, name="Test Hotel", stars=5)
-    db.add(hotel)
-    db.flush()
-    fields = dict(title_uk="Тест", title_en="Test", hotel_id=hotel.id,
-                  transport_type=TransportType.NONE, departure_from=date(2027, 6, 1),
-                  departure_to=date(2027, 6, 30), nights=7, seats_total=10,
-                  base_price=Decimal("800.00"), currency=Currency.EUR, created_by=manager.id)
-    fields.update(overrides)
-    tour = Tour(**fields)
-    db.add(tour)
-    db.flush()
-    return tour
-
-
-def make_order(db, client: User, tour: Tour, **overrides) -> Order:
-    fields = dict(number="TU-TEST-1", client_id=client.id, tour_id=tour.id,
-                  start_date=date(2027, 6, 10), end_date=date(2027, 6, 17), adults=2,
-                  total_uah=Decimal("77000.00"), rate_used=Decimal("48.0000"))
-    fields.update(overrides)
-    order = Order(**fields)
-    db.add(order)
-    db.flush()
-    return order
-
-
 def assert_rejected(db, fn):
     with pytest.raises(IntegrityError):
         with db.begin_nested():
@@ -91,8 +57,8 @@ def test_full_order_graph_and_cascade(db):
 
 # ---------- constraints
 def test_duplicate_phone_rejected(db):
-    make_user(db)
-    assert_rejected(db, lambda: make_user(db, email="other@test.ua"))
+    make_user(db, phone="+380501111111")
+    assert_rejected(db, lambda: make_user(db, phone="+380501111111", email="other@test.ua"))
 
 
 def test_unknown_role_rejected(db):
