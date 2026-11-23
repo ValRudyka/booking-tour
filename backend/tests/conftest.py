@@ -23,6 +23,8 @@ class _TestSettings(BaseSettings):
 
 TEST_DATABASE_URL = _TestSettings().test_database_url
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+# The `client` fixture runs the app lifespan; tests call the expiry job themselves.
+os.environ["ORDER_EXPIRY_INTERVAL_SEC"] = "0"
 
 # Uploaded photos go to a throw-away folder, never into backend/uploads.
 UPLOAD_DIR = tempfile.mkdtemp(prefix="tour-test-uploads-")
