@@ -22,5 +22,8 @@ class Settings(BaseSettings):
     max_image_mb: int = 5
     max_images_per_tour: int = 20
 
+    # How often the server cancels orders whose seat hold ran out; 0 turns the loop off.
+    order_expiry_interval_sec: int = 60
+
 
 settings = Settings()

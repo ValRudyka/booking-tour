@@ -19,6 +19,7 @@ from app.models.enums import OrderStatus, TourStatus
 from app.services import order_status
 from app.services.app_settings import booking_timeout_min
 from app.services.errors import DomainError
+from app.services.order_expiry import HOLD_EXPIRED_COMMENT
 from app.services.pricing import PriceBreakdown, calculate, is_child
 from app.services.promo import find_valid_promo
 from app.services.seats import HOLDING_STATUSES, free_seats, lock_tour
@@ -196,7 +197,7 @@ def expire_if_due(db: Session, order: Order, now: datetime | None = None) -> boo
     now = now or utcnow()
     if order.status in HOLDING_STATUSES and order.hold_expires_at is not None \
             and order.hold_expires_at <= now:
-        order_status.change_status(db, order, OrderStatus.CANCELLED, None, "Час на оплату минув")
+        order_status.change_status(db, order, OrderStatus.CANCELLED, None, HOLD_EXPIRED_COMMENT)
         return True
     return False
 
