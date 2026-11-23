@@ -44,3 +44,19 @@ def test_cities(client, db):
     city(db, "Kyiv").is_archived = True
     db.flush()
     assert "Kyiv" not in {c["name_en"] for c in client.get(f"{URL}/cities").json()}
+
+
+def test_insurance_and_transfer_types(client, db):
+    from app.models import InsuranceType, TransferType
+
+    insurance = client.get(f"{URL}/insurance-types").json()
+    assert [(i["name_uk"], i["price_uah"], i["is_default"]) for i in insurance] == [
+        ("Базове", "350.00", True), ("Розширене", "700.00", False), ("Без франшизи", "1000.00", False)]
+    transfers = client.get(f"{URL}/transfer-types").json()
+    assert [t["name_uk"] for t in transfers] == ["Груповий", "Індивідуальний", "VIP"]
+    db.get(InsuranceType, insurance[2]["id"]).is_archived = True
+    db.get(TransferType, transfers[2]["id"]).is_archived = True
+    db.flush()
+    assert len(client.get(f"{URL}/insurance-types").json()) == 2
+    assert [t["name_uk"] for t in client.get(f"{URL}/transfer-types").json()] == [
+        "Груповий", "Індивідуальний"]
