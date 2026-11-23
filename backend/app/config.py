@@ -1,5 +1,9 @@
 """Application settings, read from environment variables or the backend/.env file."""
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
@@ -12,6 +16,11 @@ class Settings(BaseSettings):
     secret_key: str = "dev-insecure-key-change-me-in-env-file-0000000000"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
+
+    # Uploaded files (tour photos). Served by the API at /uploads/...
+    upload_dir: Path = BACKEND_DIR / "uploads"
+    max_image_mb: int = 5
+    max_images_per_tour: int = 20
 
 
 settings = Settings()
