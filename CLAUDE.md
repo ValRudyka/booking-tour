@@ -103,8 +103,12 @@ insurance × tourists + transfer − promo discount`, child = under 12 at tour s
 
 Done: `feature/project-skeleton` (models, migrations, reference data, schema tests) →
 merged to `develop`, released as `v0.1.0` on `main`. `feature/auth` (register, login by
-phone or e-mail, `/me`, password change, `require_roles`, create_user CLI) — **ready, PR to
-`develop` pending**. `fix(db)` script `database/04_fix_owner_to_tour_app.sql` on `develop`.
+phone or e-mail, `/me`, password change, `require_roles`, create_user CLI) → merged to
+`develop` (PR #1). `fix/tests-read-env` (pytest reads `TEST_DATABASE_URL` from
+`backend/.env`, README points to the ТЗ) → merged to `develop` (PR #2, #3).
+`fix(db)` script `database/04_fix_owner_to_tour_app.sql` on `develop`.
+
+In progress: `feature/tours-catalog`.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — manager CRUD + publish/archive, program days, images; public
