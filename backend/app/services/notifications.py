@@ -42,7 +42,8 @@ def _client_text(order: Order, old: S, new: S) -> tuple[str, str] | None:
                 f"Причина: {order.reject_reason}. Кошти буде повернено в повному обсязі.")
     if new == S.COMPLETED:
         return (f"Подорож за замовленням {n} завершено",
-                "Дякуємо, що обрали нас! Поділіться враженнями — залиште відгук про тур.")
+                "Дякуємо, що обрали нас! Поділіться враженнями — залиште відгук про тур "
+                "у розділі «Мої замовлення»: оцініть готель і наш сервіс.")
     if new == S.CANCELLED and old != S.CANCEL_REQUESTED:
         # After a cancellation request the refund service sends one «скасовано, кошти повернено».
         return f"Замовлення {n} скасовано", "Бронювання скасовано, утримані місця звільнено."
