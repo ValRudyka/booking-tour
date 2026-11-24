@@ -304,3 +304,36 @@ def moderate_reject(db: Session, moderator: User, review_id: int, reason: str) -
     notify(db, review.user_id, "Відгук не опубліковано" if not was_published else "Відгук знято з публікації",
            f"Відгук про тур «{review.tour.title_uk}»: {reason}.{hint}", review.order)
     return review
+
+
+# ---------- public: published reviews only
+def public_reviews(db: Session, *, tour_id: int | None = None, hotel_id: int | None = None,
+                   page: int, page_size: int) -> tuple[list[Review], int]:
+    """Newest published first. 404 for a tour that is not public at all (a draft) or a hotel that
+    does not exist; reviews of archived tours stay visible (the trip took place)."""
+    from app.models import Tour
+    from app.models.enums import TourStatus
+
+    query = select(Review).where(Review.status == ReviewStatus.PUBLISHED)
+    if tour_id is not None:
+        tour = db.get(Tour, tour_id)
+        if tour is None or tour.status == TourStatus.DRAFT:
+            raise DomainError("Тур не знайдено", 404)
+        query = query.where(Review.tour_id == tour_id)
+    if hotel_id is not None:
+        if db.get(Hotel, hotel_id) is None:
+            raise DomainError("Готель не знайдено", 404)
+        query = query.where(Review.hotel_id == hotel_id)
+    total = db.scalar(select(func.count()).select_from(query.subquery()))
+    items = db.scalars(query.order_by(Review.moderated_at.desc().nulls_last(), Review.id.desc())
+                       .offset((page - 1) * page_size).limit(page_size)).all()
+    return list(items), total
+
+
+def tour_review_stats(db: Session, tour_id: int) -> tuple[int, Decimal | None]:
+    """(published reviews of the tour, average service rating, 2 places) for the tour page."""
+    count, average = db.execute(select(func.count(), func.avg(Review.service_rating))
+                                .where(Review.tour_id == tour_id,
+                                       Review.status == ReviewStatus.PUBLISHED)).one()
+    return count, (Decimal(average).quantize(Decimal("0.01"), ROUND_HALF_UP)
+                   if average is not None else None)

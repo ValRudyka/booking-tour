@@ -17,6 +17,7 @@ from app.models.enums import TourStatus, TransportType
 from app.schemas.reference import CityOut, CountryOut, HotelOut, ResortOut
 from app.schemas.tours import ProgramDayOut, TourCardOut, TourDetailOut, TourImageOut
 from app.services.errors import DomainError
+from app.services.reviews import tour_review_stats
 from app.services.seats import free_seats_expr
 
 SortKey = Literal["price_asc", "price_desc", "date_asc", "date_desc", "rating_desc"]
@@ -98,7 +99,7 @@ def _order(query: Select, sort: SortKey, expr: dict) -> Select:
         "price_desc": expr["price_uah"].desc(),
         "date_asc": Tour.departure_from.asc(),
         "date_desc": Tour.departure_from.desc(),
-        "rating_desc": Hotel.rating_avg.desc().nulls_last(),  # rating comes from reviews later
+        "rating_desc": Hotel.rating_avg.desc().nulls_last(),  # from published reviews
     }[sort]
     return query.order_by(order, Tour.id)  # id keeps pages stable when values are equal
 
@@ -136,6 +137,7 @@ def get_public_tour(db: Session, tour_id: int) -> TourDetailOut:
         raise DomainError("Тур не знайдено", 404)
     tour, price, free, rate = row
     child_price = tour.child_price if tour.child_price is not None else tour.base_price
+    reviews_count, service_rating_avg = tour_review_stats(db, tour.id)
     return TourDetailOut(
         **_card_fields(tour, price, free),
         child_price=tour.child_price,
@@ -144,4 +146,5 @@ def get_public_tour(db: Session, tour_id: int) -> TourDetailOut:
         hotel_description=tour.hotel.description,
         program_days=[ProgramDayOut.model_validate(d) for d in tour.program_days],
         images=[TourImageOut.model_validate(i) for i in tour.images],
+        reviews_count=reviews_count, service_rating_avg=service_rating_avg,
     )

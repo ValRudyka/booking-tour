@@ -163,3 +163,6 @@ class TourDetailOut(TourCardOut):
     hotel_description: str | None
     program_days: list[ProgramDayOut]
     images: list[TourImageOut]
+    # From published reviews (ТЗ 4.5.7); the hotel rating itself is hotel.rating_avg.
+    reviews_count: int = 0
+    service_rating_avg: Decimal | None = None

@@ -8,9 +8,9 @@ from fastapi.responses import FileResponse
 from app.core.deps import DbSession, OptionalUser, require_roles
 from app.models import User
 from app.models.enums import NameDisplay, UserRole
-from app.routers.order_views import my_review
+from app.routers.order_views import my_review, public_review
 from app.schemas.common import Page
-from app.schemas.reviews import MyReviewOut
+from app.schemas.reviews import MyReviewOut, PublicReviewOut
 from app.services import orders as order_service
 from app.services import private_files
 from app.services import reviews as review_service
@@ -96,3 +96,28 @@ def review_photo(review_id: int, photo_id: int, db: DbSession, viewer: OptionalU
         _raise(error)
     cache = "public, max-age=86400" if public else "private, no-store"
     return FileResponse(path, media_type=media_type, headers={"Cache-Control": cache})
+
+
+# ---------- public, no login: published reviews only, no personal data
+@router.get("/tours/{tour_id}/reviews", response_model=Page[PublicReviewOut],
+            summary="Відгуки про тур (опубліковані, нові спочатку)")
+def tour_reviews(tour_id: int, db: DbSession,
+                 page: Annotated[int, Query(ge=1)] = 1,
+                 page_size: Annotated[int, Query(ge=1, le=50)] = 10):
+    try:
+        items, total = review_service.public_reviews(db, tour_id=tour_id, page=page, page_size=page_size)
+    except DomainError as error:
+        _raise(error)
+    return Page(items=[public_review(r) for r in items], total=total, page=page, page_size=page_size)
+
+
+@router.get("/hotels/{hotel_id}/reviews", response_model=Page[PublicReviewOut],
+            summary="Відгуки про готель (опубліковані, нові спочатку)")
+def hotel_reviews(hotel_id: int, db: DbSession,
+                  page: Annotated[int, Query(ge=1)] = 1,
+                  page_size: Annotated[int, Query(ge=1, le=50)] = 10):
+    try:
+        items, total = review_service.public_reviews(db, hotel_id=hotel_id, page=page, page_size=page_size)
+    except DomainError as error:
+        _raise(error)
+    return Page(items=[public_review(r) for r in items], total=total, page=page, page_size=page_size)
