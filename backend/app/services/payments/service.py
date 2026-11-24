@@ -36,6 +36,9 @@ CENT = Decimal("0.01")
 CHECKOUT_SESSION_LIFETIME = timedelta(minutes=31)
 SUCCESS_EVENTS = {"checkout.session.completed", "checkout.session.async_payment_succeeded"}
 FAILURE_EVENTS = {"checkout.session.expired", "checkout.session.async_payment_failed"}
+# A pending refund finishes with refund.updated; any refund (even one that looked succeeded) can
+# fail later with refund.failed (Stripe docs "Refunds", test card 4000000000005126).
+REFUND_EVENTS = {"refund.updated", "refund.failed"}
 ZERO_TOTAL_COMMENT = "Промокод покрив повну вартість — оплата не потрібна"
 
 
@@ -210,7 +213,8 @@ def refund_late_payment(db: Session, order: Order, payment: Payment, gateway: Pa
     """CLAUDE.md rule: money that arrives for an order that can no longer be paid (cancelled, or the
     seats are gone) goes back automatically; the order status is not changed."""
     already = db.scalar(select(Payment).where(Payment.type == PaymentType.REFUND,
-                                              Payment.stripe_payment_intent == payment.stripe_payment_intent))
+                                              Payment.refund_of_id == payment.id,
+                                              Payment.status != TransactionStatus.FAILED))
     if already is not None:
         return "refunded"
     refund = gateway.refund(payment_intent=payment.stripe_payment_intent,
@@ -220,7 +224,7 @@ def refund_late_payment(db: Session, order: Order, payment: Payment, gateway: Pa
                                       "reason": "late_payment"})
     db.add(Payment(order_id=order.id, type=PaymentType.REFUND, method=PaymentMethod.CARD,
                    status=_refund_status(refund.status), amount_uah=payment.paid_amount,
-                   paid_amount=payment.paid_amount, received_at=utcnow(),
+                   paid_amount=payment.paid_amount, received_at=utcnow(), refund_of_id=payment.id,
                    stripe_payment_intent=payment.stripe_payment_intent, stripe_refund_id=refund.id,
                    controller_comment=f"Автоматичне повернення: {reason}"))
     db.flush()
@@ -243,6 +247,10 @@ def _find_payment(db: Session, session: GatewaySession) -> Payment | None:
 
 def handle_event(db: Session, event: GatewayEvent, gateway: PaymentGateway) -> str:
     """Apply one gateway event. Returns what happened (for logs and tests)."""
+    if event.type in REFUND_EVENTS and event.refund is not None:
+        from app.services.payments.refunds import handle_refund_event   # refunds imports this module
+
+        return handle_refund_event(db, event)
     if event.type not in SUCCESS_EVENTS | FAILURE_EVENTS or event.session is None:
         return "ignored"
     payment = _find_payment(db, event.session)

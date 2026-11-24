@@ -1,15 +1,18 @@
 """Client checkout and «Мої замовлення» (ТЗ 4.5.3, form 4.6.1.2). Role client, own orders only."""
 from typing import Annotated, NoReturn
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
 
 from app.core.deps import DbSession, require_roles
 from app.models import Order, User
-from app.models.enums import OrderStatus, UserRole
+from app.models.enums import CancelReason, OrderStatus, UserRole
 from app.schemas.common import Page
+from app.schemas.manager_orders import DocumentOut
 from app.schemas.orders import (OrderConfirm, OrderCreate, OrderDetailOut, OrderOut,
                                 OrderUpdate, OrderWithPriceOut, PriceOut, QuoteRequest)
 from app.schemas.payments import BankDetailsOut, PaymentShortOut, PayOut, PayRequest
+from app.services import cancellation, order_documents
 from app.services import orders as order_service
 from app.services.errors import DomainError
 from app.services.orders import HoldExpired
@@ -38,7 +41,9 @@ def _summary(order: Order) -> dict:
         promo_code=order.promo.code if order.promo else None, wishes=order.wishes,
         total_uah=order.total_uah, discount_uah=order.discount_uah, rate_used=order.rate_used,
         hold_expires_at=order.hold_expires_at, offer_accepted_at=order.offer_accepted_at,
-        created_at=order.created_at,
+        pnr=order.pnr, reject_reason=order.reject_reason,
+        cancel_reason_code=order.cancel_reason_code, cancel_reason=order.cancel_reason,
+        fpv_uah=order.fpv_uah, created_at=order.created_at,
     )
 
 
@@ -128,6 +133,26 @@ def cancel_order(order_id: int, db: DbSession, client: Client):
     return OrderDetailOut(**_detail(order))
 
 
+@router.post("/{order_id}/cancel-request", response_model=OrderDetailOut,
+             summary="Клопотання про скасування оплаченого замовлення (форма 4.6.1.3)")
+def cancel_request(order_id: int, db: DbSession, client: Client,
+                   reason_code: Annotated[CancelReason, Form(description="Причина скасування")],
+                   accept_penalty_policy: Annotated[bool, Form(
+                       description="Згода з утриманням фактично понесених витрат (ФПВ)")],
+                   details: Annotated[str | None, Form(description="Детальний опис")] = None,
+                   files: Annotated[list[UploadFile] | None, File(description="Довідки: PDF або JPG")] = None):
+    order = _own(db, client, order_id)
+    try:
+        cancellation.request_cancellation(
+            db, client, order, reason=reason_code, details=details,
+            accept_penalty_policy=accept_penalty_policy,
+            files=[(f.file, f.filename) for f in files or []])
+    except DomainError as error:
+        _fail(db, error)
+    db.commit()
+    return OrderDetailOut(**_detail(order))
+
+
 @router.post("/{order_id}/pay", response_model=PayOut,
              summary="Оплатити: картка (Stripe Checkout) або банківський переказ")
 def pay_order(order_id: int, data: PayRequest, db: DbSession, client: Client,
@@ -145,3 +170,21 @@ def pay_order(order_id: int, data: PayRequest, db: DbSession, client: Client,
                   checkout_url=result.checkout_url,
                   bank_details=BankDetailsOut(**result.bank) if result.bank else None,
                   message=result.message)
+
+
+# ---------- trip documents (ТЗ 4.5.4 step 5): from «Підтверджено» on, own orders only
+@router.get("/{order_id}/documents", response_model=list[DocumentOut],
+            summary="Документи на подорож (ваучер, квитки, поліс, інфолист)")
+def list_documents(order_id: int, db: DbSession, client: Client):
+    return order_documents.client_documents(_own(db, client, order_id))
+
+
+@router.get("/{order_id}/documents/{doc_id}/download", summary="Завантажити документ")
+def download_document(order_id: int, doc_id: int, db: DbSession, client: Client):
+    order = _own(db, client, order_id)
+    try:
+        path, name, media_type = order_documents.file_response_args(
+            order, order_documents.client_document(order, doc_id))
+    except DomainError as error:
+        _fail(db, error)
+    return FileResponse(path, media_type=media_type, filename=name)

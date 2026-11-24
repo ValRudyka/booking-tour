@@ -23,8 +23,9 @@ class _TestSettings(BaseSettings):
 
 TEST_DATABASE_URL = _TestSettings().test_database_url
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
-# The `client` fixture runs the app lifespan; tests call the expiry job themselves.
+# The `client` fixture runs the app lifespan; tests call the expiry/completion jobs themselves.
 os.environ["ORDER_EXPIRY_INTERVAL_SEC"] = "0"
+os.environ["ORDER_COMPLETION_INTERVAL_SEC"] = "0"
 # Never talk to Stripe from tests, whatever backend/.env says.
 os.environ["PAYMENT_GATEWAY"] = "mock"
 os.environ["STRIPE_SECRET_KEY"] = ""

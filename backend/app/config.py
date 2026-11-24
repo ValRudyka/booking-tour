@@ -41,5 +41,14 @@ class Settings(BaseSettings):
     bank_name: str = "Демо-банк"
     max_statement_mb: int = 10           # bank statement uploaded by the finance controller
 
+    # Order processing (feature/order-processing). Documents are private files (upload_dir/private).
+    max_document_mb: int = 10            # voucher / ticket / policy / client's evidence, each
+    max_documents_per_order: int = 20
+    max_cancel_evidence_files: int = 5   # form 4.6.1.3, field 4
+    # Trips end -> «Завершено» the day after end_date in this time zone (ТЗ table 4.1).
+    business_timezone: str = "Europe/Kyiv"
+    # How often the server completes finished trips; 0 turns the loop off (tests).
+    order_completion_interval_sec: int = 3600
+
 
 settings = Settings()

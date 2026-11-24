@@ -57,6 +57,22 @@ class OrderDocumentType(str, enum.Enum):
     AIR_TICKET = "air_ticket"              # Авіаквиток
     INSURANCE_POLICY = "insurance_policy"  # Страховий поліс
     INFO_SHEET = "info_sheet"              # Інфолист
+    # Uploaded by the client with a cancellation request (form 4.6.1.3, field 4); staff only.
+    CANCEL_EVIDENCE = "cancel_evidence"    # Довідка до клопотання про скасування
+
+
+# Documents the manager prepares for the trip (form 4.6.2.2, field 5.1); the client downloads them.
+TRIP_DOCUMENT_TYPES = frozenset({OrderDocumentType.VOUCHER, OrderDocumentType.AIR_TICKET,
+                                 OrderDocumentType.INSURANCE_POLICY, OrderDocumentType.INFO_SHEET})
+
+
+class CancelReason(str, enum.Enum):
+    """Довідник «Причини скасувань» (form 4.6.1.3, field 2)."""
+    ILLNESS = "illness"                    # Хвороба
+    CHANGE_OF_PLANS = "change_of_plans"    # Зміна планів
+    DATA_ERROR = "data_error"              # Помилка в даних
+    VISA_REFUSAL = "visa_refusal"          # Відмова у візі
+    OTHER = "other"                        # Інше
 
 
 class PaymentType(str, enum.Enum):

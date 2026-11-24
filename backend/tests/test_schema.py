@@ -135,3 +135,29 @@ def test_payment_amount_positive(db):
         db.flush()
 
     assert_rejected(db, pay)
+
+
+def test_refund_links_fpv_and_cancel_reason(db):
+    """Migration 'refunds and cancellation requests': only refunds point at a payment, ФПВ is
+    never negative, the cancellation reason comes from the list, Stripe refund ids are unique."""
+    manager = make_user(db, "+380502222222", "m@test.ua", UserRole.MANAGER)
+    order = make_order(db, make_user(db), make_tour(db, manager))
+    payment = Payment(order_id=order.id, type=PaymentType.PAYMENT, method=PaymentMethod.CARD,
+                      amount_uah=Decimal("100"))
+    db.add(payment)
+    db.flush()
+
+    def row(kind, refund_of=None, refund_id=None):
+        db.add(Payment(order_id=order.id, type=kind, method=PaymentMethod.CARD,
+                       amount_uah=Decimal("10"), refund_of_id=refund_of, stripe_refund_id=refund_id))
+        db.flush()
+
+    assert_rejected(db, lambda: row(PaymentType.PAYMENT, refund_of=payment.id))
+    row(PaymentType.REFUND, refund_of=payment.id, refund_id="re_1")
+    assert_rejected(db, lambda: row(PaymentType.REFUND, refund_of=payment.id, refund_id="re_1"))
+    assert_rejected(db, lambda: db.execute(
+        text("UPDATE orders SET fpv_uah = -1 WHERE id = :id"), {"id": order.id}))
+    assert_rejected(db, lambda: db.execute(
+        text("UPDATE orders SET cancel_reason_code = 'bored' WHERE id = :id"), {"id": order.id}))
+    db.execute(text("UPDATE orders SET cancel_reason_code = 'illness', fpv_uah = 0 WHERE id = :id"),
+               {"id": order.id})

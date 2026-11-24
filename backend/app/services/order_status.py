@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Order, OrderStatusHistory, User
 from app.models.enums import OrderStatus as S
+from app.services import notifications
 from app.services.errors import DomainError
 from app.services.seats import free_seats, lock_tour
 
@@ -57,7 +58,9 @@ def record_created(db: Session, order: Order, user: User | None) -> None:
 
 
 def change_status(db: Session, order: Order, new_status: S, user: User | None,
-                  comment: str | None = None) -> Order:
+                  comment: str | None = None, client_message: str | None = None) -> Order:
+    """`client_message`: the manager's text for the client (form 4.6.2.2, field 7), added to the
+    in-app notification that every client-visible transition creates (services/notifications)."""
     old_status = order.status
     if new_status not in TRANSITIONS[old_status]:
         raise DomainError(f"Неможливо змінити статус замовлення з «{STATUS_LABELS[old_status]}» "
@@ -76,5 +79,6 @@ def change_status(db: Session, order: Order, new_status: S, user: User | None,
 
     order.status = new_status
     _history(db, order, old_status, new_status, user, comment)
+    notifications.status_changed(db, order, old_status, new_status, user, comment, client_message)
     db.flush()
     return order

@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import Currency, OrderStatus, PaymentStatus
+from app.models.enums import CancelReason, Currency, OrderStatus, PaymentStatus
 from app.schemas.payments import PaymentShortOut
 
 
@@ -133,6 +133,11 @@ class OrderOut(BaseModel):
     rate_used: Decimal
     hold_expires_at: datetime | None
     offer_accepted_at: datetime | None
+    pnr: str | None                       # booking number, once confirmed
+    reject_reason: str | None
+    cancel_reason_code: CancelReason | None
+    cancel_reason: str | None
+    fpv_uah: Decimal | None               # ФПВ kept after a refund
     created_at: datetime
 
 

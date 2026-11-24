@@ -9,6 +9,8 @@ python-multipart==0.0.*
 pyjwt==2.*
 pwdlib[argon2]==0.2.*
 stripe==17.1.*
+# time zone database for zoneinfo (Windows has none built in)
+tzdata>=2025.2
 # tests
 pytest==8.*
 httpx==0.28.*

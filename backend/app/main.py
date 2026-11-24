@@ -1,7 +1,7 @@
 """FastAPI entry point. Run: uvicorn app.main:app --reload (from the backend folder)."""
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
@@ -12,35 +12,45 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.routers import (auth, catalog, finance, manager_tours, orders, passports, payments,
-                         reference)
+from app.routers import (auth, catalog, finance, manager_orders, manager_tours, notifications, orders,
+                         passports, payments, reference)
+from app.services.order_completion import run_completion_job
 from app.services.order_expiry import run_expiry_job
 
 logger = logging.getLogger("tour.orders")
 
 
-async def expiry_loop(interval_sec: float) -> None:
-    """Cancel orders with expired seat holds every `interval_sec` seconds.
-    The job is synchronous (SQLAlchemy sync), so it runs in a worker thread and does not block
-    the event loop; an error is logged and the loop goes on."""
+async def periodic(name: str, job: Callable[[], int], interval_sec: float, done: str) -> None:
+    """Run a System job every `interval_sec` seconds. The jobs are synchronous (SQLAlchemy sync),
+    so they run in a worker thread and do not block the event loop; an error is logged and the
+    loop goes on. `job` is a lambda so tests can replace the module-level function."""
     while True:
         try:
-            count = await asyncio.to_thread(run_expiry_job)
+            count = await asyncio.to_thread(job)
             if count:
-                logger.info("Cancelled %d order(s) with an expired seat hold", count)
+                logger.info(done, count)
         except Exception:
-            logger.exception("Order expiry job failed")
+            logger.exception("%s job failed", name)
         await asyncio.sleep(interval_sec)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Startup: start the expiry loop (unless ORDER_EXPIRY_INTERVAL_SEC=0). Shutdown: stop it."""
-    task = None
+    """Startup: start the System jobs (an interval of 0 turns a job off, as in tests):
+    - expiry: cancel orders whose seat hold ran out (ORDER_EXPIRY_INTERVAL_SEC, 60);
+    - completion: «Завершено» after the trip (ORDER_COMPLETION_INTERVAL_SEC, 3600).
+    Shutdown: stop them."""
+    tasks = []
     if settings.order_expiry_interval_sec > 0:
-        task = asyncio.create_task(expiry_loop(settings.order_expiry_interval_sec))
+        tasks.append(asyncio.create_task(periodic(
+            "Order expiry", lambda: run_expiry_job(), settings.order_expiry_interval_sec,
+            "Cancelled %d order(s) with an expired seat hold")))
+    if settings.order_completion_interval_sec > 0:
+        tasks.append(asyncio.create_task(periodic(
+            "Order completion", lambda: run_completion_job(), settings.order_completion_interval_sec,
+            "Completed %d order(s) after the trip")))
     yield
-    if task is not None:
+    for task in tasks:
         task.cancel()
         with suppress(asyncio.CancelledError):
             await task
@@ -55,12 +65,15 @@ app = FastAPI(
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(manager_tours.router, prefix="/api")
+app.include_router(manager_orders.router, prefix="/api")
 app.include_router(catalog.router, prefix="/api")
 app.include_router(reference.router, prefix="/api")
 app.include_router(orders.router, prefix="/api")
 app.include_router(passports.router, prefix="/api")
 app.include_router(payments.router, prefix="/api")
 app.include_router(finance.router, prefix="/api")
+app.include_router(finance.orders_router, prefix="/api")
+app.include_router(notifications.router, prefix="/api")
 
 # Only tour photos are public. Mounting the whole upload_dir would also publish anything stored
 # there later (order documents, passports), so private files live outside uploads/tours and are
