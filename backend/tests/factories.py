@@ -110,7 +110,7 @@ def make_paid_order(db, client: User, tour: Tour, status=OrderStatus.PAID, total
                             birth_date=date(1990, 1, 1), passport_number=f"FX{100000 + i}",
                             passport_expiry=date.today() + timedelta(days=3 * 365)))
     tour.seats_sold += order.adults + order.children
-    for amount, method in payments or [(total, PaymentMethod.CARD)]:
+    for amount, method in [(total, PaymentMethod.CARD)] if payments is None else payments:
         add_payment(db, order, amount, method)
     db.flush()
     db.refresh(order)

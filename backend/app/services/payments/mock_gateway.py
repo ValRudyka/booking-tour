@@ -22,6 +22,10 @@ class MockGateway(PaymentGateway):
         self.expire_calls: list[str] = []
         self.refunds: list[dict] = []
         self.fail_with: GatewayError | None = None   # tests: make the next call fail
+        # Tests: what the next new refunds do, in order ("succeeded", "pending", ... or a
+        # GatewayError to raise); when empty, refunds succeed.
+        self.refund_outcomes: list[str | GatewayError] = []
+        self.refund_calls = 0
 
     def _maybe_fail(self) -> None:
         if self.fail_with is not None:
@@ -59,15 +63,35 @@ class MockGateway(PaymentGateway):
         return True
 
     def refund(self, *, payment_intent, amount_minor, idempotency_key, metadata):
+        self.refund_calls += 1
         self._maybe_fail()
         for done in self.refunds:            # same idempotency key -> same refund, like Stripe
             if done["idempotency_key"] == idempotency_key:
-                return GatewayRefund(id=done["id"], status="succeeded")
+                if (done["payment_intent"], done["amount_minor"]) != (payment_intent, amount_minor):
+                    raise GatewayError("Keys for idempotent requests can only be used with the "
+                                       "same parameters they were first used with", "idempotency_error")
+                return self._as_refund(done)
+        outcome = self.refund_outcomes.pop(0) if self.refund_outcomes else "succeeded"
+        if isinstance(outcome, GatewayError):
+            raise outcome
         refund_id = f"mock_re_{len(self.refunds) + 1}"
         self.refunds.append({"id": refund_id, "payment_intent": payment_intent,
                              "amount_minor": amount_minor, "idempotency_key": idempotency_key,
-                             "metadata": metadata})
-        return GatewayRefund(id=refund_id, status="succeeded")
+                             "metadata": metadata, "status": outcome})
+        return self._as_refund(self.refunds[-1])
+
+    @staticmethod
+    def _as_refund(done: dict) -> GatewayRefund:
+        return GatewayRefund(id=done["id"], status=done["status"], amount_minor=done["amount_minor"],
+                             payment_intent=done["payment_intent"], metadata=dict(done["metadata"]))
+
+    def refund_event(self, refund_id: str, status: str) -> GatewayEvent:
+        """What Stripe sends when a refund changes: refund.updated, or refund.failed."""
+        done = next(r for r in self.refunds if r["id"] == refund_id)
+        done["status"] = status
+        return GatewayEvent(id=f"mock_evt_{uuid.uuid4().hex[:8]}",
+                            type="refund.failed" if status == "failed" else "refund.updated",
+                            session=None, refund=self._as_refund(done))
 
     def parse_webhook(self, payload: bytes, signature: str | None) -> GatewayEvent:
         raise InvalidSignature("The mock gateway does not receive webhooks")

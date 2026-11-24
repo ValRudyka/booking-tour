@@ -62,6 +62,7 @@ app.include_router(orders.router, prefix="/api")
 app.include_router(passports.router, prefix="/api")
 app.include_router(payments.router, prefix="/api")
 app.include_router(finance.router, prefix="/api")
+app.include_router(finance.orders_router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 
 # Only tour photos are public. Mounting the whole upload_dir would also publish anything stored

@@ -7,11 +7,12 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from fastapi.responses import FileResponse
 
 from app.core.deps import DbSession, require_roles
-from app.models import Order, User
+from app.models import User
 from app.models.enums import OrderDocumentType, OrderStatus, UserRole
 from app.schemas.common import Page
+from app.routers.order_views import order_row, staff_detail as detail
 from app.schemas.manager_orders import (AssignIn, ClientMessage, ConfirmIn, ManagerOrderDetailOut,
-                                        ManagerOrderOut, ManagerOrderPatch, PersonOut, RejectIn,
+                                        ManagerOrderOut, ManagerOrderPatch, RejectIn,
                                         StaffDocumentOut)
 from app.services import order_documents, order_processing as service, private_files
 from app.services.errors import DomainError
@@ -24,34 +25,6 @@ Manager = Annotated[User, Depends(require_roles(UserRole.MANAGER))]
 def _raise(db, error: DomainError) -> NoReturn:
     # Nothing is committed: the request's session is closed and its changes are dropped.
     raise HTTPException(status_code=error.status_code, detail=error.message) from None
-
-
-def _row(order: Order) -> dict:
-    client = order.client
-    return dict(id=order.id, number=order.number, status=order.status,
-                payment_status=order.payment_status, tour_id=order.tour_id,
-                tour_title_uk=order.tour.title_uk, hotel_name=order.tour.hotel.name,
-                start_date=order.start_date, end_date=order.end_date, adults=order.adults,
-                children=order.children, total_uah=order.total_uah,
-                client_name=f"{client.last_name} {client.first_name}", manager_id=order.manager_id,
-                manager_name=service.short_name(order.manager), pnr=order.pnr,
-                created_at=order.created_at)
-
-
-def detail(order: Order) -> ManagerOrderDetailOut:
-    client = order.client
-    return ManagerOrderDetailOut(
-        **_row(order),
-        client=PersonOut(id=client.id, last_name=client.last_name, first_name=client.first_name,
-                         phone=client.phone, email=client.email),
-        wishes=order.wishes, insurance_type_id=order.insurance_type_id,
-        transfer_type_id=order.transfer_type_id,
-        promo_code=order.promo.code if order.promo else None, discount_uah=order.discount_uah,
-        operator_deadline=order.operator_deadline, internal_comment=order.internal_comment,
-        reject_reason=order.reject_reason, cancel_reason_code=order.cancel_reason_code,
-        cancel_reason=order.cancel_reason, fpv_uah=order.fpv_uah, tourists=order.tourists,
-        payments=order.payments, documents=sorted(order.documents, key=lambda d: d.id),
-        history=order.history)
 
 
 @router.get("", response_model=Page[ManagerOrderOut], summary="Вхідні заявки (без архівних)")
@@ -68,7 +41,7 @@ def list_orders(db: DbSession, manager: Manager,
     items, total = service.list_orders(db, manager, statuses=status_, tour_id=tour_id,
                                        start_from=start_from, start_to=start_to, number=number,
                                        mine=mine, overdue=overdue, page=page, page_size=page_size)
-    return Page(items=[ManagerOrderOut(**_row(o)) for o in items], total=total, page=page,
+    return Page(items=[ManagerOrderOut(**order_row(o)) for o in items], total=total, page=page,
                 page_size=page_size)
 
 

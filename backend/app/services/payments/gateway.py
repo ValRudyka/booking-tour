@@ -24,20 +24,25 @@ class GatewaySession:
 
 
 @dataclass
+class GatewayRefund:
+    id: str
+    status: str                    # pending | requires_action | succeeded | failed | canceled
+    amount_minor: int | None = None
+    payment_intent: str | None = None
+    metadata: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
 class GatewayEvent:
     id: str
     type: str
     session: GatewaySession | None  # None for events that are not about a Checkout Session
-
-
-@dataclass
-class GatewayRefund:
-    id: str
-    status: str                    # pending | succeeded | failed | ...
+    refund: GatewayRefund | None = None   # refund.updated / refund.failed
 
 
 class GatewayError(Exception):
-    """The gateway is unreachable or rejected the request (code = Stripe error code, if any)."""
+    """The gateway is unreachable or rejected the request (code = Stripe error code, if any;
+    "idempotency_error" = the key was already used with other parameters)."""
 
     def __init__(self, message: str, code: str | None = None):
         super().__init__(message)

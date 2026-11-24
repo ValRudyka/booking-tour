@@ -11,7 +11,9 @@ config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Keep the app's loggers working: the tests run Alembic in-process, and the default
+    # (disable_existing_loggers=True) silently switched off e.g. "tour.payments".
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

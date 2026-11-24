@@ -4,8 +4,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import (Currency, OrderStatus, PaymentMethod, PaymentStatus, PaymentType,
-                              TransactionStatus)
+from app.models.enums import (CancelReason, Currency, OrderStatus, PaymentMethod, PaymentStatus,
+                              PaymentType, TransactionStatus)
 
 
 class PayRequest(BaseModel):
@@ -78,3 +78,49 @@ class FinancePaymentOut(BaseModel):
     stripe_payment_intent: str | None
     stripe_refund_id: str | None
     created_at: datetime
+
+
+class RefundQueueItem(BaseModel):
+    """A row of the finance queue «Повернення» (scenario 4.5.6)."""
+    order_id: int
+    order_number: str
+    order_status: OrderStatus
+    payment_status: PaymentStatus
+    # cancel_request | rejected | refund_failed (money back with us) | refund_pending (Stripe) |
+    # unfinished_transfer (partly paid by transfer, the rest never came)
+    kind: str
+    client_name: str
+    total_uah: Decimal
+    paid_uah: Decimal                       # succeeded payments
+    refunded_uah: Decimal                   # succeeded refunds
+    pending_refund_uah: Decimal
+    kept_uah: Decimal                       # still with the company
+    fpv_uah: Decimal | None                 # ФПВ already decided (after a first refund attempt)
+    cancel_reason_code: CancelReason | None
+    cancel_reason: str | None
+    reject_reason: str | None
+    created_at: datetime
+
+
+class RefundRowOut(BaseModel):
+    """One refund row this request created."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    refund_of_id: int | None                # the payment the money is returned from
+    method: PaymentMethod
+    status: TransactionStatus
+    amount_uah: Decimal
+    stripe_refund_id: str | None
+
+
+class RefundOut(BaseModel):
+    order_id: int
+    order_number: str
+    order_status: OrderStatus
+    payment_status: PaymentStatus
+    fpv_uah: Decimal | None
+    refunded_now_uah: Decimal
+    rows: list[RefundRowOut]
+    finished: bool                          # False: a Stripe refund is pending (webhook finishes it)
+    message: str

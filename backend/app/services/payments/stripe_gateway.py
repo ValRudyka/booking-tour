@@ -32,6 +32,16 @@ def _session(obj: Any) -> GatewaySession:
                           metadata={k: str(v) for k, v in (data.get("metadata") or {}).items()})
 
 
+def _refund(obj: Any) -> GatewayRefund:
+    data = _plain(obj)
+    intent = data.get("payment_intent")
+    if isinstance(intent, dict):
+        intent = intent.get("id")
+    return GatewayRefund(id=data["id"], status=data.get("status") or "pending",
+                         amount_minor=data.get("amount"), payment_intent=intent,
+                         metadata={k: str(v) for k, v in (data.get("metadata") or {}).items()})
+
+
 class StripeGateway(PaymentGateway):
     name = "stripe"
 
@@ -83,13 +93,18 @@ class StripeGateway(PaymentGateway):
             raise GatewayError(str(error), getattr(error, "code", None)) from error
 
     def refund(self, *, payment_intent, amount_minor, idempotency_key, metadata):
+        """Partial refunds are allowed (amount <= what is left of the charge). Retrying with the
+        same idempotency key returns the same refund; the same key with other parameters is
+        refused by Stripe (IdempotencyError)."""
         try:
             refund = self._client.v1.refunds.create(
                 params={"payment_intent": payment_intent, "amount": amount_minor, "metadata": metadata},
                 options={"idempotency_key": idempotency_key})
+        except stripe.IdempotencyError as error:
+            raise GatewayError(str(error), "idempotency_error") from error
         except stripe.StripeError as error:
             raise GatewayError(str(error), getattr(error, "code", None)) from error
-        return GatewayRefund(id=refund.id, status=refund.status)
+        return _refund(refund)
 
     def parse_webhook(self, payload: bytes, signature: str | None) -> GatewayEvent:
         if not self._webhook_secret:
@@ -99,5 +114,7 @@ class StripeGateway(PaymentGateway):
         except (stripe.SignatureVerificationError, ValueError) as error:
             raise InvalidSignature(str(error)) from error
         obj = event.data.object
-        session = _session(obj) if _plain(obj).get("object") == "checkout.session" else None
-        return GatewayEvent(id=event.id, type=event.type, session=session)
+        kind = _plain(obj).get("object")
+        return GatewayEvent(id=event.id, type=event.type,
+                            session=_session(obj) if kind == "checkout.session" else None,
+                            refund=_refund(obj) if kind == "refund" else None)
