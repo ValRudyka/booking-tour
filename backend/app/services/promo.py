@@ -1,4 +1,5 @@
-"""Promo codes at checkout (ТЗ 4.5.3 step 5, form 4.6.2.3). Read-only use: the admin manages them.
+"""Promo codes at checkout (ТЗ 4.5.3 step 5, form 4.6.2.3). Read-only use here: managers create
+and edit them (ТЗ 4.3, services/promo_admin.py).
 
 A code is accepted when it is active, today is within valid_from..valid_to, the order amount
 (before the discount) reaches min_order_uah and the usage limit is not used up.
