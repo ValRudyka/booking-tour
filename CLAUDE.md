@@ -194,13 +194,15 @@ and confirmation with private statements; data migration `bank_transfer_hold_hou
 `feature/order-processing` (manager take/assign/confirm/reject/documents/archive, private order
 documents, client documents and cancellation request with evidence, in-app notifications, finance
 refund queue and refunds via Stripe or transfer with ФПВ, refund webhooks, completion job + CLI;
-migration `refunds and cancellation requests`) — **ready, PR to `develop` pending**.
+migration `refunds and cancellation requests`) → merged to `develop` (PR #8).
+
+In progress: `feature/reviews`.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
 2. `feature/orders-checkout` — **done** (PR #6)
 3. `feature/stripe-payments` — **done** (PR #7)
-4. `feature/order-processing` — manager takes/confirms/rejects, PNR, document upload, cancel + refunds (4.5.4–4.5.6, 4.5.9)
+4. `feature/order-processing` — **done** (PR #8)
 5. `feature/reviews` — reviews + moderation + hotel rating (4.5.7)
 6. `feature/admin` — users/roles, reference data, rates, settings, promo codes (4.5.8, 4.6.2.3, 4.6.4.1)
 7. `feature/frontend-public` — catalog, tour page, auth, checkout, personal account
