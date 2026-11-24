@@ -148,6 +148,20 @@ Conventions:
   `review_premoderation` (default true). Photos: private `upload_dir/private/reviews/<id>/`,
   served by `/api/reviews/{id}/photos/{pid}` — public only when published, else the author and
   managers (404 for others; `OptionalUser` dependency). Public schemas carry no personal data.
+- Administration (role admin; never order processing, refunds, payments, moderation or promo
+  codes — ТЗ 7 separation of duties, tested in `test_separation_of_duties.py`):
+  `services/admin_users.py` (staff only via admin; roles change only between staff roles; no
+  self-block/self-demote; the last active admin stays — admin rows locked before counting),
+  `services/reference_admin.py` (archive/restore; DELETE only when `references()` finds nothing;
+  exactly one default insurance/transfer type, partial unique index), `services/settings_admin.py`
+  (form 4.6.4.1; keys stay in .env, only `gateway_status()`), `services/maintenance.py` (app-wide
+  dependency; open list in its docstring). Tokens carry `iat`; `users.tokens_valid_after` (whole
+  seconds, `token_cutoff()`) is set on admin password reset; `user_from_token()` checks it.
+- Audit: every admin change and every promo code change calls `services/audit.py: audit()` with
+  old/new values; fields named like password/secret/key/token/hash are dropped. `audit_log` is
+  append-only (DB trigger refuses UPDATE/DELETE).
+- Promo codes are managed by managers (`services/promo_admin.py`, `/api/manager/promo-codes`);
+  a code used by any order cannot be deleted or renamed, only deactivated.
 - `alembic/env.py` uses `fileConfig(..., disable_existing_loggers=False)`: tests run Alembic
   in-process, and the default switched off the app's loggers.
 - Every new feature ships with tests; `pytest` must be green before a PR.
@@ -209,6 +223,11 @@ migration `refunds and cancellation requests`) → merged to `develop` (PR #8).
 `feature/reviews` (client reviews with private photos and one resubmission, manager
 moderation with publish/reject/unpublish, hotel rating recalculation, public reviews, review numbers
 on the tour page, dev `complete_orders --order-id N --force`; migration `review moderation`)
+→ merged to `develop` (PR #9).
+
+`feature/admin` (users and roles with safety rules and token cut-off, reference data with
+archive/restore and single defaults, global settings, gateway status, maintenance mode, audit log
+viewer with an append-only trigger, promo codes for managers; migration `admin`)
 — **ready, PR to `develop` pending**.
 
 Backlog, in order (one branch each):
@@ -216,8 +235,8 @@ Backlog, in order (one branch each):
 2. `feature/orders-checkout` — **done** (PR #6)
 3. `feature/stripe-payments` — **done** (PR #7)
 4. `feature/order-processing` — **done** (PR #8)
-5. `feature/reviews` — reviews + moderation + hotel rating (4.5.7), PR pending
-6. `feature/admin` — users/roles, reference data, rates, settings, promo codes (4.5.8, 4.6.2.3, 4.6.4.1)
+5. `feature/reviews` — **done** (PR #9)
+6. `feature/admin` — users/roles, reference data, rates, settings, promo codes (4.5.8, 4.6.2.3, 4.6.4.1), PR pending
 7. `feature/frontend-public` — catalog, tour page, auth, checkout, personal account
 8. `feature/frontend-backoffice` — manager, finance, admin pages
 9. `feature/favorites-history` 10. `feature/notifications-email` 11. `feature/reports` (Excel/PDF)

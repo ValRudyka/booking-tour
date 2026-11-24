@@ -66,6 +66,7 @@ entity users {
    consent_at : timestamptz
  * loyalty_points : int
  * is_active : bool
+   tokens_valid_after : timestamptz
  * updated_at : timestamptz
  * created_at : timestamptz
 }

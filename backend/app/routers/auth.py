@@ -7,6 +7,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.core.deps import CurrentUser, DbSession
 from app.core.security import create_access_token
 from app.schemas.auth import PasswordChange, ProfileUpdate, RegisterRequest, TokenOut, UserOut
+from app.models.enums import UserRole
+from app.services import maintenance
 from app.services import users as user_service
 from app.services.users import UserError
 
@@ -38,6 +40,8 @@ def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession):
             detail="Невірний логін або пароль",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if user.role == UserRole.CLIENT and maintenance.is_on(db):
+        raise maintenance.unavailable()          # staff can still log in to switch it off
     token = create_access_token(user.id, user.role.value)
     return TokenOut(access_token=token, user=UserOut.model_validate(user))
 

@@ -3,7 +3,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import CheckConstraint, ForeignKey, Numeric, SmallInteger, String, Text, func
+from sqlalchemy import (CheckConstraint, ForeignKey, Index, Numeric, SmallInteger, String, Text, func,
+                        text)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -66,6 +67,9 @@ class Hotel(Base):
 class InsuranceType(Base):
     """Довідник «Страхування»: Базове / Розширене / Без франшизи."""
     __tablename__ = "insurance_types"
+    # At most one default in the database itself; the service keeps exactly one.
+    __table_args__ = (Index("uq_insurance_types_single_default", "is_default", unique=True,
+                            postgresql_where=text("is_default")),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name_uk: Mapped[str] = mapped_column(String(100))
@@ -77,6 +81,9 @@ class InsuranceType(Base):
 class TransferType(Base):
     """Довідник «Трансфер»: Груповий / Індивідуальний / VIP."""
     __tablename__ = "transfer_types"
+    # At most one default in the database itself; the service keeps exactly one.
+    __table_args__ = (Index("uq_transfer_types_single_default", "is_default", unique=True,
+                            postgresql_where=text("is_default")),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name_uk: Mapped[str] = mapped_column(String(100))

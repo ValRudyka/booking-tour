@@ -13,7 +13,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-from app.core.security import decode_access_token
+from app.core.security import decode_token
 from app.db import get_db
 from app.models import User
 from app.models.enums import UserRole
@@ -25,18 +25,32 @@ optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_e
 DbSession = Annotated[Session, Depends(get_db)]
 
 
-def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSession) -> User:
-    credentials_error = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Не вдалося підтвердити облікові дані",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    user_id = decode_access_token(token)
-    if user_id is None:
-        raise credentials_error
+def user_from_token(db: Session, token: str | None) -> User | None:
+    """The active user the token belongs to, or None: invalid/expired token, unknown or blocked
+    user (blocked users lose access immediately), or a token issued before the user's
+    tokens_valid_after (password reset by the admin). The role is always read from the database,
+    so a role change also takes effect immediately."""
+    if not token:
+        return None
+    claims = decode_token(token)
+    if claims is None:
+        return None
+    user_id, issued_at = claims
     user = db.get(User, user_id)
-    if user is None or not user.is_active:  # blocked users lose access immediately
-        raise credentials_error
+    if user is None or not user.is_active:
+        return None
+    if user.tokens_valid_after is not None and (
+            issued_at is None or issued_at < int(user.tokens_valid_after.timestamp())):
+        return None
+    return user
+
+
+def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSession) -> User:
+    user = user_from_token(db, token)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Не вдалося підтвердити облікові дані",
+                            headers={"WWW-Authenticate": "Bearer"})
     return user
 
 
@@ -46,11 +60,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 def get_optional_user(token: Annotated[str | None, Depends(optional_oauth2_scheme)],
                       db: DbSession) -> User | None:
     """The logged-in user, or None for a guest (an invalid token also counts as a guest)."""
-    if not token:
-        return None
-    user_id = decode_access_token(token)
-    user = db.get(User, user_id) if user_id is not None else None
-    return user if user is not None and user.is_active else None
+    return user_from_token(db, token)
 
 
 OptionalUser = Annotated[User | None, Depends(get_optional_user)]

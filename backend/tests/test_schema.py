@@ -179,3 +179,23 @@ def test_review_status_and_hotel_required(db):
     review(hotel_id=tour.hotel_id)
     assert_rejected(db, lambda: db.execute(text("UPDATE reviews SET status = 'hidden'")))
     assert db.execute(text("SELECT value FROM settings WHERE key = 'review_premoderation'")).scalar() is True
+
+
+def test_single_default_service_and_append_only_audit_log(db):
+    """Migration 'admin': one default insurance/transfer type; audit_log refuses UPDATE/DELETE."""
+    from app.models import AuditLog, InsuranceType, TransferType
+
+    for model in (InsuranceType, TransferType):
+        assert db.query(model).filter(model.is_default.is_(True)).count() == 1
+        assert_rejected(db, lambda: (db.add(model(name_uk="Ще один", price_uah=Decimal("1"),
+                                                  is_default=True)), db.flush()))
+    entry = AuditLog(user_id=None, entity="test", entity_id="1", action="created")
+    db.add(entry)
+    db.flush()
+    from sqlalchemy.exc import DBAPIError
+
+    for statement in ("UPDATE audit_log SET action = 'changed' WHERE id = :id",
+                      "DELETE FROM audit_log WHERE id = :id"):
+        with pytest.raises(DBAPIError, match="append-only"):
+            with db.begin_nested():
+                db.execute(text(statement), {"id": entry.id})
