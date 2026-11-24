@@ -4,7 +4,6 @@ Rules that need the whole tour (date order, program length vs. nights, flight nu
 air) are checked here on the merged values, so a PATCH of one field cannot break the tour.
 """
 import re
-from datetime import date
 from decimal import Decimal
 from typing import Any, BinaryIO
 
@@ -14,6 +13,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.config import settings
 from app.models import AuditLog, City, Country, Hotel, Tour, TourImage, TourProgramDay, User
 from app.models.enums import TourStatus, TransportType
+from app.services import clock
 from app.services import images as image_files
 from app.services.errors import DomainError
 
@@ -221,8 +221,8 @@ def _validate_for_publish(db: Session, tour: Tour) -> None:
     Re-runs the form checks because the hotel or city may have been archived since saving."""
     _check_fields(db, {field: getattr(tour, field) for field in TOUR_FIELDS}, tour.seats_sold)
     _check_program(_current_program(tour), tour.nights)
-    # A range is still sellable while at least its last start date is ahead.
-    if tour.departure_to < date.today():
+    # Sellable while a start date from tomorrow remains (the same rule as the catalog).
+    if tour.departure_to < clock.tomorrow():
         raise _error("Усі дати заїздів уже минули — оновіть дати перед публікацією")
 
 

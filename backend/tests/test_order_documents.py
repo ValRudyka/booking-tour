@@ -1,5 +1,5 @@
 """Order documents: private storage, upload rules, «Документи готові», client downloads."""
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -7,6 +7,7 @@ import pytest
 from app.config import settings
 from app.models import OrderDocument
 from app.models.enums import OrderDocumentType, OrderStatus, UserRole
+from app.services import clock
 from tests.factories import headers_for, make_active_tour, make_paid_order, make_user
 
 URL = "/api/manager/orders"
@@ -19,7 +20,7 @@ def order(db, customer, manager):
     tour = make_active_tour(db, manager)
     return make_paid_order(db, customer, tour, status=OrderStatus.CONFIRMED, manager_id=manager.id,
                            start_date=tour.departure_from, end_date=tour.departure_from + timedelta(days=7),
-                           pnr="ABC123", operator_deadline=date.today() + timedelta(days=5))
+                           pnr="ABC123", operator_deadline=clock.today() + timedelta(days=5))
 
 
 def upload(client, headers, order_id, doc_type="voucher", files=None):

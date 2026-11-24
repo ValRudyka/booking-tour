@@ -16,6 +16,7 @@ from app.models import CurrencyRate, Hotel, Resort, Tour
 from app.models.enums import TourStatus, TransportType
 from app.schemas.reference import CityOut, CountryOut, HotelOut, ResortOut
 from app.schemas.tours import ProgramDayOut, TourCardOut, TourDetailOut, TourImageOut
+from app.services import clock
 from app.services.errors import DomainError
 from app.services.reviews import tour_review_stats
 from app.services.seats import free_seats_expr
@@ -49,8 +50,10 @@ def _query() -> tuple[Select, dict]:
              .join(Hotel, Tour.hotel_id == Hotel.id)
              .join(Resort, Hotel.resort_id == Resort.id)
              .join(CurrencyRate, CurrencyRate.currency == Tour.currency)
-             # Only published tours that still have a start date ahead are for sale.
-             .where(Tour.status == TourStatus.ACTIVE, Tour.departure_to >= date.today())
+             # For sale = published and at least one start date from tomorrow (Kyiv), the
+             # earliest date an order accepts (services/orders.py). On its last start day a
+             # tour is no longer listed, and its page is 404.
+             .where(Tour.status == TourStatus.ACTIVE, Tour.departure_to >= clock.tomorrow())
              .options(selectinload(Tour.hotel).selectinload(Hotel.resort).selectinload(Resort.country),
                       selectinload(Tour.departure_city), selectinload(Tour.images)))
     return query, {"free_seats": free_seats, "price_uah": price_uah}

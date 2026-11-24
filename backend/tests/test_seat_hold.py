@@ -1,7 +1,7 @@
 """Seat holds (ТЗ 4.4.1): holds reduce free seats, expired holds do not, the last seat goes to one client."""
 import threading
 import time
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import delete
@@ -11,6 +11,7 @@ from app.models import Hotel, Order, Tour, User
 from app.models.enums import Currency, OrderStatus, TourStatus, UserRole
 from app.services import orders as order_service
 from app.services.errors import DomainError
+from app.services import clock
 from tests.factories import make_active_tour, make_hotel, make_order, make_user
 
 NOW = datetime.now(timezone.utc)
@@ -52,7 +53,7 @@ def test_two_clients_race_for_the_last_seat(engine, monkeypatch):
         setup.add_all([manager, *clients])
         setup.flush()
         hotel = make_hotel(setup, name="Race Hotel")
-        start = date.today() + timedelta(days=10)
+        start = clock.today() + timedelta(days=10)
         tour = Tour(title_uk="Гонка", title_en="Race", hotel_id=hotel.id, transport_type="none",
                     departure_from=start, departure_to=start + timedelta(days=5), nights=3,
                     seats_total=1, base_price=Decimal("100"), currency=Currency.EUR,

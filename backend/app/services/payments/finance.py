@@ -5,7 +5,7 @@ Every money movement is its own row. A transfer for less than expected closes th
 with the amount received and opens a new pending row for the remainder, so each incoming transfer
 keeps its own amount, date, purpose and statement.
 """
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import BinaryIO
 
@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.models import Order, Payment, User
 from app.models.enums import (OrderStatus, PaymentMethod, PaymentStatus, PaymentType,
                               TransactionStatus)
-from app.services import private_files
+from app.services import clock, private_files
 from app.services.errors import DomainError
 from app.services.order_status import STATUS_LABELS
 from app.services.payments.service import (CENT, apply_received_money, extend_hold, lock_order,
@@ -37,11 +37,11 @@ def list_payments(db: Session, *, status: TransactionStatus | None, method: Paym
         query = query.where(Payment.method == method)
     if kind is not None:
         query = query.where(Payment.type == kind)
+    # Dates are Kyiv days (the controller's calendar), not UTC days.
     if date_from is not None:
-        query = query.where(Payment.created_at >= datetime.combine(date_from, time.min, timezone.utc))
+        query = query.where(Payment.created_at >= clock.day_start(date_from))
     if date_to is not None:
-        query = query.where(Payment.created_at < datetime.combine(date_to + timedelta(days=1),
-                                                                   time.min, timezone.utc))
+        query = query.where(Payment.created_at < clock.day_start(date_to + timedelta(days=1)))
     if order_number:
         query = query.where(Order.number.icontains(order_number.strip(), autoescape=True))
     total = db.scalar(select(func.count()).select_from(query.subquery()))

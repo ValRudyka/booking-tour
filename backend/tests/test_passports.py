@@ -1,9 +1,10 @@
 """Saved passports for autofill (ТЗ form 4.6.1.1, field 8)."""
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 
 from app.models.enums import UserRole
+from app.services import clock
 from tests.factories import headers_for, make_user
 
 URL = "/api/me/passports"
@@ -12,7 +13,7 @@ URL = "/api/me/passports"
 def passport(**overrides):
     data = {"last_name_lat": "Shevchenko", "first_name_lat": "Taras",
             "passport_number": "fx 123456", "issuing_authority": "1234",
-            "expiry_date": (date.today() + timedelta(days=700)).isoformat()}
+            "expiry_date": (clock.today() + timedelta(days=700)).isoformat()}
     return data | overrides
 
 
@@ -34,7 +35,7 @@ def test_add_list_delete(client, customer_headers):
     ({"first_name_lat": "Taras2"}, "латиницею"),
     ({"passport_number": "FX-12"}, "4–20 символів"),
     ({"issuing_authority": "12a4"}, "4-значний"),
-    ({"expiry_date": date.today().isoformat()}, "пізнішим за сьогоднішню"),
+    ({"expiry_date": clock.today().isoformat()}, "пізнішим за сьогоднішню"),
 ])
 def test_validation(client, customer_headers, overrides, message):
     response = client.post(URL, json=passport(**overrides), headers=customer_headers)

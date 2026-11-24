@@ -1,16 +1,17 @@
 """Public catalog: visibility, filters, sorting, pagination, free seats, tour page."""
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
 
 from app.models import TourImage, TourProgramDay
 from app.models.enums import Currency, OrderStatus, TourStatus, TransportType
+from app.services import clock
 from tests.factories import (city, country, make_active_tour, make_hotel, make_order, make_tour,
                              make_user, resort)
 
 URL = "/api/tours"
-TODAY = date.today()
+TODAY = clock.today()
 
 
 @pytest.fixture()

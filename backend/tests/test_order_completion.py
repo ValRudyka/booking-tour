@@ -64,7 +64,7 @@ def test_force_complete_one_order(db, customer, manager):
     from app.services.errors import DomainError
 
     tour = make_active_tour(db, manager)
-    order = order_ending(db, customer, tour, date.today() + timedelta(days=20))   # trip in the future
+    order = order_ending(db, customer, tour, clock.today() + timedelta(days=20))   # trip in the future
     force_complete(db, order.id)
     db.expire_all()
     done = db.get(Order, order.id)
@@ -72,7 +72,7 @@ def test_force_complete_one_order(db, customer, manager):
     assert (done.history[-1].changed_by, done.history[-1].comment) == (None, FORCED_COMMENT)
     assert db.scalars(select(Notification).where(Notification.order_id == order.id)).one()
 
-    confirmed = order_ending(db, customer, tour, date.today() + timedelta(days=20), status=S.CONFIRMED)
+    confirmed = order_ending(db, customer, tour, clock.today() + timedelta(days=20), status=S.CONFIRMED)
     try:
         force_complete(db, confirmed.id)
         raise AssertionError("must be refused")

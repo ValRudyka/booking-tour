@@ -10,6 +10,7 @@ from app.models import (City, Country, CurrencyRate, Hotel, Order, OrderTourist,
                         Resort, Tour, User)
 from app.models.enums import (Currency, DiscountType, OrderStatus, PaymentMethod, PaymentStatus,
                               PaymentType, TourStatus, TransactionStatus, TransportType, UserRole)
+from app.services import clock
 
 _seq = count(1)
 
@@ -64,7 +65,7 @@ def make_tour(db, manager: User, **overrides) -> Tour:
 
 def make_active_tour(db, manager: User, days_ahead=30, **overrides) -> Tour:
     """An active tour whose departures start `days_ahead` days from today."""
-    start = date.today() + timedelta(days=days_ahead)
+    start = clock.today() + timedelta(days=days_ahead)
     fields = dict(status=TourStatus.ACTIVE, departure_from=start, departure_to=start + timedelta(days=14))
     fields.update(overrides)
     return make_tour(db, manager, **fields)
@@ -108,7 +109,7 @@ def make_paid_order(db, client: User, tour: Tour, status=OrderStatus.PAID, total
     for i in range(order.adults + order.children):
         db.add(OrderTourist(order_id=order.id, last_name_lat="Shevchenko", first_name_lat=f"Taras{i}",
                             birth_date=date(1990, 1, 1), passport_number=f"FX{100000 + i}",
-                            passport_expiry=date.today() + timedelta(days=3 * 365)))
+                            passport_expiry=clock.today() + timedelta(days=3 * 365)))
     tour.seats_sold += order.adults + order.children
     for amount, method in [(total, PaymentMethod.CARD)] if payments is None else payments:
         add_payment(db, order, amount, method)
@@ -119,7 +120,7 @@ def make_paid_order(db, client: User, tour: Tour, status=OrderStatus.PAID, total
 
 def make_promo(db, code="SUMMER", discount_type=DiscountType.PERCENT, value="10", min_order=None,
                valid_from=None, valid_to=None, usage_limit=None, is_active=True) -> PromoCode:
-    today = date.today()
+    today = clock.today()
     promo = PromoCode(code=code, discount_type=discount_type, discount_value=Decimal(value),
                       min_order_uah=Decimal(min_order) if min_order is not None else None,
                       valid_from=valid_from or today - timedelta(days=1),
@@ -139,7 +140,7 @@ def tourist(birth_date: date, last="Shevchenko", first="Taras", passport="FX1234
             expiry: date | None = None) -> dict:
     return {"last_name_lat": last, "first_name_lat": first, "birth_date": birth_date.isoformat(),
             "passport_number": passport,
-            "passport_expiry": (expiry or date.today() + timedelta(days=3 * 365)).isoformat()}
+            "passport_expiry": (expiry or clock.today() + timedelta(days=3 * 365)).isoformat()}
 
 
 def years_before(day: date, years: int, plus_days: int = 0) -> date:

@@ -1,6 +1,6 @@
 """End-to-end order life cycles through the API (ТЗ 4.4, 4.4.1): payment (mock Stripe page),
 manager processing, documents, completion by the System, cancellation and refunds, archive."""
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.models import Notification, Order, Tour
 from app.models.enums import OrderStatus, UserRole
 from app.services.order_completion import complete_orders
+from app.services import clock
 from tests.factories import headers_for, make_active_tour, make_order, make_user
 
 NOW = datetime.now(timezone.utc)
@@ -57,7 +58,7 @@ def test_happy_path(client, db, customer, customer_headers, manager, manager_hea
     assert client_notes(db, customer) == [f"Замовлення {n} оплачено"]
 
     assert client.post(f"{M}/{order.id}/take", headers=manager_headers).status_code == 200
-    deadline = (date.today() + timedelta(days=7)).isoformat()
+    deadline = (clock.today() + timedelta(days=7)).isoformat()
     assert client.post(f"{M}/{order.id}/confirm", json={"pnr": "XK7Q2P", "operator_deadline": deadline},
                        headers=manager_headers).status_code == 200
     assert client_notes(db, customer)[-1] == f"Бронювання {n} підтверджено"
@@ -116,7 +117,7 @@ def test_cancellation_path(client, db, customer, customer_headers, manager, mana
     order = paid_order
     client.post(f"{M}/{order.id}/take", headers=manager_headers)
     client.post(f"{M}/{order.id}/confirm", headers=manager_headers,
-                json={"pnr": "XK7Q2P", "operator_deadline": (date.today() + timedelta(days=7)).isoformat()})
+                json={"pnr": "XK7Q2P", "operator_deadline": (clock.today() + timedelta(days=7)).isoformat()})
     request = client.post(f"/api/orders/{order.id}/cancel-request", headers=customer_headers,
                           data={"reason_code": "change_of_plans", "accept_penalty_policy": "true"})
     assert request.json()["status"] == "cancel_requested"
