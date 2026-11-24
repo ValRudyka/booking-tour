@@ -52,3 +52,31 @@ def run_completion_job() -> int:
         count = complete_orders(db)
         db.commit()
         return count
+
+
+FORCED_COMMENT = "Завершено вручну для тестування (scripts.complete_orders --force)"
+
+
+def force_complete(db: Session, order_id: int) -> Order:
+    """Dev only (manual testing of reviews): documents_ready -> completed now, whatever the end
+    date, as the System via change_status(). Any other status is refused."""
+    from app.services.errors import DomainError
+    from app.services.order_status import STATUS_LABELS
+    from app.services.payments.service import lock_order
+
+    order = lock_order(db, order_id)
+    if order is None:
+        raise DomainError(f"Замовлення з id {order_id} не знайдено", 404)
+    if order.status != OrderStatus.DOCUMENTS_READY:
+        raise DomainError(f"Замовлення {order.number} в статусі «{STATUS_LABELS[order.status]}»: "
+                          f"завершити вручну можна лише замовлення в статусі «Документи готові»", 409)
+    change_status(db, order, OrderStatus.COMPLETED, None, FORCED_COMMENT)
+    return order
+
+
+def run_force_complete(order_id: int) -> Order:
+    with SessionLocal() as db:
+        order = force_complete(db, order_id)
+        db.commit()
+        db.refresh(order)
+        return order
