@@ -93,6 +93,7 @@ class Order(TimestampMixin, Base):
     # By id, not changed_at: changes made in one transaction share the same now().
     history: Mapped[list["OrderStatusHistory"]] = relationship(
         back_populates="order", cascade="all, delete-orphan", order_by="OrderStatusHistory.id")
+    payments: Mapped[list["Payment"]] = relationship(back_populates="order", order_by="Payment.id")
 
 
 class OrderTourist(Base):
