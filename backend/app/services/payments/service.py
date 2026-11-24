@@ -155,7 +155,7 @@ def _pay_by_card(db: Session, client: User, order: Order, gateway: PaymentGatewa
     return PayResult(order, payment, checkout_url=session.url)
 
 
-def _extend_hold(db: Session, order: Order, user: User | None, reason: str) -> None:
+def extend_hold(db: Session, order: Order, user: User | None, reason: str) -> None:
     """Bank transfers take days: hold the seats for bank_transfer_hold_hours from now."""
     new_hold = utcnow() + timedelta(hours=bank_transfer_hold_hours(db))
     if order.hold_expires_at is None or new_hold > order.hold_expires_at:
@@ -179,7 +179,7 @@ def _pay_by_transfer(db: Session, client: User, order: Order, gateway: PaymentGa
                               f"{client.last_name} {client.first_name}"[:300])
     db.add(payment)
     if first_transfer:                        # extended once when the transfer is chosen
-        _extend_hold(db, order, client, "bank_transfer_chosen")
+        extend_hold(db, order, client, "bank_transfer_chosen")
     db.flush()
     db.refresh(order, ["payments"])
     return PayResult(order, payment, bank=bank_details(order, payment))
