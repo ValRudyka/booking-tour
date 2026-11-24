@@ -14,11 +14,17 @@ from app.models.enums import Currency, NameDisplay, PaymentMethod, PaymentType, 
 class Payment(TimestampMixin, Base):
     """One row per money movement: a payment or a refund (ТЗ form 4.6.3.1)."""
     __tablename__ = "payments"
-    __table_args__ = (CheckConstraint("amount_uah > 0", name="amount_positive"),)
+    __table_args__ = (
+        CheckConstraint("amount_uah > 0", name="amount_positive"),
+        CheckConstraint("type = 'refund' OR refund_of_id IS NULL", name="refund_of_only_refunds"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), index=True)
     type: Mapped[PaymentType] = mapped_column(str_enum(PaymentType, "payment_type"))
+    # A refund row points at the payment it returns money from: with several payments per order
+    # (partial bank transfers + card) this tells how much of each payment is still refundable.
+    refund_of_id: Mapped[int | None] = mapped_column(ForeignKey("payments.id"), index=True)
     method: Mapped[PaymentMethod] = mapped_column(str_enum(PaymentMethod, "payment_method"))
     status: Mapped[TransactionStatus] = mapped_column(
         str_enum(TransactionStatus, "transaction_status"),
@@ -34,7 +40,7 @@ class Payment(TimestampMixin, Base):
     # Stripe identifiers (test mode)
     stripe_session_id: Mapped[str | None] = mapped_column(String(255), unique=True)
     stripe_payment_intent: Mapped[str | None] = mapped_column(String(255))
-    stripe_refund_id: Mapped[str | None] = mapped_column(String(255))
+    stripe_refund_id: Mapped[str | None] = mapped_column(String(255), unique=True)  # webhook lookup
     confirmed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
 
     order: Mapped["Order"] = relationship(back_populates="payments")

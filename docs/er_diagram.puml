@@ -235,11 +235,14 @@ entity orders {
  * discount_uah : numeric(12,2)
  * rate_used : numeric(12,4)
    hold_expires_at : timestamptz
+   offer_accepted_at : timestamptz
    pnr : varchar(20)
    operator_deadline : date
    internal_comment : text
    reject_reason : text
+   cancel_reason_code : enum
    cancel_reason : text
+   fpv_uah : numeric(12,2)
  * updated_at : timestamptz
  * created_at : timestamptz
 }
@@ -275,6 +278,7 @@ entity payments {
  --
  * order_id : int <<FK>>
  * type : enum
+   refund_of_id : int <<FK>>
  * method : enum
  * status : enum
  * amount_uah : numeric(12,2)
@@ -286,7 +290,7 @@ entity payments {
    controller_comment : text
    stripe_session_id : varchar(255) <<UQ>>
    stripe_payment_intent : varchar(255)
-   stripe_refund_id : varchar(255)
+   stripe_refund_id : varchar(255) <<UQ>>
    confirmed_by : int <<FK>>
  * created_at : timestamptz
 }

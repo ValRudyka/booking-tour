@@ -8,7 +8,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, str_enum
 from app.models.catalog import Tour
-from app.models.enums import DiscountType, OrderDocumentType, OrderStatus, PaymentStatus
+from app.models.enums import (CancelReason, DiscountType, OrderDocumentType, OrderStatus,
+                              PaymentStatus)
 from app.models.reference import InsuranceType, TransferType
 
 # Source of order numbers TU-<year>-<nnnnnn>. A sequence hands out each value exactly once even
@@ -45,6 +46,7 @@ class Order(TimestampMixin, Base):
         CheckConstraint("children >= 0", name="children_non_negative"),
         CheckConstraint("end_date > start_date", name="dates_order"),
         CheckConstraint("total_uah >= 0", name="total_non_negative"),
+        CheckConstraint("fpv_uah IS NULL OR fpv_uah >= 0", name="fpv_non_negative"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -78,7 +80,12 @@ class Order(TimestampMixin, Base):
     operator_deadline: Mapped[date | None]
     internal_comment: Mapped[str | None] = mapped_column(Text)  # managers only
     reject_reason: Mapped[str | None] = mapped_column(Text)
+    # Client's cancellation request (form 4.6.1.3): reason from the list + free-text details.
+    cancel_reason_code: Mapped[CancelReason | None] = mapped_column(
+        str_enum(CancelReason, "cancel_reason"))
     cancel_reason: Mapped[str | None] = mapped_column(Text)
+    # ФПВ kept by the company when the refund was made (scenario 4.5.6 step 3); NULL = no refund yet.
+    fpv_uah: Mapped[Decimal | None]
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     tour: Mapped[Tour] = relationship()
