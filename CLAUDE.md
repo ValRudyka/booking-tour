@@ -209,14 +209,16 @@ migration `refunds and cancellation requests`) → merged to `develop` (PR #8).
 `feature/reviews` (client reviews with private photos and one resubmission, manager
 moderation with publish/reject/unpublish, hotel rating recalculation, public reviews, review numbers
 on the tour page, dev `complete_orders --order-id N --force`; migration `review moderation`)
-— **ready, PR to `develop` pending**.
+→ merged to `develop` (PR #9).
+
+In progress: `feature/admin`.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
 2. `feature/orders-checkout` — **done** (PR #6)
 3. `feature/stripe-payments` — **done** (PR #7)
 4. `feature/order-processing` — **done** (PR #8)
-5. `feature/reviews` — reviews + moderation + hotel rating (4.5.7), PR pending
+5. `feature/reviews` — **done** (PR #9)
 6. `feature/admin` — users/roles, reference data, rates, settings, promo codes (4.5.8, 4.6.2.3, 4.6.4.1)
 7. `feature/frontend-public` — catalog, tour page, auth, checkout, personal account
 8. `feature/frontend-backoffice` — manager, finance, admin pages
