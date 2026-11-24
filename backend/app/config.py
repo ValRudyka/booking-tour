@@ -15,7 +15,12 @@ class Settings(BaseSettings):
     # whose .env forgot the setting is treated as the real one.
     app_env: Literal["development", "test", "production"] = "production"
 
-    database_url: str = "postgresql+psycopg://tour_app:change_me@localhost:5432/tour_website"
+    # Browser origins (scheme://host:port) allowed to call the API: the frontend runs on another
+    # port (Vite dev server 5173), and without CORS headers the browser blocks its requests.
+    # In .env as a JSON list: CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
+    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    database_url: str ="postgresql+psycopg://tour_app:change_me@localhost:5432/tour_website"
     sql_echo: bool = False
 
     # JWT. Generate your own key: python -c "import secrets; print(secrets.token_hex(32))"
