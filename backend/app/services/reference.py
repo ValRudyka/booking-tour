@@ -1,4 +1,5 @@
-"""Read-only reference lists for filters and forms. Archived entries are hidden."""
+"""Read-only reference lists for filters and forms. Archived entries are hidden, and so are the
+resorts, hotels and cities of an archived country (and the hotels of an archived resort)."""
 from collections.abc import Sequence
 
 from sqlalchemy import select
@@ -13,7 +14,8 @@ def countries(db: Session) -> Sequence[Country]:
 
 
 def resorts(db: Session, country_id: int | None) -> Sequence[Resort]:
-    query = select(Resort).where(Resort.is_archived.is_(False))
+    query = (select(Resort).join(Country, Resort.country_id == Country.id)
+             .where(Resort.is_archived.is_(False), Country.is_archived.is_(False)))
     if country_id is not None:
         query = query.where(Resort.country_id == country_id)
     return db.scalars(query.order_by(Resort.name_uk)).all()
@@ -21,7 +23,9 @@ def resorts(db: Session, country_id: int | None) -> Sequence[Resort]:
 
 def hotels(db: Session, resort_id: int | None, country_id: int | None) -> Sequence[Hotel]:
     query = (select(Hotel).join(Resort, Hotel.resort_id == Resort.id)
-             .where(Hotel.is_archived.is_(False), Resort.is_archived.is_(False)))
+             .join(Country, Resort.country_id == Country.id)
+             .where(Hotel.is_archived.is_(False), Resort.is_archived.is_(False),
+                    Country.is_archived.is_(False)))
     if resort_id is not None:
         query = query.where(Hotel.resort_id == resort_id)
     if country_id is not None:
@@ -30,7 +34,9 @@ def hotels(db: Session, resort_id: int | None, country_id: int | None) -> Sequen
 
 
 def cities(db: Session) -> Sequence[City]:
-    return db.scalars(select(City).where(City.is_archived.is_(False)).order_by(City.name_uk)).all()
+    return db.scalars(select(City).join(Country, City.country_id == Country.id)
+                      .where(City.is_archived.is_(False), Country.is_archived.is_(False))
+                      .order_by(City.name_uk)).all()
 
 
 def insurance_types(db: Session) -> Sequence[InsuranceType]:

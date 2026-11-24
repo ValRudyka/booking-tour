@@ -65,3 +65,138 @@ class AuditLogOut(BaseModel):
     old_value: dict[str, Any] | None
     new_value: dict[str, Any] | None
     created_at: datetime
+
+
+# ---------- reference data (patch schemas forbid unknown fields, e.g. hotels.rating_avg)
+class _Strict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class CountryIn(_Strict):
+    iso_code: str
+    name_uk: str
+    name_en: str | None = None
+
+
+class CountryPatch(_Strict):
+    iso_code: str | None = None
+    name_uk: str | None = None
+    name_en: str | None = None
+
+
+class CountryAdminOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    iso_code: str
+    name_uk: str
+    name_en: str | None
+    is_archived: bool
+
+
+class CityIn(_Strict):
+    country_id: int
+    name_uk: str
+    name_en: str | None = None
+    iata_code: str | None = None
+
+
+class CityPatch(_Strict):
+    country_id: int | None = None
+    name_uk: str | None = None
+    name_en: str | None = None
+    iata_code: str | None = None
+
+
+class CityAdminOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    country_id: int
+    name_uk: str
+    name_en: str | None
+    iata_code: str | None
+    is_archived: bool
+
+
+class ResortIn(_Strict):
+    country_id: int
+    name_uk: str
+    name_en: str | None = None
+
+
+class ResortPatch(_Strict):
+    country_id: int | None = None
+    name_uk: str | None = None
+    name_en: str | None = None
+
+
+class ResortAdminOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    country_id: int
+    name_uk: str
+    name_en: str | None
+    is_archived: bool
+
+
+class HotelIn(_Strict):
+    resort_id: int
+    name: str
+    stars: int | None = None
+    description: str | None = None
+
+
+class HotelPatch(_Strict):
+    resort_id: int | None = None
+    name: str | None = None
+    stars: int | None = None
+    description: str | None = None
+
+
+class HotelAdminOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    resort_id: int
+    name: str
+    stars: int | None
+    description: str | None
+    rating_avg: Decimal | None          # read-only: from published reviews
+    is_archived: bool
+
+
+class ServiceTypeIn(_Strict):
+    name_uk: str
+    price_uah: Decimal
+    is_default: bool = False
+
+
+class ServiceTypePatch(_Strict):
+    name_uk: str | None = None
+    price_uah: Decimal | None = None
+    is_default: bool | None = None
+
+
+class ServiceTypeAdminOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name_uk: str
+    price_uah: Decimal
+    is_default: bool
+    is_archived: bool
+
+
+class LanguageIn(_Strict):
+    code: str
+    name: str
+    is_enabled: bool = True
+
+
+class LanguagePatch(_Strict):
+    name: str | None = None
+    is_enabled: bool | None = None
+
+
+class LanguageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    code: str
+    name: str
+    is_enabled: bool

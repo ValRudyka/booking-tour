@@ -12,7 +12,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
-from app.models import AuditLog, City, Hotel, Tour, TourImage, TourProgramDay, User
+from app.models import AuditLog, City, Country, Hotel, Tour, TourImage, TourProgramDay, User
 from app.models.enums import TourStatus, TransportType
 from app.services import images as image_files
 from app.services.errors import DomainError
@@ -78,14 +78,14 @@ def _check_hotel(db: Session, hotel_id: int) -> Hotel:
     hotel = db.get(Hotel, hotel_id)
     if hotel is None:
         raise _error("Готель не знайдено")
-    if hotel.is_archived or hotel.resort.is_archived:
-        raise _error("Готель або курорт архівний — оберіть інший")
+    if hotel.is_archived or hotel.resort.is_archived or hotel.resort.country.is_archived:
+        raise _error("Готель, курорт або країна в архіві — оберіть інший готель")
     return hotel
 
 
 def _check_city(db: Session, city_id: int) -> None:
     city = db.get(City, city_id)
-    if city is None or city.is_archived:
+    if city is None or city.is_archived or db.get(Country, city.country_id).is_archived:
         raise _error("Місто відправлення не знайдено")
 
 
