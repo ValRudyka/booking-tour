@@ -112,3 +112,14 @@ def years_before(day: date, years: int, plus_days: int = 0) -> date:
     except ValueError:
         result = day.replace(year=day.year - years, day=28)
     return result + timedelta(days=plus_days)
+
+
+def stripe_signature(payload: bytes, secret: str, timestamp: int | None = None) -> str:
+    """A `Stripe-Signature` header computed like Stripe does (HMAC-SHA256 of "t.payload")."""
+    import hashlib
+    import hmac
+    import time
+
+    timestamp = int(time.time()) if timestamp is None else timestamp
+    digest = hmac.new(secret.encode(), f"{timestamp}.".encode() + payload, hashlib.sha256).hexdigest()
+    return f"t={timestamp},v1={digest}"
