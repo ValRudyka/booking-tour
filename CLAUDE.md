@@ -51,12 +51,15 @@ python -m scripts.create_user --role admin --phone +380500000001 --email admin@t
 python -m scripts.generate_er         # regenerate docs/er_diagram.puml from models
 python -m scripts.seed_demo           # demo hotels + published tours (needs a manager user)
 python -m scripts.expire_orders       # cancel orders whose seat hold ran out (server does it every minute)
-stripe listen --forward-to 127.0.0.1:8000/api/payments/stripe/webhook   # local webhooks; prints whsec_...
+python -m scripts.complete_orders     # documents_ready -> completed after the trip (server: every hour)
+stripe listen --events "checkout.session.completed,checkout.session.expired,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,refund.updated,refund.failed" --forward-to 127.0.0.1:8000/api/payments/stripe/webhook   # local webhooks; prints whsec_...
 ```
 
 `backend/.env` (never committed; template in `.env.example`): `DATABASE_URL`,
 `TEST_DATABASE_URL`, `SECRET_KEY`, optional `UPLOAD_DIR`/`MAX_IMAGE_MB`/`MAX_IMAGES_PER_TOUR`/`ORDER_EXPIRY_INTERVAL_SEC`, payments: `PAYMENT_GATEWAY` (stripe|mock), `STRIPE_SECRET_KEY` (test key),
-`STRIPE_WEBHOOK_SECRET`, `FRONTEND_URL`, `API_BASE_URL`, `BANK_*`. Tests force the mock gateway.
+`STRIPE_WEBHOOK_SECRET`, `FRONTEND_URL`, `API_BASE_URL`, `BANK_*`; order processing:
+`MAX_DOCUMENT_MB`, `MAX_DOCUMENTS_PER_ORDER`, `MAX_CANCEL_EVIDENCE_FILES`, `BUSINESS_TIMEZONE`
+(Europe/Kyiv), `ORDER_COMPLETION_INTERVAL_SEC` (3600; 0 = off, as in tests). Tests force the mock gateway.
 DB user is **`tour_app`** (owns the databases `tour_website` and `tour_website_test`).
 
 ## Architecture
@@ -114,6 +117,29 @@ Conventions:
   (pending -> succeeded | failed) + refund rows/idempotency keys; no events table. Every money
   movement is its own row (partial bank transfers too). Order `payment_status` is set together
   with `change_status` in `apply_received_money()`.
+- Notifications (`services/notifications.py`): `change_status()` itself notifies the client of
+  every client-visible transition (not of the client's own actions); pass the manager's text as
+  `client_message`. Staff get `notify_managers()` / `notify_finance()`. In-app only (table
+  `notifications`, `GET /api/me/notifications`); e-mail is `feature/notifications-email`.
+- Manager processing (`services/order_processing.py`): `take` sets `orders.manager_id`; after
+  that only that manager may change the order (409 for others), every manager may view it;
+  hand-over via `assign` (audit_log). Order documents (`services/order_documents.py`) are private
+  files `upload_dir/private/orders/<id>/`; the client sees trip documents from `confirmed` on,
+  `cancel_evidence` (client's files for a cancellation request) is staff-only.
+- Refunds (`services/payments/refunds.py`): refund rows point at their payment (`refund_of_id`);
+  amount = succeeded payments − live refunds − ФПВ (`orders.fpv_uah`), split newest payment first.
+  Stripe parts use the key `refund-<payment id>-<n>` (n = refund rows of that payment + 1); the
+  whole refund runs in a savepoint, so if a later Stripe part fails nothing is recorded and the
+  same request is repeated (Stripe replays the parts already made). A refund is finished when no
+  row is pending and only the ФПВ is kept: then payment_status and `cancel_requested -> cancelled`.
+  Webhooks `refund.updated` / `refund.failed` (failed can follow succeeded) — `handle_refund_event`.
+  The manager may archive rejected/cancelled orders only when `refund_finished()`.
+- Business dates ("today" for trips) come from `services/clock.py: today()` (Europe/Kyiv, needs
+  `tzdata` on Windows); the completion job (`services/order_completion.py`) completes
+  `documents_ready` orders with `end_date < today`; orders that never got documents are only
+  reported (`?overdue=true` in the manager list).
+- `alembic/env.py` uses `fileConfig(..., disable_existing_loggers=False)`: tests run Alembic
+  in-process, and the default switched off the app's loggers.
 - Every new feature ships with tests; `pytest` must be green before a PR.
 
 ## Payment rules (implemented in feature/stripe-payments)
@@ -165,13 +191,16 @@ webhook with late-payment refunds, session closing on expiry, bank transfer + fi
 and confirmation with private statements; data migration `bank_transfer_hold_hours`)
 → merged to `develop` (PR #7).
 
-In progress: `feature/order-processing`.
+`feature/order-processing` (manager take/assign/confirm/reject/documents/archive, private order
+documents, client documents and cancellation request with evidence, in-app notifications, finance
+refund queue and refunds via Stripe or transfer with ФПВ, refund webhooks, completion job + CLI;
+migration `refunds and cancellation requests`) — **ready, PR to `develop` pending**.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
 2. `feature/orders-checkout` — **done** (PR #6)
 3. `feature/stripe-payments` — **done** (PR #7)
-4. `feature/order-processing` — manager takes/confirms/rejects, PNR, document upload, cancel + refunds (4.5.4–4.5.6)
+4. `feature/order-processing` — manager takes/confirms/rejects, PNR, document upload, cancel + refunds (4.5.4–4.5.6, 4.5.9)
 5. `feature/reviews` — reviews + moderation + hotel rating (4.5.7)
 6. `feature/admin` — users/roles, reference data, rates, settings, promo codes (4.5.8, 4.6.2.3, 4.6.4.1)
 7. `feature/frontend-public` — catalog, tour page, auth, checkout, personal account
