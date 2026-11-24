@@ -5,7 +5,6 @@ settings. Payment methods are not listed: Stripe shows the methods enabled in th
 (dynamic payment methods). Idempotency keys make retries of the same request safe.
 """
 import logging
-from datetime import datetime
 from typing import Any
 
 import stripe
