@@ -52,6 +52,7 @@ python -m scripts.generate_er         # regenerate docs/er_diagram.puml from mod
 python -m scripts.seed_demo           # demo hotels + published tours (needs a manager user)
 python -m scripts.expire_orders       # cancel orders whose seat hold ran out (server does it every minute)
 python -m scripts.complete_orders     # documents_ready -> completed after the trip (server: every hour)
+python -m scripts.complete_orders --order-id N --force   # dev only: complete one documents_ready order now
 stripe listen --events "checkout.session.completed,checkout.session.expired,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,refund.updated,refund.failed" --forward-to 127.0.0.1:8000/api/payments/stripe/webhook   # local webhooks; prints whsec_...
 ```
 
@@ -59,7 +60,8 @@ stripe listen --events "checkout.session.completed,checkout.session.expired,chec
 `TEST_DATABASE_URL`, `SECRET_KEY`, optional `UPLOAD_DIR`/`MAX_IMAGE_MB`/`MAX_IMAGES_PER_TOUR`/`ORDER_EXPIRY_INTERVAL_SEC`, payments: `PAYMENT_GATEWAY` (stripe|mock), `STRIPE_SECRET_KEY` (test key),
 `STRIPE_WEBHOOK_SECRET`, `FRONTEND_URL`, `API_BASE_URL`, `BANK_*`; order processing:
 `MAX_DOCUMENT_MB`, `MAX_DOCUMENTS_PER_ORDER`, `MAX_CANCEL_EVIDENCE_FILES`, `BUSINESS_TIMEZONE`
-(Europe/Kyiv), `ORDER_COMPLETION_INTERVAL_SEC` (3600; 0 = off, as in tests). Tests force the mock gateway.
+(Europe/Kyiv), `ORDER_COMPLETION_INTERVAL_SEC` (3600; 0 = off, as in tests); reviews:
+`MAX_REVIEW_PHOTOS` (10, form 4.6.1.4), `MAX_REVIEW_PHOTO_MB` (5). Tests force the mock gateway.
 DB user is **`tour_app`** (owns the databases `tour_website` and `tour_website_test`).
 
 ## Architecture
@@ -138,6 +140,14 @@ Conventions:
   `tzdata` on Windows); the completion job (`services/order_completion.py`) completes
   `documents_ready` orders with `end_date < today`; orders that never got documents are only
   reported (`?overdue=true` in the manager list).
+- Reviews (`services/reviews.py`): status `pending -> published | rejected`, `published ->
+  rejected` (unpublish), `rejected -> pending` once (client's PATCH, `resubmitted_at`). Only for
+  completed orders (or archived after completed); `reviews.hotel_id` is saved when written. Staff
+  only publish/reject, never edit. Every publish/unpublish calls `recalc_hotel_rating()` in the
+  same transaction (hotel row locked; AVG of published, 2 places, NULL if none). Setting
+  `review_premoderation` (default true). Photos: private `upload_dir/private/reviews/<id>/`,
+  served by `/api/reviews/{id}/photos/{pid}` — public only when published, else the author and
+  managers (404 for others; `OptionalUser` dependency). Public schemas carry no personal data.
 - `alembic/env.py` uses `fileConfig(..., disable_existing_loggers=False)`: tests run Alembic
   in-process, and the default switched off the app's loggers.
 - Every new feature ships with tests; `pytest` must be green before a PR.
@@ -196,14 +206,17 @@ documents, client documents and cancellation request with evidence, in-app notif
 refund queue and refunds via Stripe or transfer with ФПВ, refund webhooks, completion job + CLI;
 migration `refunds and cancellation requests`) → merged to `develop` (PR #8).
 
-In progress: `feature/reviews`.
+`feature/reviews` (client reviews with private photos and one resubmission, manager
+moderation with publish/reject/unpublish, hotel rating recalculation, public reviews, review numbers
+on the tour page, dev `complete_orders --order-id N --force`; migration `review moderation`)
+— **ready, PR to `develop` pending**.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
 2. `feature/orders-checkout` — **done** (PR #6)
 3. `feature/stripe-payments` — **done** (PR #7)
 4. `feature/order-processing` — **done** (PR #8)
-5. `feature/reviews` — reviews + moderation + hotel rating (4.5.7)
+5. `feature/reviews` — reviews + moderation + hotel rating (4.5.7), PR pending
 6. `feature/admin` — users/roles, reference data, rates, settings, promo codes (4.5.8, 4.6.2.3, 4.6.4.1)
 7. `feature/frontend-public` — catalog, tour page, auth, checkout, personal account
 8. `feature/frontend-backoffice` — manager, finance, admin pages
