@@ -1,0 +1,15 @@
+/* Global styles kept minimal: antd's ConfigProvider does the theming. */
+html, body, #root {
+  margin: 0;
+  min-height: 100%;
+}
+
+/* A clearly visible keyboard focus ring everywhere (ТЗ §5.3: keyboard-oriented UI). */
+:focus-visible {
+  outline: 2px solid #0E7490;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+}
