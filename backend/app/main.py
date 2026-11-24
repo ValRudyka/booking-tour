@@ -15,6 +15,7 @@ from app.db import get_db
 from app.routers import (admin_reference, admin_settings, admin_users, auth, catalog, finance, manager_orders, manager_reviews,
                          manager_tours, notifications, orders, passports, payments, reference,
                          reviews)
+from app.services import maintenance
 from app.services.order_completion import run_completion_job
 from app.services.order_expiry import run_expiry_job
 
@@ -62,6 +63,8 @@ app = FastAPI(
     description="REST API туристичного вебсайту (курсовий проєкт).",
     version="0.4.0",
     lifespan=lifespan,
+    # «Технічні роботи» (form 4.6.4.1, field 7): 503 for everything except a short open list.
+    dependencies=[Depends(maintenance.guard)],
 )
 
 app.include_router(auth.router, prefix="/api")
