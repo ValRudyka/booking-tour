@@ -35,4 +35,8 @@ export const antdTheme: ThemeConfig = {
     colorErrorBg: '#FEF2F2',
     colorInfoBg: '#ECFEFF',
   },
+  components: {
+    // A light header and footer instead of antd's dark default.
+    Layout: { headerBg: '#FFFFFF', headerPadding: '0 16px', footerBg: '#FFFFFF', footerPadding: '24px 16px' },
+  },
 }

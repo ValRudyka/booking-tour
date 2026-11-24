@@ -31,5 +31,13 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 })
 
+// jsdom has no ResizeObserver; antd 6 (Select, Pagination, ...) uses it without a polyfill.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+window.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver
+
 // jsdom does not implement scrolling.
 window.scrollTo = vi.fn() as unknown as typeof window.scrollTo

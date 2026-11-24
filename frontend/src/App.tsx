@@ -1,3 +1,4 @@
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
 import { App as AntdApp, ConfigProvider } from 'antd'
 import ukUA from 'antd/locale/uk_UA'
 import dayjs from 'dayjs'
@@ -9,10 +10,12 @@ import { antdTheme } from './theme'
 dayjs.locale('uk')
 
 /** Providers shared by the app and the tests. */
-export function AppProviders({ children }: { children: ReactNode }) {
+export function AppProviders({ queryClient, children }: { queryClient: QueryClient; children: ReactNode }) {
   return (
     <ConfigProvider theme={antdTheme} locale={ukUA}>
-      <AntdApp>{children}</AntdApp>
+      <AntdApp>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </AntdApp>
     </ConfigProvider>
   )
 }
