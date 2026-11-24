@@ -1,0 +1,71 @@
+.public-layout {
+  min-height: 100vh;
+}
+
+.public-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.public-header {
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.site-name {
+  font-size: 20px;
+  font-weight: 600;
+  color: #0E7490;
+  white-space: nowrap;
+  margin-right: auto;
+}
+
+.public-nav {
+  flex: 1;
+  min-width: 0;
+}
+
+.public-nav .ant-menu {
+  border-bottom: none;
+}
+
+.public-main {
+  padding: 24px 16px 48px;
+  outline: none;
+}
+
+.public-footer {
+  border-top: 1px solid #E2E8F0;
+}
+
+.drawer-menu {
+  border-inline-end: none !important;
+}
+
+.drawer-auth {
+  margin-top: 16px;
+}
+
+.result-title {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  margin: 0;
+}
+
+/* Visible only when focused with the keyboard (Tab right after the page loads). */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 1000;
+  padding: 8px 12px;
+  background: #FFFFFF;
+  color: #0E7490;
+  border-radius: 6px;
+}
+
+.skip-link:focus {
+  top: 8px;
+}

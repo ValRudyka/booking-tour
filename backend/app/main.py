@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -65,6 +66,20 @@ app = FastAPI(
     lifespan=lifespan,
     # «Технічні роботи» (form 4.6.4.1, field 7): 503 for everything except a short open list.
     dependencies=[Depends(maintenance.guard)],
+)
+
+# CORS: the frontend (Vite, :5173) is another origin than the API (:8000). Only the listed
+# origins get the Access-Control-* headers. No cookies are used (the JWT goes in the
+# Authorization header), so credentials stay off. The middleware wraps every response, the
+# maintenance 503 included, so the frontend can read it and show «Технічні роботи» instead of a
+# network error; Retry-After is exposed for the same reason.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["Retry-After", "Content-Disposition"],
 )
 
 app.include_router(auth.router, prefix="/api")
