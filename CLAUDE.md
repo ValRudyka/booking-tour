@@ -49,7 +49,8 @@ pytest -q                             # uses TEST_DATABASE_URL (wiped every run)
 uvicorn app.main:app --reload         # http://127.0.0.1:8000/docs
 python -m scripts.create_user --role admin --phone +380500000001 --email admin@tour.local --password "Admin-pass-1" --last-name Адмін --first-name Системний
 python -m scripts.generate_er         # regenerate docs/er_diagram.puml from models
-python -m scripts.seed_demo           # demo hotels + published tours (needs a manager user)
+python -m scripts.seed_demo           # dev only: 10 hotels, 25 tours, 2 promo codes (idempotent)
+python -m scripts.seed_demo --reset   # remove only what the seed created (--remove-legacy: old v1 data)
 python -m scripts.expire_orders       # cancel orders whose seat hold ran out (server does it every minute)
 python -m scripts.complete_orders     # documents_ready -> completed after the trip (server: every hour)
 python -m scripts.complete_orders --order-id N --force   # dev only: complete one documents_ready order now
@@ -62,6 +63,9 @@ stripe listen --events "checkout.session.completed,checkout.session.expired,chec
 `MAX_DOCUMENT_MB`, `MAX_DOCUMENTS_PER_ORDER`, `MAX_CANCEL_EVIDENCE_FILES`, `BUSINESS_TIMEZONE`
 (Europe/Kyiv), `ORDER_COMPLETION_INTERVAL_SEC` (3600; 0 = off, as in tests); reviews:
 `MAX_REVIEW_PHOTOS` (10, form 4.6.1.4), `MAX_REVIEW_PHOTO_MB` (5). Tests force the mock gateway.
+`APP_ENV` (development|test|production, **default production**): dev-only scripts
+(`seed_demo`, `complete_orders --force`) run only in development/test (`scripts/dev_guard.py`,
+also refuses an `sk_live_` key); conftest sets `test`.
 DB user is **`tour_app`** (owns the databases `tour_website` and `tour_website_test`).
 
 ## Architecture
@@ -260,6 +264,12 @@ on the tour page, dev `complete_orders --order-id N --force`; migration `review 
 archive/restore and single defaults, global settings, gateway status, maintenance mode, audit log
 viewer with an append-only trigger, promo codes for managers; migration `admin`)
 → merged to `develop` (PR #10). Backend test suite: 610 tests, green.
+
+`feature/demo-seed` (dev-only `scripts.seed_demo` from `scripts/data/hotels_uk.json` +
+`tours_uk.json`: 10 fictional hotels, 25 tours, 2 promo codes, Ukrainian only; works as two blocked
+«Демо-дані» accounts so `--reset` removes only its own rows; `--remove-legacy` for the v1 data;
+`APP_ENV` guard; data migration `resort Alanya spelling` «Аланья» → «Аланія») → PR to `develop`.
+Backend test suite: 620 tests, green.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)

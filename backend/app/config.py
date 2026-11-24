@@ -1,5 +1,6 @@
 """Application settings, read from environment variables or the backend/.env file."""
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -8,6 +9,11 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    # Where the app runs. Dev-only tools (scripts.seed_demo, complete_orders --force) refuse to run
+    # unless this is "development" or "test". The default is "production" on purpose: a server
+    # whose .env forgot the setting is treated as the real one.
+    app_env: Literal["development", "test", "production"] = "production"
 
     database_url: str = "postgresql+psycopg://tour_app:change_me@localhost:5432/tour_website"
     sql_echo: bool = False
