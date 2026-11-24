@@ -96,6 +96,13 @@ class DiscountType(str, enum.Enum):
     FIXED = "fixed"      # Фіксована (UAH)
 
 
+class ReviewStatus(str, enum.Enum):
+    """Review moderation (ТЗ 4.5.7 step 6)."""
+    PENDING = "pending"        # На модерації
+    PUBLISHED = "published"    # Опубліковано
+    REJECTED = "rejected"      # Відхилено модератором
+
+
 class NameDisplay(str, enum.Enum):
     FULL = "full"            # Повне ім'я
     SHORT = "short"          # Скорочене (Іван І.)
