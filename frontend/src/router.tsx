@@ -1,19 +1,10 @@
-import { Typography } from 'antd'
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router'
-import { useTranslation } from 'react-i18next'
-import { useDocumentTitle } from './hooks/useDocumentTitle'
 import { PublicLayout } from './layouts/PublicLayout'
+import { CatalogPage } from './pages/catalog/CatalogPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { RouteErrorPage } from './pages/RouteErrorPage'
 import { TourDetailsPlaceholder } from './pages/TourDetailsPlaceholder'
-
-/** Stand-in for /tours until the catalog page lands (next commit). */
-function CatalogStub() {
-  const { t } = useTranslation()
-  useDocumentTitle(t('catalog.title'))
-  return <Typography.Title level={1}>{t('catalog.title')}</Typography.Title>
-}
 
 export const routes: RouteObject[] = [
   {
@@ -22,7 +13,7 @@ export const routes: RouteObject[] = [
     children: [
       // No home page yet: the catalog is the start page.
       { index: true, element: <Navigate to="/tours" replace /> },
-      { path: 'tours', element: <CatalogStub /> },
+      { path: 'tours', element: <CatalogPage /> },
       { path: 'tours/:id', element: <TourDetailsPlaceholder /> },
       { path: 'about', element: <PlaceholderPage page="about" /> },
       { path: 'login', element: <PlaceholderPage page="login" /> },

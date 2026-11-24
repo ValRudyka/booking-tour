@@ -1,0 +1,21 @@
+.catalog-title {
+  margin-top: 0 !important;
+}
+
+.catalog-filters-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.catalog-toolbar {
+  margin-bottom: 16px;
+}
+
+.catalog-pagination {
+  margin-top: 24px;
+}
+
+.catalog-empty {
+  padding: 48px 0;
+}
