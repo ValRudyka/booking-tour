@@ -28,6 +28,9 @@ class User(TimestampMixin, Base):
     consent_at: Mapped[datetime | None]  # personal-data consent (form 4.6.1.1, field 9)
     loyalty_points: Mapped[int] = mapped_column(default=0, server_default="0")
     is_active: Mapped[bool] = mapped_column(default=True, server_default="true")
+    # Tokens issued before this moment (JWT iat, whole seconds) are rejected: set when the admin
+    # resets the password. Stored truncated to whole seconds, like iat (see core/deps.py).
+    tokens_valid_after: Mapped[datetime | None]
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     passports: Mapped[list["SavedPassport"]] = relationship(back_populates="user",
