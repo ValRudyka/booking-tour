@@ -200,3 +200,46 @@ class LanguageOut(BaseModel):
     code: str
     name: str
     is_enabled: bool
+
+
+# ---------- global settings (form 4.6.4.1)
+class SettingsValues(BaseModel):
+    eur_rate: Decimal                   # field 1, UAH per 1 EUR
+    usd_rate: Decimal                   # field 2
+    acquiring_percent: Decimal          # field 3
+    booking_timeout_min: int            # field 4
+    bank_transfer_hold_hours: int
+    review_premoderation: bool
+    system_email: str                   # field 6
+    maintenance_mode: bool              # field 7
+
+
+class SettingChange(BaseModel):
+    updated_at: datetime
+    updated_by: int | None
+
+
+class SettingsOut(SettingsValues):
+    uah_rate: Decimal = Decimal("1")    # fixed
+    changes: dict[str, SettingChange]   # when / by whom each value was last changed
+
+
+class SettingsIn(_Strict):
+    """Only the fields that are sent change. Ranges are checked by the service."""
+    eur_rate: Decimal | None = None
+    usd_rate: Decimal | None = None
+    acquiring_percent: Decimal | None = None
+    booking_timeout_min: int | None = None
+    bank_transfer_hold_hours: int | None = None
+    review_premoderation: bool | None = None
+    system_email: str | None = None
+    maintenance_mode: bool | None = None
+
+
+class GatewayStatusOut(BaseModel):
+    gateway: str                        # stripe | mock
+    stripe_key_configured: bool
+    stripe_key_mode: str | None         # test | live | None
+    webhook_secret_configured: bool
+    stripe_api_version: str
+    how_to_change: str

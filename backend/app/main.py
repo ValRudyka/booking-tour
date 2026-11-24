@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.routers import (admin_reference, admin_users, auth, catalog, finance, manager_orders, manager_reviews,
+from app.routers import (admin_reference, admin_settings, admin_users, auth, catalog, finance, manager_orders, manager_reviews,
                          manager_tours, notifications, orders, passports, payments, reference,
                          reviews)
 from app.services.order_completion import run_completion_job
@@ -67,6 +67,7 @@ app = FastAPI(
 app.include_router(auth.router, prefix="/api")
 app.include_router(admin_users.router, prefix="/api")
 app.include_router(admin_reference.router, prefix="/api")
+app.include_router(admin_settings.router, prefix="/api")
 app.include_router(manager_tours.router, prefix="/api")
 app.include_router(manager_orders.router, prefix="/api")
 app.include_router(manager_reviews.router, prefix="/api")
