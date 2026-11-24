@@ -7,12 +7,14 @@ Usage (from backend/):
 --order-id N --force is for manual testing (e.g. of reviews): it moves that one order from
 «Документи готові» to «Завершено» now, ignoring the end date, as the System (change_status, so the
 history row and the client's notification are written as usual). Other statuses are refused.
+It runs only when APP_ENV is development/test (scripts/dev_guard.py).
 """
 import argparse
 import sys
 
 from app.services.errors import DomainError
 from app.services.order_completion import run_completion_job, run_force_complete
+from scripts.dev_guard import dev_guard_error
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -26,6 +28,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--order-id and --force are used together")
 
     if args.order_id is not None:
+        refusal = dev_guard_error()
+        if refusal:
+            print(f"Refused: {refusal}", file=sys.stderr)
+            return 1
         try:
             order = run_force_complete(args.order_id)
         except DomainError as error:

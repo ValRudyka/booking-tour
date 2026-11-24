@@ -1,0 +1,388 @@
+{
+  "_note": "Демо-тури для розробки (scripts.seed_demo). Номери рейсів вигадані (код DM = демо-чартер). start_in — через скільки днів від запуску скрипта перший заїзд, span — ширина діапазону дат заїзду в днях (0 = один заїзд). status: active | draft | archived.",
+  "tours": [
+    {
+      "hotel": "coral-bay-resort",
+      "title": "Хургада: Coral Bay Resort, 7 ночей з Варшави",
+      "transport": "air", "city": "Варшава", "flight_out": "DM 1101", "flight_back": "DM 1102",
+      "start_in": 24, "span": 28, "nights": 7, "seats_total": 40,
+      "base_price": "1150.00", "child_price": "690.00", "currency": "USD",
+      "featured": true, "status": "active",
+      "description": "Тиждень на Червоному морі в готелі з власним кораловим рифом. Ультра все включено, снорклінг просто біля пірсу та аквапарк для дітей.",
+      "program": [
+        "Переліт Варшава — Хургада, груповий трансфер до готелю, заселення.",
+        "Відпочинок на пляжі, знайомство з рифом біля пірсу.",
+        "За бажанням — морська прогулянка на острів Гіфтун (оплачується окремо).",
+        "Вільний день, вечірня шоу-програма в готелі.",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "coral-bay-resort",
+      "title": "Хургада: Coral Bay Resort, 10 ночей з Кракова",
+      "transport": "air", "city": "Краків", "flight_out": "DM 1201", "flight_back": "DM 1202",
+      "start_in": 52, "span": 0, "nights": 10, "seats_total": 30,
+      "base_price": "1490.00", "child_price": "890.00", "currency": "USD",
+      "featured": false, "status": "active",
+      "description": "Довший зимовий відпочинок на першій лінії. Вистачить часу і на пляж, і на поїздку до Луксора.",
+      "program": [
+        "Переліт Краків — Хургада, трансфер, заселення.",
+        "Відпочинок на пляжі та біля басейнів.",
+        "Екскурсія до Луксора на цілий день (оплачується окремо).",
+        "Вільні дні, SPA-центр готелю."
+      ]
+    },
+    {
+      "hotel": "coral-bay-resort",
+      "title": "Хургада: Coral Bay Resort, 14 ночей з Кишинева",
+      "transport": "air", "city": "Кишинів", "flight_out": "DM 1301", "flight_back": "DM 1302",
+      "start_in": 80, "span": 14, "nights": 14, "seats_total": 20,
+      "base_price": "1890.00", "child_price": null, "currency": "USD",
+      "featured": false, "status": "draft",
+      "description": "Два тижні на Червоному морі з вильотом з Кишинева. Чернетка: менеджер ще уточнює рейси.",
+      "program": [
+        "Переліт Кишинів — Хургада, трансфер, заселення.",
+        "Відпочинок на пляжі, снорклінг на рифі.",
+        "Вільні дні.",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "sinai-garden-hotel",
+      "title": "Шарм-ель-Шейх: Sinai Garden Hotel, 7 ночей з Катовіце",
+      "transport": "air", "city": "Катовіце", "flight_out": "DM 1401", "flight_back": "DM 1402",
+      "start_in": 31, "span": 45, "nights": 7, "seats_total": 35,
+      "base_price": "720.00", "child_price": "360.00", "currency": "USD",
+      "featured": true, "status": "active",
+      "description": "Спокійний тиждень у зеленому саду з пальмами. Все включено, безкоштовний шатл до пляжу.",
+      "program": [
+        "Переліт Катовіце — Шарм-ель-Шейх, трансфер, заселення.",
+        "Відпочинок на пляжі, куди возить шатл готелю.",
+        "За бажанням — поїздка до національного парку Рас-Мохаммед (оплачується окремо).",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "sinai-garden-hotel",
+      "title": "Шарм-ель-Шейх: Sinai Garden Hotel, 10 ночей з Жешува",
+      "transport": "air", "city": "Жешув", "flight_out": "DM 1501", "flight_back": "DM 1502",
+      "start_in": 66, "span": 0, "nights": 10, "seats_total": 24,
+      "base_price": "890.00", "child_price": "450.00", "currency": "USD",
+      "featured": false, "status": "active",
+      "description": "Десять ночей тихого відпочинку для пар. Виліт з Жешува, недалеко від українського кордону.",
+      "program": [
+        "Переліт Жешув — Шарм-ель-Шейх, трансфер, заселення.",
+        "Відпочинок на пляжі та біля басейну.",
+        "Нічне сходження на гору Мойсея (оплачується окремо).",
+        "Вільні дні, анімаційна програма готелю."
+      ]
+    },
+    {
+      "hotel": "lara-sunset-palace",
+      "title": "Анталія: Lara Sunset Palace, 7 ночей з Варшави",
+      "transport": "air", "city": "Варшава", "flight_out": "DM 2101", "flight_back": "DM 2102",
+      "start_in": 140, "span": 30, "nights": 7, "seats_total": 50,
+      "base_price": "1290.00", "child_price": "640.00", "currency": "EUR",
+      "featured": true, "status": "active",
+      "description": "Весняний тиждень у готелі класу люкс у районі Лара. Ультра все включено, ресторани à la carte і широкий піщаний пляж.",
+      "program": [
+        "Переліт Варшава — Анталія, трансфер, заселення.",
+        "Відпочинок на пляжі, аквапарк готелю.",
+        "Оглядова екскурсія старим містом Калеїчі та до водоспаду Дюден.",
+        "Вільний день, хамам і SPA.",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "lara-sunset-palace",
+      "title": "Анталія: Lara Sunset Palace, 10 ночей з Кракова",
+      "transport": "air", "city": "Краків", "flight_out": "DM 2201", "flight_back": "DM 2202",
+      "start_in": 155, "span": 0, "nights": 10, "seats_total": 30,
+      "base_price": "1640.00", "child_price": "820.00", "currency": "EUR",
+      "featured": false, "status": "active",
+      "description": "Десять ночей у люксовому готелі на початку пляжного сезону. Зручно поєднати море з шопінгом в Анталії.",
+      "program": [
+        "Переліт Краків — Анталія, трансфер, заселення.",
+        "Відпочинок на пляжі.",
+        "Поїздка до античного міста Перге та Аспендоса (оплачується окремо).",
+        "Вільні дні, вечірні шоу-програми."
+      ]
+    },
+    {
+      "hotel": "lara-sunset-palace",
+      "title": "Анталія: Lara Sunset Palace, 5 ночей з Жешува",
+      "transport": "air", "city": "Жешув", "flight_out": "DM 2301", "flight_back": "DM 2302",
+      "start_in": 128, "span": 0, "nights": 5, "seats_total": 20,
+      "base_price": "990.00", "child_price": null, "currency": "EUR",
+      "featured": false, "status": "active",
+      "description": "Короткий відпочинок на п'ять ночей, коли хочеться моря, а відпустка невелика.",
+      "program": [
+        "Переліт Жешув — Анталія, трансфер, заселення.",
+        "Відпочинок на пляжі та в аквапарку.",
+        "Вільний день.",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "kemer-pine-hills",
+      "title": "Кемер: Kemer Pine Hills, 7 ночей з Катовіце",
+      "transport": "air", "city": "Катовіце", "flight_out": "DM 2401", "flight_back": "DM 2402",
+      "start_in": 135, "span": 40, "nights": 7, "seats_total": 40,
+      "base_price": "780.00", "child_price": "390.00", "currency": "EUR",
+      "featured": false, "status": "active",
+      "description": "Тиждень між горами і морем. Все включено, чиста вода біля галечного пляжу та прогулянки сосновим лісом.",
+      "program": [
+        "Переліт Катовіце — Анталія, трансфер до Кемера, заселення.",
+        "Відпочинок на пляжі.",
+        "Підйом канатною дорогою на гору Тахтали (оплачується окремо).",
+        "Піша прогулянка лісовими стежками.",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "kemer-pine-hills",
+      "title": "Кемер: Kemer Pine Hills, 12 ночей з Варшави",
+      "transport": "air", "city": "Варшава", "flight_out": "DM 2501", "flight_back": "DM 2502",
+      "start_in": 160, "span": 0, "nights": 12, "seats_total": 25,
+      "base_price": "1150.00", "child_price": "580.00", "currency": "EUR",
+      "featured": false, "status": "active",
+      "description": "Майже два тижні відпочинку з гірським повітрям. Підходить для сімей з дітьми.",
+      "program": [
+        "Переліт Варшава — Анталія, трансфер до Кемера, заселення.",
+        "Відпочинок на пляжі, теніс.",
+        "Яхт-тур уздовж узбережжя (оплачується окремо).",
+        "Вільні дні."
+      ]
+    },
+    {
+      "hotel": "kemer-pine-hills",
+      "title": "Кемер: Kemer Pine Hills, 7 ночей з Кишинева",
+      "transport": "air", "city": "Кишинів", "flight_out": "DM 2601", "flight_back": "DM 2602",
+      "start_in": 145, "span": 0, "nights": 7, "seats_total": 18,
+      "base_price": "740.00", "child_price": null, "currency": "EUR",
+      "featured": false, "status": "archived",
+      "description": "Архівний тур: чартер з Кишинева скасовано, тур більше не продається.",
+      "program": [
+        "Переліт Кишинів — Анталія, трансфер до Кемера, заселення.",
+        "Відпочинок на пляжі.",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "alanya-blue-coast",
+      "title": "Аланія: Alanya Blue Coast, 7 ночей з Кракова",
+      "transport": "air", "city": "Краків", "flight_out": "DM 2701", "flight_back": "DM 2702",
+      "start_in": 130, "span": 50, "nights": 7, "seats_total": 45,
+      "base_price": "520.00", "child_price": "260.00", "currency": "EUR",
+      "featured": false, "status": "active",
+      "description": "Бюджетний тиждень в Аланії: сніданки й вечері в готелі, а вдень — пляж Клеопатри та місто.",
+      "program": [
+        "Переліт Краків — Анталія, трансфер до Аланії, заселення.",
+        "Пляж Клеопатри.",
+        "Фортеця Аланії та печера Дамлаташ.",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "alanya-blue-coast",
+      "title": "Аланія: Alanya Blue Coast, 14 ночей з Катовіце",
+      "transport": "air", "city": "Катовіце", "flight_out": "DM 2801", "flight_back": "DM 2802",
+      "start_in": 170, "span": 0, "nights": 14, "seats_total": 20,
+      "base_price": "860.00", "child_price": "430.00", "currency": "EUR",
+      "featured": false, "status": "draft",
+      "description": "Два тижні в Аланії за доступною ціною. Чернетка: ціни ще погоджуються з готелем.",
+      "program": [
+        "Переліт Катовіце — Анталія, трансфер до Аланії, заселення.",
+        "Відпочинок на пляжі.",
+        "Екскурсія до каньйону Сападере (оплачується окремо).",
+        "Вільні дні.",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "costa-dorada-mar",
+      "title": "Салоу: Costa Dorada Mar, 7 ночей з Варшави",
+      "transport": "air", "city": "Варшава", "flight_out": "DM 3101", "flight_back": "DM 3102",
+      "start_in": 150, "span": 30, "nights": 7, "seats_total": 30,
+      "base_price": "1050.00", "child_price": "620.00", "currency": "EUR",
+      "featured": true, "status": "active",
+      "description": "Тиждень на Коста-Дорада для родин з дітьми: море, PortAventura і Барселона на поїзді.",
+      "program": [
+        "Переліт Варшава — Реус, трансфер до Салоу, заселення.",
+        "Відпочинок на пляжі, прогулянка набережною.",
+        "День у тематичному парку PortAventura (квитки окремо).",
+        "Поїздка поїздом до Барселони.",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "costa-dorada-mar",
+      "title": "Салоу: Costa Dorada Mar, 10 ночей з Кракова",
+      "transport": "air", "city": "Краків", "flight_out": "DM 3201", "flight_back": "DM 3202",
+      "start_in": 165, "span": 0, "nights": 10, "seats_total": 22,
+      "base_price": "1320.00", "child_price": "790.00", "currency": "EUR",
+      "featured": false, "status": "active",
+      "description": "Десять ночей в Іспанії з вильотом з Кракова. Сніданки й вечері в готелі.",
+      "program": [
+        "Переліт Краків — Реус, трансфер до Салоу, заселення.",
+        "Відпочинок на пляжі.",
+        "Екскурсія до Таррагони з римським амфітеатром.",
+        "Вільні дні, прокат велосипедів."
+      ]
+    },
+    {
+      "hotel": "costa-dorada-mar",
+      "title": "Салоу: Costa Dorada Mar, 7 ночей, лише проживання",
+      "transport": "none", "city": null, "flight_out": null, "flight_back": null,
+      "start_in": 138, "span": 40, "nights": 7, "seats_total": 15,
+      "base_price": "760.00", "child_price": "380.00", "currency": "EUR",
+      "featured": false, "status": "active",
+      "description": "Лише проживання з напівпансіоном, без перельоту: для тих, хто добирається до Іспанії самостійно.",
+      "program": [
+        "Самостійне прибуття, заселення з 15:00.",
+        "Відпочинок на пляжі.",
+        "Вільні дні.",
+        "Виселення до 12:00."
+      ]
+    },
+    {
+      "hotel": "kriti-olive-villas",
+      "title": "Крит: Kriti Olive Villas, 7 ночей з Варшави",
+      "transport": "air", "city": "Варшава", "flight_out": "DM 3301", "flight_back": "DM 3302",
+      "start_in": 142, "span": 35, "nights": 7, "seats_total": 28,
+      "base_price": "890.00", "child_price": "450.00", "currency": "EUR",
+      "featured": false, "status": "active",
+      "description": "Тиждень у віллі серед оливкового гаю біля Ретимно. Сніданки, тераса і тиша.",
+      "program": [
+        "Переліт Варшава — Іракліон, трансфер до Ретимно, заселення.",
+        "Відпочинок на пляжі.",
+        "Прогулянка старим містом і венеційською гаванню.",
+        "Поїздка до палацу Кносс (оплачується окремо).",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "kriti-olive-villas",
+      "title": "Крит: Kriti Olive Villas, 10 ночей з Катовіце",
+      "transport": "air", "city": "Катовіце", "flight_out": "DM 3401", "flight_back": "DM 3402",
+      "start_in": 168, "span": 0, "nights": 10, "seats_total": 16,
+      "base_price": "1180.00", "child_price": null, "currency": "EUR",
+      "featured": false, "status": "active",
+      "description": "Десять ночей на Криті для неспішного відпочинку і поїздок островом.",
+      "program": [
+        "Переліт Катовіце — Іракліон, трансфер, заселення.",
+        "Відпочинок на пляжі.",
+        "Ущелина Самарія (оплачується окремо).",
+        "Вільні дні, барбекю на терасі."
+      ]
+    },
+    {
+      "hotel": "golden-sands-family-club",
+      "title": "Золоті Піски: Golden Sands Family Club, 10 ночей автобусом з Києва",
+      "transport": "bus", "city": "Київ", "flight_out": null, "flight_back": null,
+      "start_in": 172, "span": 0, "nights": 10, "seats_total": 48,
+      "base_price": "26500.00", "child_price": "19900.00", "currency": "UAH",
+      "featured": true, "status": "active",
+      "description": "Сімейний відпочинок на Чорному морі з автобусом з Києва. Пологий вхід у море, дитячий клуб і все включено.",
+      "program": [
+        "Виїзд з Києва ввечері, нічний переїзд.",
+        "Прибуття на Золоті Піски, заселення.",
+        "Відпочинок на пляжі, анімація для дітей.",
+        "Екскурсія до Варни (оплачується окремо).",
+        "Виїзд додому."
+      ]
+    },
+    {
+      "hotel": "golden-sands-family-club",
+      "title": "Золоті Піски: Golden Sands Family Club, 7 ночей автобусом зі Львова",
+      "transport": "bus", "city": "Львів", "flight_out": null, "flight_back": null,
+      "start_in": 162, "span": 14, "nights": 7, "seats_total": 48,
+      "base_price": "21900.00", "child_price": "16400.00", "currency": "UAH",
+      "featured": false, "status": "active",
+      "description": "Тиждень на болгарському узбережжі з виїздом зі Львова. Все включено.",
+      "program": [
+        "Виїзд зі Львова, переїзд.",
+        "Прибуття, заселення.",
+        "Відпочинок на пляжі та біля басейну з гірками.",
+        "Виїзд додому."
+      ]
+    },
+    {
+      "hotel": "golden-sands-family-club",
+      "title": "Золоті Піски: Golden Sands Family Club, 7 ночей з Варшави",
+      "transport": "air", "city": "Варшава", "flight_out": "DM 3501", "flight_back": "DM 3502",
+      "start_in": 175, "span": 0, "nights": 7, "seats_total": 30,
+      "base_price": "640.00", "child_price": "320.00", "currency": "EUR",
+      "featured": false, "status": "active",
+      "description": "Той самий сімейний клуб, але з перельотом до Варни замість довгої дороги автобусом.",
+      "program": [
+        "Переліт Варшава — Варна, трансфер, заселення.",
+        "Відпочинок на пляжі.",
+        "Вільний день, дитячий клуб.",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "budva-old-town-residence",
+      "title": "Будва: Budva Old Town Residence, 8 ночей автобусом зі Львова",
+      "transport": "bus", "city": "Львів", "flight_out": null, "flight_back": null,
+      "start_in": 158, "span": 0, "nights": 8, "seats_total": 45,
+      "base_price": "18900.00", "child_price": "14200.00", "currency": "UAH",
+      "featured": false, "status": "active",
+      "description": "Автобусний тур до Адріатики: старе місто Будви, пляж Могрен і поїздки Чорногорією.",
+      "program": [
+        "Виїзд зі Львова, переїзд з нічліжкою в дорозі.",
+        "Прибуття до Будви, заселення.",
+        "Старе місто Будви та пляж Могрен.",
+        "Екскурсія до Котора і Которської затоки.",
+        "Виїзд додому."
+      ]
+    },
+    {
+      "hotel": "budva-old-town-residence",
+      "title": "Будва: Budva Old Town Residence, 7 ночей з Кракова",
+      "transport": "air", "city": "Краків", "flight_out": "DM 3601", "flight_back": "DM 3602",
+      "start_in": 148, "span": 30, "nights": 7, "seats_total": 24,
+      "base_price": "690.00", "child_price": "350.00", "currency": "EUR",
+      "featured": false, "status": "active",
+      "description": "Тиждень у Чорногорії з перельотом до Тивата. Сніданки, апартаменти з кухнею.",
+      "program": [
+        "Переліт Краків — Тиват, трансфер до Будви, заселення.",
+        "Відпочинок на пляжі.",
+        "Поїздка до Скадарського озера (оплачується окремо).",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "dubai-marina-skyline",
+      "title": "Дубай: Dubai Marina Skyline, 5 ночей з Варшави",
+      "transport": "air", "city": "Варшава", "flight_out": "DM 4101", "flight_back": "DM 4102",
+      "start_in": 45, "span": 0, "nights": 5, "seats_total": 1,
+      "base_price": "1390.00", "child_price": "990.00", "currency": "USD",
+      "featured": false, "status": "active",
+      "description": "Остання путівка: у квоті лише одне місце. П'ять ночей у Дубай Марина з басейном на даху.",
+      "program": [
+        "Переліт Варшава — Дубай, трансфер, заселення.",
+        "Пляж JBR і набережна Марини.",
+        "Оглядова екскурсія містом, Бурдж-Халіфа (квитки окремо).",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    },
+    {
+      "hotel": "dubai-marina-skyline",
+      "title": "Дубай: Dubai Marina Skyline, 7 ночей з Кракова",
+      "transport": "air", "city": "Краків", "flight_out": "DM 4201", "flight_back": "DM 4202",
+      "start_in": 90, "span": 30, "nights": 7, "seats_total": 26,
+      "base_price": "1690.00", "child_price": "1190.00", "currency": "USD",
+      "featured": false, "status": "active",
+      "description": "Тиждень у Дубаї: пляж, шопінг і пустеля. Сніданки в готелі.",
+      "program": [
+        "Переліт Краків — Дубай, трансфер, заселення.",
+        "Пляж JBR, басейн на даху.",
+        "Джип-сафарі пустелею з вечерею (оплачується окремо).",
+        "Дубай Мол і фонтани.",
+        "Трансфер до аеропорту, переліт додому."
+      ]
+    }
+  ]
+}
