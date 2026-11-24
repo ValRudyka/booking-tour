@@ -12,8 +12,8 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.routers import (auth, catalog, finance, manager_tours, orders, passports, payments,
-                         reference)
+from app.routers import (auth, catalog, finance, manager_tours, notifications, orders, passports,
+                         payments, reference)
 from app.services.order_expiry import run_expiry_job
 
 logger = logging.getLogger("tour.orders")
@@ -61,6 +61,7 @@ app.include_router(orders.router, prefix="/api")
 app.include_router(passports.router, prefix="/api")
 app.include_router(payments.router, prefix="/api")
 app.include_router(finance.router, prefix="/api")
+app.include_router(notifications.router, prefix="/api")
 
 # Only tour photos are public. Mounting the whole upload_dir would also publish anything stored
 # there later (order documents, passports), so private files live outside uploads/tours and are
