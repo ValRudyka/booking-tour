@@ -144,15 +144,16 @@ phone or e-mail, `/me`, password change, `require_roles`, create_user CLI) → m
 `feature/tours-catalog` (manager CRUD, copy, statuses + audit_log, photos; public catalog
 with filters/sort/pagination, tour page, reference lists; `scripts.seed_demo`) → merged to
 `develop` (PR #4). `fix/private-uploads` (only `uploads/tours` is public) → merged (PR #5).
-
 `feature/orders-checkout` (quote, create with seat hold, edit, confirm with offer consent and
 frozen price, cancel, my orders with history, saved passports, insurance/transfer lists,
 status service, hold expiry loop + CLI; migration `order_number_seq` + `orders.offer_accepted_at`)
-— **ready, PR to `develop` pending**.
+→ merged to `develop` (PR #6).
+
+In progress: `feature/stripe-payments`.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
-2. `feature/orders-checkout` — checkout, price calc, seat hold + timeout, status service (4.5.3, 4.4.1)
+2. `feature/orders-checkout` — **done** (PR #6)
 3. `feature/stripe-payments` — Stripe Checkout + webhook, mock gateway, bank transfer confirm (4.5.3, 4.5.6)
 4. `feature/order-processing` — manager takes/confirms/rejects, PNR, document upload, cancel + refunds (4.5.4–4.5.6)
 5. `feature/reviews` — reviews + moderation + hotel rating (4.5.7)
