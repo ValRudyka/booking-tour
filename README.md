@@ -8,8 +8,8 @@
 | Частина  | Технології                                                                                   |
 | -------- | -------------------------------------------------------------------------------------------- |
 | Backend  | Python 3.12, FastAPI, SQLAlchemy 2.0 (sync), Alembic, PostgreSQL 16                          |
-| Frontend | React 19, TypeScript, Vite, antd 6 (+ pro-components для бекофісу), TanStack Query, react-i18next _(етап 9)_ |
-| Тести    | pytest (610 тестів backend)                                                                  |
+| Frontend | React 19, TypeScript 6, Vite 8, antd 6 (+ pro-components для бекофісу), React Router, TanStack Query, react-i18next |
+| Тести    | pytest (623 тести backend), Vitest + Testing Library (74 тести frontend)                     |
 
 ## Структура
 
@@ -29,7 +29,7 @@ tour-website/
 │   ├── scripts/           # службові скрипти (користувачі, демо-дані, ER-діаграма)
 │   ├── uploads/           # завантажені файли (не в git); публічна лише папка tours/
 │   └── tests/
-├── frontend/              # React-застосунок (з етапу 9)
+├── frontend/              # React-застосунок (Vite), див. розділ «Фронтенд»
 ├── database/              # SQL-скрипти для ручного запуску в pgAdmin
 └── docs/                  # ER-діаграма, ТЗ (docs/tz/)
 ```
@@ -378,6 +378,53 @@ python -m scripts.complete_orders --order-id 42 --force
 (кінець пізніше за початок), ліміт використань, «Активний». `used_count` і `paid_count` —
 лише для читання. Використаний промокод не видаляється і не перейменовується — лише деактивується.
 
+## Фронтенд
+
+Публічна частина сайту — React-застосунок у `frontend/` (Vite, TypeScript strict, antd 6,
+React Router, TanStack Query + axios, react-i18next). Потрібен Node.js 22.12+.
+
+```powershell
+cd frontend
+npm install
+copy .env.example .env.local   # VITE_API_URL=http://localhost:8000 — адреса бекенду
+npm run dev                    # http://localhost:5173 (бекенд має працювати на :8000)
+```
+
+| Команда | Що робить |
+|---|---|
+| `npm run dev` | сервер розробки на http://localhost:5173 |
+| `npm test` | тести (Vitest + Testing Library, запити до API підмінені) |
+| `npm run build` | перевірка типів (`tsc -b`) і збірка в `frontend/dist` |
+| `npm run typecheck` | лише перевірка типів |
+| `npm run lint` | oxlint |
+| `npm run gen:api` | згенерувати типи API `src/api/schema.d.ts` з `http://127.0.0.1:8000/openapi.json` |
+
+- **Типи API не пишуться вручну:** після кожної зміни схем бекенду — `npm run gen:api` (бекенд
+  має бути запущений) і закомітити `schema.d.ts`. Адреса `127.0.0.1`, а не `localhost`: на Windows
+  Node може звернутися до IPv6 `::1`, а uvicorn слухає лише IPv4.
+- **CORS:** бекенд приймає запити лише з адрес у `CORS_ORIGINS` (за замовчуванням
+  `http://localhost:5173` і `http://127.0.0.1:5173`), тому Vite запускається строго на порту 5173.
+- **TypeScript 6, а не 7:** TypeScript 7 не має JS API компілятора, без якого не працює
+  openapi-typescript (issue openapi-ts/openapi-typescript#2841). openapi-typescript 7.13.0 оголошує
+  peer `typescript ^5.x`, тому в `package.json` є `overrides`; результат генерації з TS 6.0.3 і 5.9.3
+  перевірено — однаковий.
+- **openapi-typescript у режимі підтримки:** автор оголосив 19.09.2026, що пакет більше не
+  оновлюватиметься, навіть виправленнями безпеки (issue openapi-ts/openapi-typescript#2874).
+  Це інструмент лише для розробки: він генерує `.d.ts` і не потрапляє в збірку сайту, тому версія
+  закріплена точно (`7.13.0`). Не плутати з дорожньою картою на 2026 рік (discussion #2559), де
+  в режим підтримки перевели `openapi-fetch`, `openapi-react-query` та `openapi-metadata`.
+- **Дизайн:** палітра «Море і пісок» (`src/theme.ts`), без анімацій (`motion: false`) і без емодзі,
+  контраст тексту не нижче 4.5:1 — це перевіряє тест `src/theme.test.ts` на реальних токенах antd.
+- **Тексти** інтерфейсу — лише через ключі `src/i18n/uk.json` (ключі перевіряє TypeScript).
+
+**Каталог `/tours`** (`docs/frontend/01-catalog-page.md`): пошук за назвою, країна, курорт,
+місто вильоту, транспорт, дати виїзду, кількість ночей, ціна, зірковість, «лише з вільними
+місцями»; сортування за датою, ціною, рейтингом; 12 турів на сторінку. Увесь стан — у рядку
+адреси (`?country_id=4&stars=4&stars=5&page=2`): посилання відкривається в новій вкладці з тими
+самими результатами, «Назад» повертає попередній пошук. «Найближчий виїзд» рахується за датою
+в Києві, як `clock.today()` бекенду. Фільтра за харчуванням і сортування за назвою ще немає —
+API їх не підтримує (заплановано в `feature/catalog-improvements`).
+
 ## База даних
 
 27 таблиць, 38 зв'язків, 38 іменованих CHECK-обмежень. Схема описана в `app/models/`,
@@ -411,5 +458,5 @@ alembic upgrade base:head --sql > ../database/schema_full.sql
   (повернення за запитом клієнта — етап 7)
 - [x] 7. Обробка заявок менеджером, документи, скасування й повернення коштів, відгуки та рейтинг
 - [x] 8. Адміністрування: користувачі, довідники, налаштування, промокоди, журнал змін
-- [ ] 9. Frontend
+- [ ] 9. Frontend (готово: каркас, макет, каталог `/tours`)
 - [ ] 10. Додаткові функції (обране, історія пошуку, лояльність, звіти, e-mail, моніторинг)
