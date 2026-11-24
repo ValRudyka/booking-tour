@@ -325,11 +325,16 @@ def confirm_order(db: Session, client: User, order: Order,
 
 def cancel_order(db: Session, client: User, order: Order) -> Order:
     """ТЗ 4.5.3 step 7.1: cancel before payment; the hold stops counting at once.
-    A paid order is cancelled through a cancellation request (feature/order-processing)."""
+    A paid order is cancelled through a cancellation request (services/cancellation.py)."""
     if expire_if_due(db, order):
         return order   # already cancelled by the System — the client's wish is fulfilled
+    if order.status in (OrderStatus.PAID, OrderStatus.IN_PROGRESS, OrderStatus.CONFIRMED,
+                        OrderStatus.DOCUMENTS_READY):
+        raise DomainError("Оплачене замовлення скасовується через клопотання про скасування "
+                          "(повернення коштів за вирахуванням ФПВ)", 409)
     if order.status not in HOLDING_STATUSES:
-        raise DomainError("Скасувати тут можна лише неоплачене замовлення", 409)
+        raise DomainError(f"Замовлення в статусі «{order_status.STATUS_LABELS[order.status]}» "
+                          f"скасувати не можна", 409)
     if order.payment_status == PaymentStatus.PARTIALLY_PAID:
         raise DomainError("Замовлення частково оплачене — для скасування зверніться до менеджера", 409)
     close_open_sessions(db, order)
