@@ -163,12 +163,14 @@ status service, hold expiry loop + CLI; migration `order_number_seq` + `orders.o
 `feature/stripe-payments` (gateway interface Stripe/mock, card payment via Checkout, signed
 webhook with late-payment refunds, session closing on expiry, bank transfer + finance register
 and confirmation with private statements; data migration `bank_transfer_hold_hours`)
-— **ready, PR to `develop` pending**.
+→ merged to `develop` (PR #7).
+
+In progress: `feature/order-processing`.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
 2. `feature/orders-checkout` — **done** (PR #6)
-3. `feature/stripe-payments` — Stripe Checkout + webhook, mock gateway, bank transfer confirm (4.5.3, 4.5.6)
+3. `feature/stripe-payments` — **done** (PR #7)
 4. `feature/order-processing` — manager takes/confirms/rejects, PNR, document upload, cancel + refunds (4.5.4–4.5.6)
 5. `feature/reviews` — reviews + moderation + hotel rating (4.5.7)
 6. `feature/admin` — users/roles, reference data, rates, settings, promo codes (4.5.8, 4.6.2.3, 4.6.4.1)
