@@ -240,3 +240,67 @@ def photo_file(db: Session, review_id: int, photo_id: int, viewer: User | None) 
     if not path.exists():
         raise DomainError("Фото не знайдено", 404)
     return str(path), private_files.media_type(photo.file_path)[1], public
+
+
+# ---------- the moderator (role manager)
+def list_for_moderation(db: Session, *, status: ReviewStatus, tour_id: int | None,
+                        hotel_id: int | None, page: int, page_size: int) -> tuple[list[Review], int]:
+    """The queue: oldest submitted first (a resubmitted review queues again by its new time)."""
+    query = select(Review).where(Review.status == status)
+    if tour_id is not None:
+        query = query.where(Review.tour_id == tour_id)
+    if hotel_id is not None:
+        query = query.where(Review.hotel_id == hotel_id)
+    total = db.scalar(select(func.count()).select_from(query.subquery()))
+    items = db.scalars(query.order_by(Review.submitted_at, Review.id)
+                       .offset((page - 1) * page_size).limit(page_size)).all()
+    return list(items), total
+
+
+def get_review(db: Session, review_id: int, lock: bool = False) -> Review:
+    query = select(Review).where(Review.id == review_id)
+    if lock:                                  # review row first, then the hotel row
+        query = query.with_for_update().execution_options(populate_existing=True)
+    review = db.scalar(query)
+    if review is None:
+        raise DomainError("Відгук не знайдено", 404)
+    return review
+
+
+def moderate_publish(db: Session, moderator: User, review_id: int) -> Review:
+    from app.services.notifications import notify
+
+    review = get_review(db, review_id, lock=True)
+    if review.status != ReviewStatus.PENDING:
+        raise DomainError(f"Опублікувати можна лише відгук на модерації; цей — "
+                          f"{STATUS_LABELS[review.status]}", 409)
+    publish(db, review, moderator)
+    notify(db, review.user_id, "Ваш відгук опубліковано",
+           f"Дякуємо! Відгук про тур «{review.tour.title_uk}» тепер бачать усі відвідувачі сайту.",
+           review.order)
+    return review
+
+
+def moderate_reject(db: Session, moderator: User, review_id: int, reason: str) -> Review:
+    """Pending -> rejected, or published -> rejected (unpublish: the hotel rating is recalculated)."""
+    from app.services.notifications import notify
+
+    review = get_review(db, review_id, lock=True)
+    if review.status == ReviewStatus.REJECTED:
+        raise DomainError("Відгук уже відхилено", 409)
+    reason = (reason or "").strip()
+    if not reason:
+        raise DomainError("Вкажіть причину відхилення", 422)
+    if len(reason) > MAX_REASON:
+        raise DomainError(f"Причина — не довше {MAX_REASON} символів", 422)
+    was_published = review.status == ReviewStatus.PUBLISHED
+    review.status, review.reject_reason = ReviewStatus.REJECTED, reason
+    review.moderated_by, review.moderated_at = moderator.id, utcnow()
+    db.flush()
+    if was_published:
+        recalc_hotel_rating(db, review.hotel_id)
+    hint = (" Ви можете один раз виправити відгук у розділі «Мої відгуки» і подати його знову."
+            if can_resubmit(review) else "")
+    notify(db, review.user_id, "Відгук не опубліковано" if not was_published else "Відгук знято з публікації",
+           f"Відгук про тур «{review.tour.title_uk}»: {reason}.{hint}", review.order)
+    return review
