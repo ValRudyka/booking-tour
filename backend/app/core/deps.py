@@ -19,6 +19,8 @@ from app.models import User
 from app.models.enums import UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+# Same scheme, but a missing token is not an error (public endpoints that show more to some users).
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 DbSession = Annotated[Session, Depends(get_db)]
 
@@ -39,6 +41,19 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSessio
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def get_optional_user(token: Annotated[str | None, Depends(optional_oauth2_scheme)],
+                      db: DbSession) -> User | None:
+    """The logged-in user, or None for a guest (an invalid token also counts as a guest)."""
+    if not token:
+        return None
+    user_id = decode_access_token(token)
+    user = db.get(User, user_id) if user_id is not None else None
+    return user if user is not None and user.is_active else None
+
+
+OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 
 
 def require_roles(*roles: UserRole) -> Callable[[User], User]:

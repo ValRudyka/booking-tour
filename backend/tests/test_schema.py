@@ -115,7 +115,7 @@ def test_review_rating_range_and_one_per_order(db):
     order = make_order(db, client, tour)
 
     def review(rating=5):
-        db.add(Review(order_id=order.id, tour_id=tour.id, user_id=client.id,
+        db.add(Review(order_id=order.id, tour_id=tour.id, hotel_id=tour.hotel_id, user_id=client.id,
                       hotel_rating=rating, service_rating=5))
         db.flush()
 
@@ -161,3 +161,21 @@ def test_refund_links_fpv_and_cancel_reason(db):
         text("UPDATE orders SET cancel_reason_code = 'bored' WHERE id = :id"), {"id": order.id}))
     db.execute(text("UPDATE orders SET cancel_reason_code = 'illness', fpv_uah = 0 WHERE id = :id"),
                {"id": order.id})
+
+
+def test_review_status_and_hotel_required(db):
+    """Migration 'review moderation': status from the list, hotel_id required."""
+    manager = make_user(db, "+380502222222", "m@test.ua", UserRole.MANAGER)
+    client = make_user(db)
+    tour = make_tour(db, manager)
+    order = make_order(db, client, tour)
+
+    def review(**fields):
+        db.add(Review(order_id=order.id, tour_id=tour.id, user_id=client.id, hotel_rating=5,
+                      service_rating=5, **fields))
+        db.flush()
+
+    assert_rejected(db, lambda: review(hotel_id=None))
+    review(hotel_id=tour.hotel_id)
+    assert_rejected(db, lambda: db.execute(text("UPDATE reviews SET status = 'hidden'")))
+    assert db.execute(text("SELECT value FROM settings WHERE key = 'review_premoderation'")).scalar() is True

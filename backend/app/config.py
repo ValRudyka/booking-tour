@@ -50,5 +50,10 @@ class Settings(BaseSettings):
     # How often the server completes finished trips; 0 turns the loop off (tests).
     order_completion_interval_sec: int = 3600
 
+    # Reviews (form 4.6.1.4, field 6): photos are private files, served only for published
+    # reviews (or to the author / managers).
+    max_review_photos: int = 10
+    max_review_photo_mb: int = 5
+
 
 settings = Settings()

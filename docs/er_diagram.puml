@@ -305,13 +305,20 @@ entity reviews {
  --
  * order_id : int <<FK,UQ>>
  * tour_id : int <<FK>>
+ * hotel_id : int <<FK>>
  * user_id : int <<FK>>
  * hotel_rating : smallint
  * service_rating : smallint
    positive : text
    negative : text
  * name_display : enum
- * is_published : bool
+ * status : enum
+   reject_reason : text
+   moderated_by : int <<FK>>
+   moderated_at : timestamptz
+ * submitted_at : timestamptz
+   resubmitted_at : timestamptz
+ * updated_at : timestamptz
  * created_at : timestamptz
 }
 }
@@ -350,6 +357,7 @@ orders ||--o{ payments
 users |o--o{ payments
 orders ||--o| reviews
 tours ||--o{ reviews
+hotels ||--o{ reviews
 users ||--o{ reviews
 reviews ||--o{ review_photos
 @enduml

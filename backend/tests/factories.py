@@ -160,3 +160,22 @@ def stripe_signature(payload: bytes, secret: str, timestamp: int | None = None) 
     timestamp = int(time.time()) if timestamp is None else timestamp
     digest = hmac.new(secret.encode(), f"{timestamp}.".encode() + payload, hashlib.sha256).hexdigest()
     return f"t={timestamp},v1={digest}"
+
+
+def make_review(db, order: Order, status=None, hotel_rating=5, service_rating=5, name_display=None,
+                **overrides):
+    """A review of `order` (default: published), with the hotel of the order's tour."""
+    from datetime import datetime, timezone
+
+    from app.models import Review
+    from app.models.enums import NameDisplay, ReviewStatus
+
+    status = status or ReviewStatus.PUBLISHED
+    now = datetime.now(timezone.utc)
+    review = Review(order_id=order.id, tour_id=order.tour_id, hotel_id=order.tour.hotel_id,
+                    user_id=order.client_id, hotel_rating=hotel_rating, service_rating=service_rating,
+                    status=status, name_display=name_display or NameDisplay.SHORT, submitted_at=now,
+                    moderated_at=now if status != ReviewStatus.PENDING else None, **overrides)
+    db.add(review)
+    db.flush()
+    return review

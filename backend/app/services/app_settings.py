@@ -25,3 +25,8 @@ def bank_transfer_hold_hours(db: Session) -> int:
     """How long the seats stay held after the client chooses a bank transfer
     (and again after each partial transfer): a transfer takes days, not minutes."""
     return int(get_setting(db, "bank_transfer_hold_hours", DEFAULT_BANK_TRANSFER_HOLD_HOURS))
+
+
+def review_premoderation(db: Session) -> bool:
+    """ТЗ 4.5.7 step 6: new reviews wait for moderation (true, default) or appear at once."""
+    return bool(get_setting(db, "review_premoderation", True))

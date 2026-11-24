@@ -54,8 +54,61 @@ def test_business_date_is_kyiv():
 
 def test_cli(monkeypatch, capsys):
     monkeypatch.setattr(complete_cli, "run_completion_job", lambda: 2)
-    assert complete_cli.main() == 0
+    assert complete_cli.main([]) == 0
     assert "Completed orders (trip ended, documents ready): 2" in capsys.readouterr().out
+
+
+def test_force_complete_one_order(db, customer, manager):
+    """Dev only: documents_ready -> completed now, whatever the end date, as the System."""
+    from app.services.order_completion import FORCED_COMMENT, force_complete
+    from app.services.errors import DomainError
+
+    tour = make_active_tour(db, manager)
+    order = order_ending(db, customer, tour, date.today() + timedelta(days=20))   # trip in the future
+    force_complete(db, order.id)
+    db.expire_all()
+    done = db.get(Order, order.id)
+    assert done.status == S.COMPLETED
+    assert (done.history[-1].changed_by, done.history[-1].comment) == (None, FORCED_COMMENT)
+    assert db.scalars(select(Notification).where(Notification.order_id == order.id)).one()
+
+    confirmed = order_ending(db, customer, tour, date.today() + timedelta(days=20), status=S.CONFIRMED)
+    try:
+        force_complete(db, confirmed.id)
+        raise AssertionError("must be refused")
+    except DomainError as error:
+        assert error.status_code == 409 and "«Підтверджено»" in error.message
+        assert "лише замовлення в статусі «Документи готові»" in error.message
+    assert db.get(Order, confirmed.id).status == S.CONFIRMED
+    try:
+        force_complete(db, 999999)
+        raise AssertionError("must be refused")
+    except DomainError as error:
+        assert error.status_code == 404
+
+
+def test_force_cli(monkeypatch, capsys):
+    from app.services.errors import DomainError
+
+    class Done:
+        number = "TU-2026-000042"
+
+    monkeypatch.setattr(complete_cli, "run_force_complete", lambda order_id: Done())
+    assert complete_cli.main(["--order-id", "42", "--force"]) == 0
+    assert "Order TU-2026-000042 completed (forced" in capsys.readouterr().out
+
+    def refuse(order_id):
+        raise DomainError("Замовлення TU-1 в статусі «Оплачено»: ...", 409)
+
+    monkeypatch.setattr(complete_cli, "run_force_complete", refuse)
+    assert complete_cli.main(["--order-id", "42", "--force"]) == 1
+    assert "Refused: Замовлення TU-1 в статусі «Оплачено»" in capsys.readouterr().err
+    for args in (["--order-id", "42"], ["--force"]):
+        try:
+            complete_cli.main(args)
+            raise AssertionError("must be refused")
+        except SystemExit as stop:
+            assert stop.code == 2
 
 
 def test_lifespan_runs_the_completion_job(monkeypatch):

@@ -3,12 +3,13 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import CheckConstraint, ForeignKey, SmallInteger, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, SmallInteger, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, str_enum
-from app.models.enums import Currency, NameDisplay, PaymentMethod, PaymentType, TransactionStatus
+from app.models.enums import (Currency, NameDisplay, PaymentMethod, PaymentType, ReviewStatus,
+                              TransactionStatus)
 
 
 class Payment(TimestampMixin, Base):
@@ -47,7 +48,10 @@ class Payment(TimestampMixin, Base):
 
 
 class Review(TimestampMixin, Base):
-    """One review per completed order (ТЗ form 4.6.1.4)."""
+    """One review per completed order (ТЗ 4.5.7, form 4.6.1.4), moderated by a manager.
+
+    hotel_id is saved when the review is written: a tour can go back to draft and get another
+    hotel, and the review (and the hotel rating) must stay with the hotel the client stayed in."""
     __tablename__ = "reviews"
     __table_args__ = (
         CheckConstraint("hotel_rating BETWEEN 1 AND 5", name="hotel_rating_range"),
@@ -57,6 +61,7 @@ class Review(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), unique=True)
     tour_id: Mapped[int] = mapped_column(ForeignKey("tours.id"), index=True)
+    hotel_id: Mapped[int] = mapped_column(ForeignKey("hotels.id"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     hotel_rating: Mapped[int] = mapped_column(SmallInteger)
     service_rating: Mapped[int] = mapped_column(SmallInteger)
@@ -65,10 +70,24 @@ class Review(TimestampMixin, Base):
     name_display: Mapped[NameDisplay] = mapped_column(str_enum(NameDisplay, "name_display"),
                                                       default=NameDisplay.SHORT,
                                                       server_default=NameDisplay.SHORT.value)
-    is_published: Mapped[bool] = mapped_column(default=False, server_default="false")  # moderation
+    status: Mapped[ReviewStatus] = mapped_column(str_enum(ReviewStatus, "review_status"),
+                                                 default=ReviewStatus.PENDING,
+                                                 server_default=ReviewStatus.PENDING.value, index=True)
+    reject_reason: Mapped[str | None] = mapped_column(Text)
+    moderated_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))  # NULL = the System
+    moderated_at: Mapped[datetime | None]
+    # The moderation queue is sorted by submitted_at (a resubmitted review queues again).
+    submitted_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    resubmitted_at: Mapped[datetime | None]   # set = the one allowed correction is used up
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
+    order: Mapped["Order"] = relationship()
+    tour: Mapped["Tour"] = relationship()
+    hotel: Mapped["Hotel"] = relationship()
+    author: Mapped["User"] = relationship(foreign_keys=[user_id])
     photos: Mapped[list["ReviewPhoto"]] = relationship(back_populates="review",
-                                                       cascade="all, delete-orphan")
+                                                       cascade="all, delete-orphan",
+                                                       order_by="ReviewPhoto.id")
 
 
 class ReviewPhoto(Base):
