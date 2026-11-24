@@ -2,14 +2,17 @@
 from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import FileResponse
 
 from app.core.deps import DbSession, require_roles
 from app.models import Order, User
 from app.models.enums import OrderStatus, UserRole
 from app.schemas.common import Page
+from app.schemas.manager_orders import DocumentOut
 from app.schemas.orders import (OrderConfirm, OrderCreate, OrderDetailOut, OrderOut,
                                 OrderUpdate, OrderWithPriceOut, PriceOut, QuoteRequest)
 from app.schemas.payments import BankDetailsOut, PaymentShortOut, PayOut, PayRequest
+from app.services import order_documents
 from app.services import orders as order_service
 from app.services.errors import DomainError
 from app.services.orders import HoldExpired
@@ -145,3 +148,21 @@ def pay_order(order_id: int, data: PayRequest, db: DbSession, client: Client,
                   checkout_url=result.checkout_url,
                   bank_details=BankDetailsOut(**result.bank) if result.bank else None,
                   message=result.message)
+
+
+# ---------- trip documents (ТЗ 4.5.4 step 5): from «Підтверджено» on, own orders only
+@router.get("/{order_id}/documents", response_model=list[DocumentOut],
+            summary="Документи на подорож (ваучер, квитки, поліс, інфолист)")
+def list_documents(order_id: int, db: DbSession, client: Client):
+    return order_documents.client_documents(_own(db, client, order_id))
+
+
+@router.get("/{order_id}/documents/{doc_id}/download", summary="Завантажити документ")
+def download_document(order_id: int, doc_id: int, db: DbSession, client: Client):
+    order = _own(db, client, order_id)
+    try:
+        path, name, media_type = order_documents.file_response_args(
+            order, order_documents.client_document(order, doc_id))
+    except DomainError as error:
+        _fail(db, error)
+    return FileResponse(path, media_type=media_type, filename=name)

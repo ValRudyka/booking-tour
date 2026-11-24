@@ -6,8 +6,10 @@ from itertools import count
 from sqlalchemy import select
 
 from app.core.security import create_access_token
-from app.models import City, Country, CurrencyRate, Hotel, Order, PromoCode, Resort, Tour, User
-from app.models.enums import Currency, DiscountType, TourStatus, TransportType, UserRole
+from app.models import (City, Country, CurrencyRate, Hotel, Order, OrderTourist, Payment, PromoCode,
+                        Resort, Tour, User)
+from app.models.enums import (Currency, DiscountType, OrderStatus, PaymentMethod, PaymentStatus,
+                              PaymentType, TourStatus, TransactionStatus, TransportType, UserRole)
 
 _seq = count(1)
 
@@ -77,6 +79,41 @@ def make_order(db, client: User, tour: Tour, **overrides) -> Order:
     order = Order(**fields)
     db.add(order)
     db.flush()
+    return order
+
+
+def add_payment(db, order: Order, amount, method=PaymentMethod.CARD, intent: str | None = None,
+                received_at=None) -> Payment:
+    """A succeeded incoming payment (card: with a PaymentIntent, so it can be refunded)."""
+    from datetime import datetime, timezone
+
+    amount = Decimal(str(amount))
+    payment = Payment(order_id=order.id, type=PaymentType.PAYMENT, method=method,
+                      status=TransactionStatus.SUCCEEDED, amount_uah=amount, paid_amount=amount,
+                      received_at=received_at or datetime.now(timezone.utc),
+                      stripe_payment_intent=(intent or f"pi_test_{order.id}_{next(_seq)}")
+                      if method == PaymentMethod.CARD else None)
+    db.add(payment)
+    db.flush()
+    return payment
+
+
+def make_paid_order(db, client: User, tour: Tour, status=OrderStatus.PAID, total="77000.00",
+                    payments: list | None = None, **overrides) -> Order:
+    """An order that went through checkout and was paid: seats sold, one tourist per seat,
+    succeeded payments (default: one card payment of the whole total)."""
+    overrides.setdefault("adults", 2)
+    order = make_order(db, client, tour, status=status, payment_status=PaymentStatus.PAID,
+                       total_uah=Decimal(total), offer_accepted_at=None, **overrides)
+    for i in range(order.adults + order.children):
+        db.add(OrderTourist(order_id=order.id, last_name_lat="Shevchenko", first_name_lat=f"Taras{i}",
+                            birth_date=date(1990, 1, 1), passport_number=f"FX{100000 + i}",
+                            passport_expiry=date.today() + timedelta(days=3 * 365)))
+    tour.seats_sold += order.adults + order.children
+    for amount, method in payments or [(total, PaymentMethod.CARD)]:
+        add_payment(db, order, amount, method)
+    db.flush()
+    db.refresh(order)
     return order
 
 

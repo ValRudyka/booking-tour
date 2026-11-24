@@ -1,6 +1,7 @@
 """Orders and everything attached to them (ТЗ 4.4.1, forms 4.6.1.2, 4.6.2.2, 4.6.2.3)."""
 from datetime import date, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (CheckConstraint, ForeignKey, Numeric, Sequence, SmallInteger, String, Text,
                         func)
@@ -11,6 +12,9 @@ from app.models.catalog import Tour
 from app.models.enums import (CancelReason, DiscountType, OrderDocumentType, OrderStatus,
                               PaymentStatus)
 from app.models.reference import InsuranceType, TransferType
+
+if TYPE_CHECKING:
+    from app.models.users import User
 
 # Source of order numbers TU-<year>-<nnnnnn>. A sequence hands out each value exactly once even
 # under concurrent checkouts (MAX()+1 would race), and the number is known before the INSERT.
@@ -89,6 +93,9 @@ class Order(TimestampMixin, Base):
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     tour: Mapped[Tour] = relationship()
+    # Two foreign keys point at users, so each relationship names its own column.
+    client: Mapped["User"] = relationship(foreign_keys=[client_id])
+    manager: Mapped[Optional["User"]] = relationship(foreign_keys=[manager_id])
     promo: Mapped[PromoCode | None] = relationship()
     insurance_type: Mapped[InsuranceType | None] = relationship()
     transfer_type: Mapped[TransferType | None] = relationship()
