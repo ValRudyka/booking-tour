@@ -9,6 +9,7 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import Currency, OrderStatus, PaymentStatus
+from app.schemas.payments import PaymentShortOut
 
 
 # ---------- input
@@ -138,6 +139,7 @@ class OrderOut(BaseModel):
 class OrderDetailOut(OrderOut):
     tourists: list[TouristOut]
     history: list[StatusHistoryOut]
+    payments: list[PaymentShortOut] = []
 
 
 class OrderWithPriceOut(OrderDetailOut):

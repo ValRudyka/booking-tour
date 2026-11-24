@@ -9,9 +9,12 @@ from app.models.enums import OrderStatus, UserRole
 from app.schemas.common import Page
 from app.schemas.orders import (OrderConfirm, OrderCreate, OrderDetailOut, OrderOut,
                                 OrderUpdate, OrderWithPriceOut, PriceOut, QuoteRequest)
+from app.schemas.payments import BankDetailsOut, PaymentShortOut, PayOut, PayRequest
 from app.services import orders as order_service
 from app.services.errors import DomainError
 from app.services.orders import HoldExpired
+from app.services.payments import service as payment_service
+from app.services.payments.gateway import PaymentGateway, get_gateway
 from app.services.pricing import PriceBreakdown
 
 router = APIRouter(prefix="/orders", tags=["orders (client)"])
@@ -40,7 +43,8 @@ def _summary(order: Order) -> dict:
 
 
 def _detail(order: Order) -> dict:
-    return _summary(order) | dict(tourists=order.tourists, history=order.history)
+    return _summary(order) | dict(tourists=order.tourists, history=order.history,
+                                  payments=order.payments)
 
 
 def _with_price(order: Order, price: PriceBreakdown) -> OrderWithPriceOut:
@@ -122,3 +126,22 @@ def cancel_order(order_id: int, db: DbSession, client: Client):
         _fail(db, error)
     db.commit()
     return OrderDetailOut(**_detail(order))
+
+
+@router.post("/{order_id}/pay", response_model=PayOut,
+             summary="Оплатити: картка (Stripe Checkout) або банківський переказ")
+def pay_order(order_id: int, data: PayRequest, db: DbSession, client: Client,
+              gateway: Annotated[PaymentGateway, Depends(get_gateway)]):
+    order = _own(db, client, order_id)
+    try:
+        result = payment_service.start_payment(db, client, order, data.method, gateway)
+    except DomainError as error:
+        _fail(db, error)
+    db.commit()
+    order = result.order
+    return PayOut(order_id=order.id, order_number=order.number, order_status=order.status,
+                  payment_status=order.payment_status,
+                  payment=PaymentShortOut.model_validate(result.payment) if result.payment else None,
+                  checkout_url=result.checkout_url,
+                  bank_details=BankDetailsOut(**result.bank) if result.bank else None,
+                  message=result.message)

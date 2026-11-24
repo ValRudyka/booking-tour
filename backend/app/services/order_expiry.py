@@ -14,8 +14,9 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.models import Order
-from app.models.enums import OrderStatus
+from app.models.enums import OrderStatus, PaymentStatus
 from app.services import order_status
+from app.services.payments.sessions import close_open_sessions
 from app.services.seats import HOLDING_STATUSES
 
 HOLD_EXPIRED_COMMENT = "Час на оплату минув"
@@ -26,10 +27,13 @@ def expire_orders(db: Session, now: datetime | None = None) -> int:
     (changed_by = NULL, the System). Returns how many orders were cancelled."""
     now = now or datetime.now(timezone.utc)
     orders = db.scalars(select(Order)
-                        .where(Order.status.in_(HOLDING_STATUSES), Order.hold_expires_at <= now)
+                        .where(Order.status.in_(HOLDING_STATUSES), Order.hold_expires_at <= now,
+                               # money has arrived: the finance controller decides, not the timer
+                               Order.payment_status != PaymentStatus.PARTIALLY_PAID)
                         .order_by(Order.id)
                         .with_for_update(skip_locked=True)).all()
     for order in orders:
+        close_open_sessions(db, order)   # Stripe sessions live >= 30 min, our hold is shorter
         order_status.change_status(db, order, OrderStatus.CANCELLED, None, HOLD_EXPIRED_COMMENT)
     return len(orders)
 

@@ -14,12 +14,13 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models import (ORDER_NUMBER_SEQ, CurrencyRate, InsuranceType, Order, OrderTourist,
                         PromoCode, Tour, TransferType, User)
-from app.models.enums import OrderStatus, TourStatus
+from app.models.enums import OrderStatus, PaymentStatus, TourStatus
 from app.services import order_status
 from app.services.app_settings import booking_timeout_min
 from app.services.errors import DomainError
 from app.services.order_expiry import HOLD_EXPIRED_COMMENT
 from app.services.passports import clean_latin_name, clean_passport_number
+from app.services.payments.sessions import close_open_sessions
 from app.services.pricing import PriceBreakdown, calculate, is_child
 from app.services.promo import find_valid_promo
 from app.services.seats import HOLDING_STATUSES, free_seats, lock_tour
@@ -187,10 +188,12 @@ def list_own_orders(db: Session, client: User, status: OrderStatus | None, page:
 
 
 def expire_if_due(db: Session, order: Order, now: datetime | None = None) -> bool:
-    """Cancel the order as the System if its hold has run out. True if it was cancelled."""
+    """Cancel the order as the System if its hold has run out. True if it was cancelled.
+    A partly paid order (bank transfer) is never cancelled automatically: money has arrived."""
     now = now or utcnow()
     if order.status in HOLDING_STATUSES and order.hold_expires_at is not None \
-            and order.hold_expires_at <= now:
+            and order.hold_expires_at <= now and order.payment_status != PaymentStatus.PARTIALLY_PAID:
+        close_open_sessions(db, order)   # the client must not be able to pay any more
         order_status.change_status(db, order, OrderStatus.CANCELLED, None, HOLD_EXPIRED_COMMENT)
         return True
     return False
@@ -327,5 +330,8 @@ def cancel_order(db: Session, client: User, order: Order) -> Order:
         return order   # already cancelled by the System — the client's wish is fulfilled
     if order.status not in HOLDING_STATUSES:
         raise DomainError("Скасувати тут можна лише неоплачене замовлення", 409)
+    if order.payment_status == PaymentStatus.PARTIALLY_PAID:
+        raise DomainError("Замовлення частково оплачене — для скасування зверніться до менеджера", 409)
+    close_open_sessions(db, order)
     order_status.change_status(db, order, OrderStatus.CANCELLED, client, "Скасовано клієнтом")
     return order

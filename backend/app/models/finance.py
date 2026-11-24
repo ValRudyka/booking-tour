@@ -37,6 +37,8 @@ class Payment(TimestampMixin, Base):
     stripe_refund_id: Mapped[str | None] = mapped_column(String(255))
     confirmed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
 
+    order: Mapped["Order"] = relationship(back_populates="payments")
+
 
 class Review(TimestampMixin, Base):
     """One review per completed order (ТЗ form 4.6.1.4)."""
