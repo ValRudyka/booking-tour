@@ -33,8 +33,9 @@ export function LoginPage() {
   const [sending, setSending] = useState(false)
   const [forgotOpen, setForgotOpen] = useState(false)
 
-  // Already signed in: nothing to do here.
-  if (status === 'user' && user && !sending) {
+  // Already signed in: nothing to do here (except right after a password change, while the
+  // session that has just ended is being cleared).
+  if (status === 'user' && user && !sending && !state?.passwordChanged) {
     return <Navigate to={redirect ?? homeFor(user.role)} replace />
   }
 
@@ -56,6 +57,7 @@ export function LoginPage() {
     <AuthCard title={t('auth.loginTitle')}>
       {state?.sessionExpired && <Alert type="warning" showIcon className="auth-alert" title={t('auth.sessionExpired')} />}
       {state?.accountCreated && <Alert type="success" showIcon className="auth-alert" title={t('auth.accountCreated')} />}
+      {state?.passwordChanged && <Alert type="success" showIcon className="auth-alert" title={t('auth.passwordChanged')} />}
 
       <Form form={form} layout="vertical" requiredMark onFinish={submit} noValidate
         onFinishFailed={() => setSubmitted(true)}

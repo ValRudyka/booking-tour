@@ -190,3 +190,12 @@
 .order-tourists .order-facts {
   margin: 0;
 }
+
+/* Profile (spec 08): forms stay readable on wide screens. */
+.profile-form {
+  max-width: 480px;
+}
+
+.profile-alert {
+  margin-bottom: 16px;
+}

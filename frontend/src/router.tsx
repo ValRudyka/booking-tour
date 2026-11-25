@@ -9,6 +9,7 @@ import { RegisterPage } from './pages/auth/RegisterPage'
 import { BookingPage } from './pages/booking/BookingPage'
 import { OrderDetailsPage } from './pages/cabinet/OrderDetailsPage'
 import { OrdersPage } from './pages/cabinet/OrdersPage'
+import { ProfilePage } from './pages/cabinet/ProfilePage'
 import { ReviewPage } from './pages/cabinet/ReviewPage'
 import { CatalogPage } from './pages/catalog/CatalogPage'
 import { HomePage } from './pages/home/HomePage'
@@ -52,8 +53,8 @@ export const routes: RouteObject[] = [
               { path: 'orders', element: <OrdersPage /> },
               { path: 'orders/:id', element: <OrderDetailsPage /> },
               { path: 'orders/:id/review', element: <ReviewPage /> },
-              // The profile API exists (GET/PATCH /me, passwords, passports); its page is spec 08.
-              { path: 'profile', element: <PlaceholderPage page="profile" /> },
+              // Profile and password (spec 08 §2): GET/PATCH /auth/me, POST /auth/me/password.
+              { path: 'profile', element: <ProfilePage /> },
             ],
           },
           // The back office comes in feature/frontend-backoffice.

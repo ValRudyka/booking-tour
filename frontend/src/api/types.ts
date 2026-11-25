@@ -23,6 +23,8 @@ export type User = Schemas['UserOut']
 export type UserRole = Schemas['UserRole']
 export type TokenOut = Schemas['TokenOut']
 export type RegisterRequest = Schemas['RegisterRequest']
+export type ProfileUpdate = Schemas['ProfileUpdate']
+export type PasswordChange = Schemas['PasswordChange']
 export type SiteContacts = Schemas['SiteContactsOut']
 
 // Checkout (ТЗ 4.5.3, form 4.6.1.2)

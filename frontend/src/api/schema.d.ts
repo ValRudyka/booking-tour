@@ -68,7 +68,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Змінити пароль */
+        /**
+         * Змінити пароль
+         * @description Завершує всі сеанси, зокрема поточний: після зміни потрібно увійти знову.
+         */
         post: operations["change_password_api_auth_me_password_post"];
         delete?: never;
         options?: never;

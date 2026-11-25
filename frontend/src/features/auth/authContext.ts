@@ -7,6 +7,12 @@ export interface AuthContextValue {
   status: 'loading' | 'guest' | 'user'
   login: (username: string, password: string) => Promise<User>
   logout: () => void
+  /** The profile was saved: the header and every page show the new data at once. */
+  setUser: (user: User) => void
+  /** The client changed the password: the backend has ended every session (this one too), so
+   * sign out and ask to sign in with the new password. Booking drafts are kept, as after an
+   * expired session. */
+  endSessionAfterPasswordChange: () => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
@@ -15,6 +21,8 @@ export const AuthContext = createContext<AuthContextValue | null>(null)
 export interface LoginLocationState {
   sessionExpired?: boolean
   accountCreated?: boolean
+  /** Came from the password change: «Пароль змінено. Увійдіть з новим паролем.» */
+  passwordChanged?: boolean
 }
 
 export const ME_KEY = ['auth', 'me'] as const

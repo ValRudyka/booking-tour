@@ -5,19 +5,25 @@ from datetime import date, datetime, timezone
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.core.security import DUMMY_HASH, hash_password, verify_password
+from app.core.security import DUMMY_HASH, hash_password, token_cutoff, verify_password
 from app.models import Country, User
 from app.models.enums import UserRole
 from app.services import clock
 
 
 class UserError(Exception):
-    """Business-rule violation; routers turn it into an HTTP error."""
+    """Business-rule violation; routers turn it into an HTTP error.
 
-    def __init__(self, message: str, status_code: int = 400):
+    `field` names the request field the rule is about. The personal account endpoints
+    (PATCH /me, POST /me/password) answer it in FastAPI's 422 shape with that `loc`, so the form
+    shows the message under the field; registration keeps the plain {"detail": "text"} that the
+    registration form already maps (frontend features/auth/authErrors.ts)."""
+
+    def __init__(self, message: str, status_code: int = 400, field: str | None = None):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
+        self.field = field
 
 
 ADULT_AGE = 18
@@ -32,7 +38,7 @@ def age_on(birth_date: date, day: date) -> int:
 def check_adult(birth_date: date | None) -> None:
     """ТЗ form 4.6.1.1, field 6: the client must be 18 or older, by the Kyiv business date."""
     if birth_date is not None and age_on(birth_date, clock.today()) < ADULT_AGE:
-        raise UserError(NOT_ADULT, 422)
+        raise UserError(NOT_ADULT, 422, "birth_date")
 
 
 CYRILLIC_NAME = re.compile(r"^[А-ЩЬЮЯҐЄІЇа-щьюяґєії'’ʼ\- ]+$")
@@ -45,12 +51,12 @@ def check_name_alphabet(db: Session, last_name: str, first_name: str, citizenshi
         return
     country = db.get(Country, citizenship_id)
     if country is None:
-        raise UserError("Невідома країна громадянства", 422)
+        raise UserError("Невідома країна громадянства", 422, "citizenship_id")
     pattern, hint = ((CYRILLIC_NAME, "українською мовою") if country.iso_code == "UA"
                      else (LATIN_NAME, "латиницею"))
-    for value in (last_name, first_name):
+    for field, value in (("last_name", last_name), ("first_name", first_name)):
         if not pattern.match(value):
-            raise UserError(f"Прізвище та ім'я потрібно вводити {hint}", 422)
+            raise UserError(f"Прізвище та ім'я потрібно вводити {hint}", 422, field)
 
 
 def ensure_unique(db: Session, phone: str | None, email: str | None, exclude_id: int | None = None) -> None:
@@ -66,8 +72,9 @@ def ensure_unique(db: Session, phone: str | None, email: str | None, exclude_id:
         query = query.where(User.id != exclude_id)
     existing = db.scalars(query).first()
     if existing is not None:
-        field = "телефоном" if phone and existing.phone == phone else "e-mail"
-        raise UserError(f"Користувач з таким {field} вже існує", 409)
+        by_phone = bool(phone) and existing.phone == phone
+        raise UserError(f"Користувач з таким {'телефоном' if by_phone else 'e-mail'} вже існує", 409,
+                        "phone" if by_phone else "email")
 
 
 def create_user(db: Session, *, phone: str, email: str, password: str, last_name: str,
@@ -103,10 +110,18 @@ def authenticate(db: Session, login: str, password: str) -> User | None:
     return user
 
 
+REQUIRED_FOR_CLIENTS = {"birth_date": "Вкажіть дату народження",
+                        "citizenship_id": "Оберіть громадянство"}
+
+
 def update_profile(db: Session, user: User, changes: dict) -> User:
-    # Required fields cannot be cleared; optional ones (birth_date, citizenship_id) can.
-    changes = {k: v for k, v in changes.items()
-               if v is not None or k in ("birth_date", "citizenship_id")}
+    # Names and e-mail cannot be cleared (null is ignored). Birth date and citizenship are
+    # required for clients (form 4.6.1.1, fields 6–7); staff created by the admin may have none,
+    # so only staff can clear them.
+    for field, message in REQUIRED_FOR_CLIENTS.items():
+        if field in changes and changes[field] is None and user.role == UserRole.CLIENT:
+            raise UserError(message, 422, field)
+    changes = {k: v for k, v in changes.items() if v is not None or k in REQUIRED_FOR_CLIENTS}
     last_name = changes.get("last_name", user.last_name)
     first_name = changes.get("first_name", user.first_name)
     citizenship_id = changes.get("citizenship_id", user.citizenship_id)
@@ -123,7 +138,13 @@ def update_profile(db: Session, user: User, changes: dict) -> User:
 
 
 def change_password(db: Session, user: User, current: str, new: str) -> None:
+    """The client's own password change ends every session, this one included: tokens issued
+    before now stop working (users.tokens_valid_after, as after the admin's reset), so whoever
+    learnt the old password loses access too. The frontend then asks to sign in again."""
     if not verify_password(current, user.password_hash):
-        raise UserError("Поточний пароль невірний", 400)
+        raise UserError("Поточний пароль невірний", 422, "current_password")
+    if verify_password(new, user.password_hash):
+        raise UserError("Новий пароль має відрізнятися від поточного", 422, "new_password")
     user.password_hash = hash_password(new)
+    user.tokens_valid_after = token_cutoff()
     db.flush()

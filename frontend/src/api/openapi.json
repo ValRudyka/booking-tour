@@ -165,6 +165,7 @@
           "auth"
         ],
         "summary": "Змінити пароль",
+        "description": "Завершує всі сеанси, зокрема поточний: після зміни потрібно увійти знову.",
         "operationId": "change_password_api_auth_me_password_post",
         "requestBody": {
           "content": {

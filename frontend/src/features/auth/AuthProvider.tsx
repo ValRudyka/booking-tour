@@ -88,11 +88,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     forget()
   }, [forget, navigate])
 
+  const setUser = useCallback((next: User) => {
+    queryClient.setQueryData(ME_KEY, next)
+  }, [queryClient])
+
+  // Like logout: render /login first (flushSync), then clear the session. LoginPage does not send
+  // a still signed-in user away while `passwordChanged` is in its state.
+  const endSessionAfterPasswordChange = useCallback(() => {
+    void navigate('/login', { replace: true, flushSync: true,
+      state: { passwordChanged: true } satisfies LoginLocationState })
+    forget()
+  }, [forget, navigate])
+
   const value = useMemo<AuthContextValue>(() => {
     const user = token !== null && me.data ? me.data : null
     const status = user ? 'user' : token !== null && me.isPending ? 'loading' : 'guest'
-    return { user, status, login, logout }
-  }, [token, me.data, me.isPending, login, logout])
+    return { user, status, login, logout, setUser, endSessionAfterPasswordChange }
+  }, [token, me.data, me.isPending, login, logout, setUser, endSessionAfterPasswordChange])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

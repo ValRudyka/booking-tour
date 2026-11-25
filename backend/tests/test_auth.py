@@ -159,11 +159,109 @@ def test_change_password(client):
     headers = auth_header(client)
     bad = client.post("/api/auth/me/password", headers=headers,
                       json={"current_password": "nope-nope", "new_password": "New-pass-456"})
-    assert bad.status_code == 400
+    assert bad.status_code == 422
+    assert bad.json()["detail"] == [{"loc": ["body", "current_password"], "msg": "Поточний пароль невірний",
+                                     "type": "profile_rule"}]
     ok = client.post("/api/auth/me/password", headers=headers,
                      json={"current_password": PASSWORD, "new_password": "New-pass-456"})
     assert ok.status_code == 204
     assert login(client, "+380501234567", "New-pass-456").status_code == 200
+
+
+def test_new_password_must_differ(client):
+    client.post("/api/auth/register", json=register_payload())
+    response = client.post("/api/auth/me/password", headers=auth_header(client),
+                           json={"current_password": PASSWORD, "new_password": PASSWORD})
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "new_password"]
+
+
+def test_password_change_ends_every_session(client, db):
+    """Tokens issued before the change (this tab's and other devices') stop working; a new
+    login works. iat has whole seconds, so the old tokens are issued a few seconds earlier."""
+    from datetime import datetime, timezone
+
+    client.post("/api/auth/register", json=register_payload())
+    user = db.scalar(select(User).where(User.phone == "+380501234567"))
+    earlier = datetime.now(timezone.utc) - timedelta(seconds=5)
+    old = {"Authorization": f"Bearer {create_access_token(user.id, 'client', issued_at=earlier)}"}
+    other_device = {"Authorization": f"Bearer {create_access_token(user.id, 'client', issued_at=earlier)}"}
+    assert client.post("/api/auth/me/password", headers=old,
+                       json={"current_password": PASSWORD, "new_password": "New-pass-456"}).status_code == 204
+    assert client.get("/api/auth/me", headers=old).status_code == 401
+    assert client.get("/api/auth/me", headers=other_device).status_code == 401
+    assert login(client, "+380501234567").status_code == 401          # the old password
+    fresh = login(client, "+380501234567", "New-pass-456").json()["access_token"]
+    assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {fresh}"}).status_code == 200
+
+
+# ---------- personal account errors: 422 with the field (loc), the message for the client
+def field_error(response, field):
+    detail = response.json()["detail"]
+    assert isinstance(detail, list) and detail[0]["loc"] == ["body", field], detail
+    assert detail[0]["type"] == "profile_rule"
+    return detail[0]["msg"]
+
+
+def test_profile_email_taken_is_a_field_error(client, db):
+    create_user(db, phone="+380509999999", email="taken@example.com", password=PASSWORD,
+                last_name="Інший", first_name="Клієнт")
+    client.post("/api/auth/register", json=register_payload())
+    response = client.patch("/api/auth/me", headers=auth_header(client), json={"email": "Taken@Example.com"})
+    assert response.status_code == 409
+    assert field_error(response, "email") == "Користувач з таким e-mail вже існує"
+
+
+def test_profile_email_is_saved_in_lower_case(client):
+    client.post("/api/auth/register", json=register_payload())
+    response = client.patch("/api/auth/me", headers=auth_header(client), json={"email": "New.Mail@Example.com"})
+    assert response.status_code == 200 and response.json()["email"] == "new.mail@example.com"
+
+
+def test_profile_names_follow_the_citizenship(client, db):
+    """Changing only the citizenship is checked against the stored (Ukrainian) names."""
+    client.post("/api/auth/register", json=register_payload())
+    headers = auth_header(client)
+    poland = country_id(db, "PL")
+    response = client.patch("/api/auth/me", headers=headers, json={"citizenship_id": poland})
+    assert response.status_code == 422
+    assert field_error(response, "last_name") == "Прізвище та ім'я потрібно вводити латиницею"
+    response = client.patch("/api/auth/me", headers=headers,
+                            json={"citizenship_id": poland, "last_name": "Shevchenko", "first_name": "Тарас"})
+    assert field_error(response, "first_name") == "Прізвище та ім'я потрібно вводити латиницею"
+    response = client.patch("/api/auth/me", headers=headers, json={
+        "citizenship_id": poland, "last_name": " Shevchenko ", "first_name": "Taras"})
+    assert response.status_code == 200 and response.json()["last_name"] == "Shevchenko"
+
+
+def test_profile_unknown_citizenship(client):
+    client.post("/api/auth/register", json=register_payload())
+    response = client.patch("/api/auth/me", headers=auth_header(client), json={"citizenship_id": 999999})
+    assert field_error(response, "citizenship_id") == "Невідома країна громадянства"
+
+
+@pytest.mark.parametrize("field, message", [("birth_date", "Вкажіть дату народження"),
+                                            ("citizenship_id", "Оберіть громадянство")])
+def test_client_cannot_clear_birth_date_or_citizenship(client, field, message):
+    client.post("/api/auth/register", json=register_payload())
+    headers = auth_header(client)
+    response = client.patch("/api/auth/me", headers=headers, json={field: None})
+    assert response.status_code == 422 and field_error(response, field) == message
+    assert client.get("/api/auth/me", headers=headers).json()[field] is not None
+
+
+def test_staff_may_clear_birth_date(client, db):
+    create_user(db, phone="+380502222222", email="m@tour.ua", password=PASSWORD, last_name="Менеджер",
+                first_name="Тест", role=UserRole.MANAGER, birth_date="1990-01-01")
+    response = client.patch("/api/auth/me", headers=auth_header(client, "+380502222222"), json={"birth_date": None})
+    assert response.status_code == 200 and response.json()["birth_date"] is None
+
+
+def test_register_errors_stay_plain_text(client):
+    """Registration keeps {"detail": "text"}: its form maps the texts (authErrors.ts)."""
+    client.post("/api/auth/register", json=register_payload())
+    response = client.post("/api/auth/register", json=register_payload(phone="+380507777777"))
+    assert response.status_code == 409 and response.json()["detail"] == "Користувач з таким e-mail вже існує"
 
 
 # ---------- roles
@@ -235,7 +333,7 @@ def test_profile_birth_date_must_stay_adult(client):
     client.post("/api/auth/register", json=register_payload())
     headers = auth_header(client)
     refused = client.patch("/api/auth/me", json={"birth_date": "2020-01-01"}, headers=headers)
-    assert refused.status_code == 422 and refused.json()["detail"] == "Реєстрація доступна лише з 18 років"
+    assert refused.status_code == 422 and field_error(refused, "birth_date") == "Реєстрація доступна лише з 18 років"
     assert client.patch("/api/auth/me", json={"birth_date": "1985-03-03"}, headers=headers).status_code == 200
 
 

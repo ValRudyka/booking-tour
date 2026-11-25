@@ -40,6 +40,9 @@ function knownDetail(detail: string): FieldError[] | null {
 
 /** One 422 issue -> a Ukrainian text for its field. */
 function issueText(field: string, issue: FieldIssue): string {
+  // The personal account's own rules (PATCH /auth/me, POST /auth/me/password) name the field and
+  // speak to the client already (backend routers/auth.py _raise_field).
+  if (issue.type === 'profile_rule') return issue.msg
   // Our own backend validators already speak Ukrainian: "Value error, Телефон у міжнародному…".
   const own = issue.msg.replace(/^Value error, /, '')
   if (issue.type === 'value_error' && /[А-ЩЬЮЯҐЄІЇа-щьюяґєії]/.test(own)) return own
@@ -52,7 +55,8 @@ function issueText(field: string, issue: FieldIssue): string {
     }
     return required[field] ?? t('auth.required')
   }
-  if (field === 'password') {
+  if (field === 'current_password') return t('auth.passwordRequired')
+  if (field === 'password' || field === 'new_password') {
     if (issue.type === 'string_too_short') return t('auth.passwordTooShort')
     if (issue.type === 'string_too_long') return t('auth.passwordTooLong')
   }
@@ -86,8 +90,9 @@ export function loginErrorText(error: unknown): string {
   return requestErrorText(error)
 }
 
-/** POST /auth/register: field errors where possible, else one Alert text. */
-export function mapRegisterError(error: unknown, formFields: readonly string[]): MappedError {
+/** POST /auth/register, PATCH /auth/me, POST /auth/me/password: field errors where possible
+ * (422 loc in `formFields`, or a known plain text), else one Alert text. */
+export function mapFormError(error: unknown, formFields: readonly string[]): MappedError {
   if (error instanceof ApiError) {
     if (error.issues.length > 0) {
       const byField = new Map<string, string[]>()
