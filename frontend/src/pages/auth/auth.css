@@ -1,0 +1,44 @@
+.auth-page {
+  display: flex;
+  justify-content: center;
+  /* Room for the help button in the corner, so it never covers the submit button (spec §2b). */
+  padding-bottom: 96px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-title {
+  margin-top: 0 !important;
+  font-size: 28px !important;
+}
+
+.auth-footer {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.auth-alert {
+  margin-bottom: 16px;
+}
+
+.password-rules {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.password-rules li {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.password-rules .rule-met { color: #15803D; }
+.password-rules .rule-not-met { color: #B91C1C; }
+
+.forgot-panel {
+  margin-top: 12px;
+}

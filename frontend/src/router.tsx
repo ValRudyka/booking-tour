@@ -3,12 +3,15 @@ import { AuthRoot } from './features/auth/AuthProvider'
 import { RequireAuth } from './features/auth/RequireAuth'
 import { STAFF_ROLES } from './features/auth/redirect'
 import { PublicLayout } from './layouts/PublicLayout'
+import { LoginPage } from './pages/auth/LoginPage'
+import { RegisterPage } from './pages/auth/RegisterPage'
 import { BookingPlaceholder } from './pages/BookingPlaceholder'
 import { CatalogPage } from './pages/catalog/CatalogPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { RouteErrorPage } from './pages/RouteErrorPage'
 import { TourDetailsPage } from './pages/tour/TourDetailsPage'
+
 export const routes: RouteObject[] = [
   {
     // AuthProvider wraps every page (it needs the router to send a user to /login).
@@ -22,8 +25,8 @@ export const routes: RouteObject[] = [
           { index: true, element: <Navigate to="/tours" replace /> },
           { path: 'tours', element: <CatalogPage /> },
           { path: 'tours/:id', element: <TourDetailsPage /> },
-          { path: 'login', element: <PlaceholderPage page="login" /> },  // the page comes in the next commit
-          { path: 'register', element: <PlaceholderPage page="register" /> },
+          { path: 'login', element: <LoginPage /> },
+          { path: 'register', element: <RegisterPage /> },
           // Orders are a client's (backend require_roles): staff see 403 here.
           { path: 'booking/:tourId', element: <RequireAuth roles={['client']}><BookingPlaceholder /></RequireAuth> },
           { path: 'cabinet', element: <RequireAuth roles={['client']}><PlaceholderPage page="cabinet" /></RequireAuth> },
@@ -39,6 +42,7 @@ export const routes: RouteObject[] = [
     ],
   },
 ]
+
 export function createAppRouter() {
   return createBrowserRouter(routes)
 }
