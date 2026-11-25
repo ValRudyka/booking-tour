@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../api/client'
-import { loginErrorText, mapRegisterError } from './authErrors'
+import { loginErrorText, mapFormError } from './authErrors'
 import { homeFor, loginPath, safeRedirect } from './redirect'
 import { ageOn, isAdult, isValidPhone, nameMatchesCitizenship } from './rules'
 
@@ -62,7 +62,7 @@ describe('backend errors -> Ukrainian texts', () => {
       { loc: ['body', 'email'], type: 'value_error', msg: 'value is not a valid email address: An email address must have an @-sign.' },
       { loc: ['body', 'birth_date'], type: 'missing', msg: 'Field required' },
     ])
-    expect(mapRegisterError(error, FIELDS)).toEqual({
+    expect(mapFormError(error, FIELDS)).toEqual({
       fields: [
         { name: 'phone', errors: ['Телефон у міжнародному форматі, наприклад +380501234567'] },
         { name: 'password', errors: ['Пароль має містити щонайменше 8 символів'] },
@@ -75,20 +75,20 @@ describe('backend errors -> Ukrainian texts', () => {
 
   it('maps the known plain texts to fields', () => {
     const taken = new ApiError('client', 409, 'x', 'Користувач з таким e-mail вже існує')
-    expect(mapRegisterError(taken, FIELDS).fields).toEqual([
+    expect(mapFormError(taken, FIELDS).fields).toEqual([
       { name: 'email', errors: ['Цей e-mail вже зареєстрований. Увійдіть або вкажіть інший e-mail.'] }])
     const alphabet = new ApiError('validation', 422, 'x', "Прізвище та ім'я потрібно вводити латиницею")
-    expect(mapRegisterError(alphabet, FIELDS).fields.map((f) => f.name)).toEqual(['last_name', 'first_name'])
+    expect(mapFormError(alphabet, FIELDS).fields.map((f) => f.name)).toEqual(['last_name', 'first_name'])
     const minor = new ApiError('validation', 422, 'x', 'Реєстрація доступна лише з 18 років')
-    expect(mapRegisterError(minor, FIELDS).fields).toEqual([
+    expect(mapFormError(minor, FIELDS).fields).toEqual([
       { name: 'birth_date', errors: ['Реєстрація доступна лише з 18 років'] }])
   })
 
   it('never shows an unknown backend text: it becomes the generic message', () => {
     const odd = new ApiError('client', 400, 'x', 'Some internal problem: id=5')
-    expect(mapRegisterError(odd, FIELDS)).toEqual({ fields: [], alert: 'Щось пішло не так. Спробуйте ще раз.' })
+    expect(mapFormError(odd, FIELDS)).toEqual({ fields: [], alert: 'Щось пішло не так. Спробуйте ще раз.' })
     const unknownField = new ApiError('validation', 422, 'x', null, [{ loc: ['body', 'role'], type: 'extra_forbidden', msg: 'x' }])
-    expect(mapRegisterError(unknownField, FIELDS).alert).toBe('Щось пішло не так. Спробуйте ще раз.')
+    expect(mapFormError(unknownField, FIELDS).alert).toBe('Щось пішло не так. Спробуйте ще раз.')
   })
 
   it('login: one message for wrong data; rate limit, maintenance and network have their own', () => {

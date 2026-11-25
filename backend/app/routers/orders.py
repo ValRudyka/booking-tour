@@ -3,9 +3,10 @@ from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
+from sqlalchemy import select
 
 from app.core.deps import DbSession, require_roles
-from app.models import Order, User
+from app.models import Order, Review, User
 from app.models.enums import CancelReason, OrderGroup, OrderStatus, UserRole
 from app.schemas.common import Page
 from app.schemas.manager_orders import DocumentOut
@@ -15,6 +16,7 @@ from app.schemas.orders import (CancelRequestFormOut, OrderConfirm, OrderCreate,
 from app.schemas.payments import BankDetailsOut, PaymentShortOut, PayOut, PayRequest
 from app.services import cancellation, catalog, order_actions, order_documents
 from app.services import orders as order_service
+from app.services import reviews as review_service
 from app.services.errors import DomainError
 from app.services.orders import HoldExpired
 from app.services.payments import service as payment_service
@@ -38,7 +40,17 @@ def _fail(db, error: DomainError) -> NoReturn:
     raise HTTPException(status_code=error.status_code, detail=error.message) from None
 
 
-def _summary(db, order: Order) -> dict:
+def _reviews_of(db, orders: list[Order]) -> dict[int, Review]:
+    """The reviews of these orders in one query (at most one per order)."""
+    ids = [o.id for o in orders]
+    return {r.order_id: r for r in db.scalars(select(Review).where(Review.order_id.in_(ids)))} if ids else {}
+
+
+def _summary(db, order: Order, reviews: dict[int, Review] | None = None) -> dict:
+    if reviews is None:
+        reviews = _reviews_of(db, [order])
+    review = reviews.get(order.id)
+    resort = order.tour.hotel.resort
     return dict(
         id=order.id, number=order.number, status=order.status, payment_status=order.payment_status,
         tour_id=order.tour_id, tour_title_uk=order.tour.title_uk, hotel_name=order.tour.hotel.name,
@@ -52,17 +64,18 @@ def _summary(db, order: Order) -> dict:
         cancel_reason_code=order.cancel_reason_code, cancel_reason=order.cancel_reason,
         fpv_uah=order.fpv_uah, created_at=order.created_at,
         client_actions=order_actions.client_actions(db, order),
+        country_name=resort.country.name_uk, resort_name=resort.name_uk,
+        review_status=review.status if review else None,
+        review_can_resubmit=review is not None and review_service.can_resubmit(review),
     )
 
 
 def _detail(db, order: Order) -> dict:
     tour = order.tour
-    resort = tour.hotel.resort
     bank = payment_service.pending_transfer_details(order)
     return _summary(db, order) | dict(
         tourists=order.tourists, history=order.history, payments=order.payments,
-        tour_for_sale=catalog.is_for_sale(tour), country_name=resort.country.name_uk,
-        resort_name=resort.name_uk,
+        tour_for_sale=catalog.is_for_sale(tour),
         departure_city_name=tour.departure_city.name_uk if tour.departure_city else None,
         transport_type=tour.transport_type, meal_plan=tour.meal_plan,
         pending_transfer=BankDetailsOut(**bank) if bank else None)
@@ -100,7 +113,8 @@ def list_orders(db: DbSession, client: Client,
                 page: Annotated[int, Query(ge=1)] = 1,
                 page_size: Annotated[int, Query(ge=1, le=50)] = 20):
     items, total = order_service.list_own_orders(db, client, status_, page, page_size, group)
-    return Page(items=[OrderOut(**_summary(db, o)) for o in items], total=total, page=page,
+    reviews = _reviews_of(db, list(items))
+    return Page(items=[OrderOut(**_summary(db, o, reviews)) for o in items], total=total, page=page,
                 page_size=page_size)
 
 

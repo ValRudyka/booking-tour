@@ -1,14 +1,13 @@
-import { Alert, Button, Card, Col, DatePicker, Form, Input, Row, Select, Typography, type FormInstance } from 'antd'
+import { Alert, Button, Card, Form, Select, Typography, type FormInstance } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SavedPassport, User } from '../../api/types'
-import {
-  ageOn, CHILD_AGE_LIMIT, cleanPassportNumber, isLatinPassportName, isPassportNumber, passportValidUntil,
-} from '../../features/booking/bookingRules'
+import { ageOn, CHILD_AGE_LIMIT, isLatinPassportName, passportValidUntil } from '../../features/booking/bookingRules'
+import { PassportFields } from '../../features/booking/PassportFields'
 import type { TouristField } from '../../features/booking/bookingErrors'
 import { formatDate } from '../../utils/format'
-import { DATE_FORMAT, ISO, type BookingValues } from './bookingForm'
+import { ISO, type BookingValues } from './bookingForm'
 
 interface Props {
   form: FormInstance<BookingValues>
@@ -76,7 +75,9 @@ function TouristCard({ form, index, isAdult, title, startDate, validUntil, user,
     }
     setProfileNote(!latinProfile)
   }
-  // A saved passport has names, number and expiry, but no birth date (backend PassportOut).
+  // A saved tourist fills every field; one saved before birth dates were kept (birth_date null)
+  // leaves the birth date as it is. The checks run at once: the age must fit this card
+  // (adult/child) and the passport must be valid long enough for this trip.
   const fillFromPassport = (id: number) => {
     const passport = passports.find((p) => p.id === id)
     if (!passport) return
@@ -84,14 +85,12 @@ function TouristCard({ form, index, isAdult, title, startDate, validUntil, user,
     form.setFieldValue(name('first_name_lat'), passport.first_name_lat)
     form.setFieldValue(name('passport_number'), passport.passport_number)
     form.setFieldValue(name('passport_expiry'), dayjs(passport.expiry_date, ISO))
-    void form.validateFields([name('last_name_lat'), name('first_name_lat'), name('passport_number'),
-      name('passport_expiry')]).catch(() => undefined)
-  }
-
-  const required = { required: true, message: t('checkout.rules.required') }
-  const latin = {
-    validator: (_: unknown, value?: string) => (!value || isLatinPassportName(value) ? Promise.resolve()
-      : Promise.reject(new Error(t('checkout.rules.latin')))),
+    const filled = [name('last_name_lat'), name('first_name_lat'), name('passport_number'), name('passport_expiry')]
+    if (passport.birth_date) {
+      form.setFieldValue(name('birth_date'), dayjs(passport.birth_date, ISO))
+      filled.push(name('birth_date'))
+    }
+    void form.validateFields(filled).catch(() => undefined)
   }
 
   return (
@@ -120,55 +119,24 @@ function TouristCard({ form, index, isAdult, title, startDate, validUntil, user,
         </div>
       ) : null}
       {profileNote && <Alert type="info" showIcon className="booking-block" title={t('checkout.tourists.fromProfileNote')} />}
-      <Row gutter={16}>
-        <Col xs={24} md={12}>
-          <Form.Item name={[index, 'last_name_lat']} label={t('checkout.tourists.lastName')}
-            extra={t('checkout.tourists.nameHint')} rules={[required, latin]}>
-            <Input autoComplete="family-name" maxLength={100} />
-          </Form.Item>
-        </Col>
-        <Col xs={24} md={12}>
-          <Form.Item name={[index, 'first_name_lat']} label={t('checkout.tourists.firstName')} rules={[required, latin]}>
-            <Input autoComplete="given-name" maxLength={100} />
-          </Form.Item>
-        </Col>
-        <Col xs={24} md={12}>
-          <Form.Item name={[index, 'birth_date']} label={t('checkout.tourists.birthDate')} rules={[required, {
-            validator: (_, value?: Dayjs | null) => {
-              if (!value) return Promise.resolve()
-              const birth = value.format(ISO)
-              if (birth > startDate) return Promise.reject(new Error(t('checkout.rules.birthAfterStart')))
-              const child = ageOn(birth, startDate) < CHILD_AGE_LIMIT
-              if (isAdult && child) return Promise.reject(new Error(t('checkout.rules.adultAge', { date: start })))
-              if (!isAdult && !child) return Promise.reject(new Error(t('checkout.rules.childAge', { date: start })))
-              return Promise.resolve()
-            },
-          }]}>
-            <DatePicker format={DATE_FORMAT} style={{ width: '100%' }}
-              disabledDate={(day) => day.isAfter(dayjs(startDate, ISO), 'day')} />
-          </Form.Item>
-        </Col>
-        <Col xs={24} md={12}>
-          <Form.Item name={[index, 'passport_number']} label={t('checkout.tourists.passportNumber')}
-            normalize={(value?: string) => (value ? cleanPassportNumber(value) : value)}
-            rules={[required, {
-              validator: (_, value?: string) => (!value || isPassportNumber(value) ? Promise.resolve()
-                : Promise.reject(new Error(t('checkout.rules.passportNumber')))),
-            }]}>
-            <Input autoComplete="off" maxLength={20} />
-          </Form.Item>
-        </Col>
-        <Col xs={24} md={12}>
-          <Form.Item name={[index, 'passport_expiry']} label={t('checkout.tourists.passportExpiry')}
-            extra={t('checkout.tourists.expiryHint', { date: formatDate(validUntil) })}
-            rules={[required, {
-              validator: (_, value?: Dayjs | null) => (!value || value.format(ISO) >= validUntil ? Promise.resolve()
-                : Promise.reject(new Error(t('checkout.rules.passportExpiry', { date: formatDate(validUntil) })))),
-            }]}>
-            <DatePicker format={DATE_FORMAT} style={{ width: '100%' }} />
-          </Form.Item>
-        </Col>
-      </Row>
+      <PassportFields name={(field) => [index, field === 'expiry' ? 'passport_expiry' : field]}
+        birthMax={startDate}
+        birthRules={[{
+          validator: (_, value?: Dayjs | null) => {
+            if (!value) return Promise.resolve()
+            const birth = value.format(ISO)
+            if (birth > startDate) return Promise.reject(new Error(t('checkout.rules.birthAfterStart')))
+            const child = ageOn(birth, startDate) < CHILD_AGE_LIMIT
+            if (isAdult && child) return Promise.reject(new Error(t('checkout.rules.adultAge', { date: start })))
+            if (!isAdult && !child) return Promise.reject(new Error(t('checkout.rules.childAge', { date: start })))
+            return Promise.resolve()
+          },
+        }]}
+        expiryExtra={t('checkout.tourists.expiryHint', { date: formatDate(validUntil) })}
+        expiryRules={[{
+          validator: (_, value?: Dayjs | null) => (!value || value.format(ISO) >= validUntil ? Promise.resolve()
+            : Promise.reject(new Error(t('checkout.rules.passportExpiry', { date: formatDate(validUntil) })))),
+        }]} />
     </Card>
   )
 }

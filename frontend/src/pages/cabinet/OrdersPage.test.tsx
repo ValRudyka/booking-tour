@@ -109,6 +109,54 @@ describe('/cabinet/orders', () => {
     renderRoute('/cabinet/orders')
     const nav = await screen.findByRole('navigation', { name: 'Розділи кабінету' })
     const items = within(nav).getAllByRole('menuitem').map((item) => item.textContent)
-    expect(items).toEqual(['Мої замовлення', 'Профіль'])
+    expect(items).toEqual(['Мої замовлення', 'Історія подорожей', 'Обране', 'Збережені туристи', 'Профіль'])
+  })
+})
+
+describe('«Історія подорожей» (spec 08 §4)', () => {
+  const trip = (number: string, overrides: Parameters<typeof makeOrderRow>[0] = {}) => makeOrderRow({
+    id: Number(number.replace(/\D/g, '')), number, status: 'completed', country_name: 'Туреччина',
+    resort_name: 'Анталія', client_actions: ['download_documents'], ...overrides,
+  })
+
+  it('is the «Завершені» tab: /cabinet/history redirects there and the menu item is selected', async () => {
+    const calls = backend(() => [200, orderPage([trip('TU-1')])])
+    const { router } = renderRoute('/cabinet/history')
+    expect(await screen.findByRole('link', { name: 'TU-1' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/cabinet/orders')
+    expect(searchOf(router).get('group')).toBe('completed')
+    expect(listCalls(calls).at(-1)?.params).toMatchObject({ group: 'completed' })
+    const nav = screen.getByRole('navigation', { name: 'Розділи кабінету' })
+    const selected = nav.querySelectorAll('.ant-menu-item-selected')
+    expect([...selected].map((item) => item.textContent)).toEqual(['Історія подорожей'])
+    expect(screen.getByText('Туреччина, Анталія')).toBeInTheDocument()
+  })
+
+  it('shows the right review state for every trip', async () => {
+    backend(() => [200, orderPage([
+      trip('TU-1', { client_actions: ['review', 'download_documents'] }),
+      trip('TU-2', { client_actions: ['view_review', 'download_documents'], review_status: 'pending' }),
+      trip('TU-3', { client_actions: ['view_review', 'download_documents'], review_status: 'published' }),
+      trip('TU-4', { client_actions: ['view_review', 'download_documents'], review_status: 'rejected', review_can_resubmit: true }),
+      trip('TU-5', { client_actions: ['view_review', 'download_documents'], review_status: 'rejected' }),
+    ])])
+    const { user, router } = renderRoute('/cabinet/orders?group=completed')
+    const row = async (number: string) => within((await screen.findByRole('link', { name: number })).closest('tr') as HTMLElement)
+
+    expect((await row('TU-1')).getByRole('button', { name: 'Залишити відгук (замовлення TU-1)' })).toBeInTheDocument()
+    expect((await row('TU-2')).getByText('На модерації')).toBeInTheDocument()
+    expect((await row('TU-3')).getByText('Опубліковано')).toBeInTheDocument()
+    expect((await row('TU-5')).getByText('Відхилено')).toBeInTheDocument()
+    expect((await row('TU-5')).queryByRole('button', { name: /виправити/ })).not.toBeInTheDocument()
+    await user.click((await row('TU-4')).getByRole('button', { name: 'Відгук відхилено — виправити (замовлення TU-4)' }))
+    expect(router.state.location.pathname).toBe('/cabinet/orders/4/review')
+  })
+
+  it('has its own empty state with a link to the catalog', async () => {
+    backend(() => [200, orderPage([])])
+    const { user, router } = renderRoute('/cabinet/orders?group=completed')
+    expect(await screen.findByText("Тут з'являться ваші завершені подорожі")).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'До каталогу' }))
+    expect(router.state.location.pathname).toBe('/tours')
   })
 })

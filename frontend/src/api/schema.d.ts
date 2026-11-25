@@ -68,7 +68,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Змінити пароль */
+        /**
+         * Змінити пароль
+         * @description Завершує всі сеанси, зокрема поточний: після зміни потрібно увійти знову.
+         */
         post: operations["change_password_api_auth_me_password_post"];
         delete?: never;
         options?: never;
@@ -1474,10 +1477,63 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /** Змінити збережений паспорт */
+        put: operations["update_passport_api_me_passports__passport_id__put"];
         post?: never;
         /** Видалити паспорт */
         delete: operations["delete_passport_api_me_passports__passport_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/favorites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Моє обране (нові першими) */
+        get: operations["list_favorites_api_me_favorites_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/favorites/ids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Id турів в обраному (для кнопок «В обране») */
+        get: operations["favorite_ids_api_me_favorites_ids_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/favorites/{tour_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Додати тур в обране */
+        put: operations["add_favorite_api_me_favorites__tour_id__put"];
+        post?: never;
+        /** Прибрати тур з обраного */
+        delete: operations["remove_favorite_api_me_favorites__tour_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2254,6 +2310,60 @@ export interface components {
             max_file_mb: number;
             /** File Types */
             file_types: string[];
+        };
+        /**
+         * FavoriteOut
+         * @description A tour in the client's «Обране»: the catalog card, also after the tour left the catalog.
+         */
+        FavoriteOut: {
+            /** Id */
+            id: number;
+            /** Title Uk */
+            title_uk: string;
+            /** Title En */
+            title_en: string;
+            country: components["schemas"]["CountryOut"];
+            resort: components["schemas"]["ResortOut"];
+            hotel: components["schemas"]["HotelOut"];
+            transport_type: components["schemas"]["TransportType"];
+            departure_city: components["schemas"]["CityOut"] | null;
+            /**
+             * Departure From
+             * Format: date
+             */
+            departure_from: string;
+            /**
+             * Departure To
+             * Format: date
+             */
+            departure_to: string;
+            /** Nights */
+            nights: number;
+            currency: components["schemas"]["Currency"];
+            /** Base Price */
+            base_price: string;
+            /**
+             * Price From Uah
+             * @description Ціна «від» за 1 дорослого в гривнях
+             */
+            price_from_uah: string;
+            /** Free Seats */
+            free_seats: number;
+            /** Is Featured */
+            is_featured: boolean;
+            meal_plan: components["schemas"]["MealPlan"] | null;
+            /** Image Url */
+            image_url: string | null;
+            /**
+             * For Sale
+             * @description false: тур більше не продається (його сторінка — 404)
+             */
+            for_sale: boolean;
+            /**
+             * Added At
+             * Format: date-time
+             */
+            added_at: string;
         };
         /**
          * FinancePaymentOut
@@ -3073,6 +3183,13 @@ export interface components {
             created_at: string;
             /** Client Actions */
             client_actions: components["schemas"]["ClientAction"][];
+            /** Country Name */
+            country_name: string;
+            /** Resort Name */
+            resort_name: string;
+            review_status: components["schemas"]["ReviewStatus"] | null;
+            /** Review Can Resubmit */
+            review_can_resubmit: boolean;
             /** Tourists */
             tourists: components["schemas"]["TouristOut"][];
             /** History */
@@ -3084,10 +3201,6 @@ export interface components {
             payments: components["schemas"]["PaymentShortOut"][];
             /** Tour For Sale */
             tour_for_sale: boolean;
-            /** Country Name */
-            country_name: string;
-            /** Resort Name */
-            resort_name: string;
             /** Departure City Name */
             departure_city_name: string | null;
             transport_type: components["schemas"]["TransportType"];
@@ -3162,6 +3275,13 @@ export interface components {
             created_at: string;
             /** Client Actions */
             client_actions: components["schemas"]["ClientAction"][];
+            /** Country Name */
+            country_name: string;
+            /** Resort Name */
+            resort_name: string;
+            review_status: components["schemas"]["ReviewStatus"] | null;
+            /** Review Can Resubmit */
+            review_can_resubmit: boolean;
             /** Tourists */
             tourists: components["schemas"]["TouristOut"][];
             /** History */
@@ -3173,10 +3293,6 @@ export interface components {
             payments: components["schemas"]["PaymentShortOut"][];
             /** Tour For Sale */
             tour_for_sale: boolean;
-            /** Country Name */
-            country_name: string;
-            /** Resort Name */
-            resort_name: string;
             /** Departure City Name */
             departure_city_name: string | null;
             transport_type: components["schemas"]["TransportType"];
@@ -3258,6 +3374,13 @@ export interface components {
             created_at: string;
             /** Client Actions */
             client_actions: components["schemas"]["ClientAction"][];
+            /** Country Name */
+            country_name: string;
+            /** Resort Name */
+            resort_name: string;
+            review_status: components["schemas"]["ReviewStatus"] | null;
+            /** Review Can Resubmit */
+            review_can_resubmit: boolean;
         };
         /**
          * OrderReviewOut
@@ -3365,6 +3488,13 @@ export interface components {
             created_at: string;
             /** Client Actions */
             client_actions: components["schemas"]["ClientAction"][];
+            /** Country Name */
+            country_name: string;
+            /** Resort Name */
+            resort_name: string;
+            review_status: components["schemas"]["ReviewStatus"] | null;
+            /** Review Can Resubmit */
+            review_can_resubmit: boolean;
             /** Tourists */
             tourists: components["schemas"]["TouristOut"][];
             /** History */
@@ -3376,10 +3506,6 @@ export interface components {
             payments: components["schemas"]["PaymentShortOut"][];
             /** Tour For Sale */
             tour_for_sale: boolean;
-            /** Country Name */
-            country_name: string;
-            /** Resort Name */
-            resort_name: string;
             /** Departure City Name */
             departure_city_name: string | null;
             transport_type: components["schemas"]["TransportType"];
@@ -3402,6 +3528,17 @@ export interface components {
         Page_AuditLogOut_: {
             /** Items */
             items: components["schemas"]["AuditLogOut"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
+        /** Page[FavoriteOut] */
+        Page_FavoriteOut_: {
+            /** Items */
+            items: components["schemas"]["FavoriteOut"][];
             /** Total */
             total: number;
             /** Page */
@@ -3523,6 +3660,11 @@ export interface components {
              * Format: date
              */
             expiry_date: string;
+            /**
+             * Birth Date
+             * Format: date
+             */
+            birth_date: string;
         };
         /** PassportOut */
         PassportOut: {
@@ -3541,6 +3683,8 @@ export interface components {
              * Format: date
              */
             expiry_date: string;
+            /** Birth Date */
+            birth_date: string | null;
         };
         /** PasswordChange */
         PasswordChange: {
@@ -8343,12 +8487,157 @@ export interface operations {
             };
         };
     };
+    update_passport_api_me_passports__passport_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                passport_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PassportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PassportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_passport_api_me_passports__passport_id__delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 passport_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_favorites_api_me_favorites_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_FavoriteOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    favorite_ids_api_me_favorites_ids_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number[];
+                };
+            };
+        };
+    };
+    add_favorite_api_me_favorites__tour_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tour_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_favorite_api_me_favorites__tour_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tour_id: number;
             };
             cookie?: never;
         };

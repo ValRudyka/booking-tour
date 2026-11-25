@@ -190,3 +190,39 @@
 .order-tourists .order-facts {
   margin: 0;
 }
+
+/* Profile (spec 08): forms stay readable on wide screens. */
+.profile-form {
+  max-width: 480px;
+}
+
+.profile-alert {
+  margin-bottom: 16px;
+}
+
+/* Saved tourists (spec 08 §3). */
+.tourists-toolbar {
+  margin-bottom: 12px;
+}
+
+.tourists-list {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 0 16px;
+}
+
+.tourist-name {
+  margin: 0;
+}
+
+@media (max-width: 575px) {
+  .tourists-list .ant-list-item {
+    flex-wrap: wrap;
+  }
+
+  .tourists-list .ant-list-item-action {
+    margin-inline-start: 0;
+    margin-top: 8px;
+  }
+}

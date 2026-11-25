@@ -2,12 +2,14 @@ import {
   CalendarOutlined, CarOutlined, EnvironmentOutlined, MoonOutlined, SendOutlined, StarFilled,
 } from '@ant-design/icons'
 import { Card, Flex, Tag, Typography } from 'antd'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router'
 import { mediaUrl } from '../api/client'
 import type { TourCard as TourCardData } from '../api/types'
 import { mealLabel } from '../i18n/labels'
 import { PRICE_COLOR } from '../theme'
+import { FavoriteButton } from './FavoriteButton'
 import { PhotoPlaceholder } from './PhotoPlaceholder'
 import { formatDate, formatPrice, formatRating, nearestBookableDate } from '../utils/format'
 import './TourCard.css'
@@ -35,10 +37,18 @@ interface Props {
   tour: TourCardData
   /** h2 in the catalog; h3 on the home page, where the cards sit under a block's h2. */
   headingLevel?: 2 | 3
+  /** «Обране» (spec 08 §5): the tour left the catalog. The card is muted, marked «Не продається»
+   * and is no link (its page is 404), so nothing on it leads to booking. */
+  notForSale?: boolean
+  /** The heart «В обране» over the photo (default). «Обране» shows its own remove button instead. */
+  favorite?: boolean
+  /** Below the card, outside its link (a button cannot sit inside a link). */
+  footer?: ReactNode
 }
 
-/** One tour in the catalog grid (spec §4 "Картка туру"). The whole card is one link. */
-export function TourCard({ tour, headingLevel = 2 }: Props) {
+/** One tour in the catalog grid (spec §4 "Картка туру"). The whole card is one link; the heart
+ * button lies over it as a sibling, not inside the link. */
+export function TourCard({ tour, headingLevel = 2, notForSale = false, favorite = true, footer }: Props) {
   const Heading = headingLevel === 3 ? 'h3' : 'h2'
   const { t } = useTranslation()
   // The catalog's filters travel with the link, so the tour page's «Каталог» crumb returns to them.
@@ -52,55 +62,69 @@ export function TourCard({ tour, headingLevel = 2 }: Props) {
     ? <img className="tour-card-image" src={image} alt={tour.title_uk} loading="lazy" />
     : <PhotoPlaceholder className="tour-card-image" />
 
-  return (
-    <Link to={`/tours/${tour.id}`} state={{ catalogSearch: search } satisfies TourLinkState}
-      className="tour-card-link">
-      <Card hoverable cover={cover} className="tour-card" styles={{ body: { padding: 16 } }}>
-        <Flex vertical gap={6}>
-          <Heading className="tour-card-title">{tour.title_uk}</Heading>
+  const card = (
+    <Card hoverable={!notForSale} cover={cover} className={notForSale ? 'tour-card tour-card-muted' : 'tour-card'}
+      styles={{ body: { padding: 16 } }}>
+      <Flex vertical gap={6}>
+        <Heading className="tour-card-title">{tour.title_uk}</Heading>
+        {notForSale && <div><Tag>{t('favorites.notForSale')}</Tag></div>}
 
-          <Typography.Text type="secondary">
-            <EnvironmentOutlined aria-hidden /> {tour.country.name_uk}, {tour.resort.name_uk}
-          </Typography.Text>
+        <Typography.Text type="secondary">
+          <EnvironmentOutlined aria-hidden /> {tour.country.name_uk}, {tour.resort.name_uk}
+        </Typography.Text>
 
-          <Flex gap={8} align="center" wrap>
-            <Typography.Text>{tour.hotel.name}</Typography.Text>
-            {stars ? (
-              <span role="img" aria-label={t('tour.stars', { count: stars })} className="tour-card-stars">
-                {Array.from({ length: stars }, (_, index) => <StarFilled key={index} aria-hidden />)}
-              </span>
-            ) : null}
-          </Flex>
-
-          <Typography.Text type="secondary" className="tour-card-facts">
-            <span><MoonOutlined aria-hidden /> {t('tour.nights', { count: tour.nights })}</span>
-            {nearest && (
-              <span>
-                <CalendarOutlined aria-hidden /> {t('tour.nearestDate', { date: formatDate(nearest) })}
-              </span>
-            )}
-            <Departure tour={tour} />
-          </Typography.Text>
-
-          <Typography.Text>
-            {rating !== null ? t('tour.rating', { rating: formatRating(rating) }) : t('tour.noReviews')}
-          </Typography.Text>
-
-          {tour.meal_plan && <div><Tag>{mealLabel(t, tour.meal_plan)}</Tag></div>}
-
-          {tour.free_seats === 0 ? <div><Tag color="error">{t('tour.noSeats')}</Tag></div>
-            : tour.free_seats <= LOW_SEATS
-              ? <div><Tag color="warning">{t('tour.seatsLeft', { count: tour.free_seats })}</Tag></div>
-              : null}
-
-          <div className="tour-card-price">
-            <span style={{ color: PRICE_COLOR }} className="tour-card-price-value">
-              {t('tour.priceFrom', { price: formatPrice(tour.price_from_uah) })}
-            </span>{' '}
-            <Typography.Text type="secondary">{t('tour.perAdult')}</Typography.Text>
-          </div>
+        <Flex gap={8} align="center" wrap>
+          <Typography.Text>{tour.hotel.name}</Typography.Text>
+          {stars ? (
+            <span role="img" aria-label={t('tour.stars', { count: stars })} className="tour-card-stars">
+              {Array.from({ length: stars }, (_, index) => <StarFilled key={index} aria-hidden />)}
+            </span>
+          ) : null}
         </Flex>
-      </Card>
-    </Link>
+
+        <Typography.Text type="secondary" className="tour-card-facts">
+          <span><MoonOutlined aria-hidden /> {t('tour.nights', { count: tour.nights })}</span>
+          {nearest && (
+            <span>
+              <CalendarOutlined aria-hidden /> {t('tour.nearestDate', { date: formatDate(nearest) })}
+            </span>
+          )}
+          <Departure tour={tour} />
+        </Typography.Text>
+
+        <Typography.Text>
+          {rating !== null ? t('tour.rating', { rating: formatRating(rating) }) : t('tour.noReviews')}
+        </Typography.Text>
+
+        {tour.meal_plan && <div><Tag>{mealLabel(t, tour.meal_plan)}</Tag></div>}
+
+        {tour.free_seats === 0 ? <div><Tag color="error">{t('tour.noSeats')}</Tag></div>
+          : tour.free_seats <= LOW_SEATS
+            ? <div><Tag color="warning">{t('tour.seatsLeft', { count: tour.free_seats })}</Tag></div>
+            : null}
+
+        <div className="tour-card-price">
+          <span style={{ color: PRICE_COLOR }} className="tour-card-price-value">
+            {t('tour.priceFrom', { price: formatPrice(tour.price_from_uah) })}
+          </span>{' '}
+          <Typography.Text type="secondary">{t('tour.perAdult')}</Typography.Text>
+        </div>
+      </Flex>
+    </Card>
+  )
+
+  return (
+    <div className="tour-card-wrap">
+      {notForSale ? <div className="tour-card-link">{card}</div> : (
+        <Link to={`/tours/${tour.id}`} state={{ catalogSearch: search } satisfies TourLinkState}
+          className="tour-card-link">
+          {card}
+        </Link>
+      )}
+      {favorite && !notForSale && (
+        <div className="tour-card-favorite"><FavoriteButton tourId={tour.id} title={tour.title_uk} /></div>
+      )}
+      {footer && <div className="tour-card-footer">{footer}</div>}
+    </div>
   )
 }

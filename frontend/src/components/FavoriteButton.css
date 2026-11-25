@@ -1,0 +1,10 @@
+/* The heart over a card's photo: white, so it reads on any photo. */
+.favorite-icon {
+  background: #FFFFFF;
+  border-color: #E2E8F0;
+}
+
+/* Error red (#B91C1C) as in the palette: a filled heart is the common sign of «Обране». */
+.favorite-heart-on {
+  color: #B91C1C;
+}
