@@ -20,7 +20,7 @@ import { FaqPage } from './pages/info/FaqPage'
 import { PrivacyPage, TermsPage } from './pages/info/LegalPages'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { COMING_SOON } from './features/office/menu'
-import { OfficeLayout, OfficeOrdersPage } from './pages/office/lazyPages'
+import { OfficeLayout, OfficeOrderPage, OfficeOrdersPage } from './pages/office/lazyPages'
 import { OfficeComingSoon, OfficeHome, RequireOfficeRole } from './pages/office/OfficeHome'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { PayPage } from './pages/payment/PayPage'
@@ -82,6 +82,10 @@ export const routes: RouteObject[] = [
           {
             path: 'orders',
             element: <RequireOfficeRole role="manager">{suspended(<OfficeOrdersPage />)}</RequireOfficeRole>,
+          },
+          {
+            path: 'orders/:id',
+            element: <RequireOfficeRole role="manager">{suspended(<OfficeOrderPage />)}</RequireOfficeRole>,
           },
           ...COMING_SOON.map((section) => ({
             path: section.path,
