@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import { API_URL, ApiError } from '../../api/client'
 import type { TourDetail } from '../../api/types'
@@ -89,7 +90,11 @@ describe('TourDetailsPage', () => {
     await openTour(withPhotos)
     const main = screen.getByRole('img', { name: `${withPhotos.title_uk} — фото 1` })
     expect(main).toHaveAttribute('src', `${API_URL}/uploads/tours/1/a.png`)
-    expect(screen.getByRole('button', { name: 'Відкрити фото 2 з 2' })).toBeInTheDocument()
+
+    // The fullscreen preview keeps the alt text (works around @rc-component/image dropping it).
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Відкрити фото 2 з 2' }))
+    await waitFor(() => expect(document.querySelector('.ant-image-preview-img'))
+      .toHaveAttribute('alt', `${withPhotos.title_uk} — фото 2`))
   })
 
   it('opens the tab named in the URL and replaces the history entry on a tab change', async () => {

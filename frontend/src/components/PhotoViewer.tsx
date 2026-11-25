@@ -1,5 +1,5 @@
 import { Image } from 'antd'
-import { useState } from 'react'
+import { cloneElement, isValidElement, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import './PhotoViewer.css'
 
@@ -50,7 +50,13 @@ export function PhotoViewer({ photos, variant }: Props) {
       )}
       <Image.PreviewGroup
         items={photos.map((photo) => ({ src: photo.src, alt: photo.alt }))}
-        preview={{ open, current, onOpenChange: (next) => setOpen(next), onChange: (next) => setCurrent(next) }}
+        preview={{
+          open, current, onOpenChange: (next) => setOpen(next), onChange: (next) => setCurrent(next),
+          // @rc-component/image passes the item's alt but then overwrites it with the preview's
+          // own (empty) alt prop, so the fullscreen image would have none: put it back.
+          imageRender: (node, info) => (isValidElement<{ alt?: string }>(node)
+            ? cloneElement(node, { alt: photos[info.current]?.alt }) : node),
+        }}
       />
     </div>
   )
