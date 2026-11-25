@@ -1,4 +1,4 @@
-import { HistoryOutlined, MenuOutlined, ShoppingOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
+import { HeartOutlined, HistoryOutlined, MenuOutlined, ShoppingOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
 import { Button, Drawer, Grid, Layout, Menu } from 'antd'
 import type { MenuProps } from 'antd'
 import { useState } from 'react'
@@ -25,6 +25,7 @@ export function CabinetLayout() {
   const items: MenuProps['items'] = [
     { key: '/cabinet/orders', icon: <ShoppingOutlined aria-hidden />, label: t('cabinet.orders.title') },
     { key: HISTORY, icon: <HistoryOutlined aria-hidden />, label: t('cabinet.history.title') },
+    { key: '/cabinet/favorites', icon: <HeartOutlined aria-hidden />, label: t('favorites.title') },
     { key: '/cabinet/tourists', icon: <TeamOutlined aria-hidden />, label: t('cabinet.tourists.title') },
     { key: '/cabinet/profile', icon: <UserOutlined aria-hidden />, label: t('nav.profile') },
   ]

@@ -109,7 +109,7 @@ describe('/cabinet/orders', () => {
     renderRoute('/cabinet/orders')
     const nav = await screen.findByRole('navigation', { name: 'Розділи кабінету' })
     const items = within(nav).getAllByRole('menuitem').map((item) => item.textContent)
-    expect(items).toEqual(['Мої замовлення', 'Історія подорожей', 'Збережені туристи', 'Профіль'])
+    expect(items).toEqual(['Мої замовлення', 'Історія подорожей', 'Обране', 'Збережені туристи', 'Профіль'])
   })
 })
 

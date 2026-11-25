@@ -5,6 +5,8 @@ import type { components, operations } from './schema'
 type Schemas = components['schemas']
 
 export type TourCard = Schemas['TourCardOut']
+export type FavoriteTour = Schemas['FavoriteOut']
+export type FavoritePage = Schemas['Page_FavoriteOut_']
 export type TourPage = Schemas['Page_TourCardOut_']
 export type Country = Schemas['CountryOut']
 export type Resort = Schemas['ResortOut']

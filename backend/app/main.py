@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 
 from app.config import check_startup_settings, settings
 from app.db import get_db
-from app.routers import (admin_reference, admin_settings, admin_users, auth, catalog, finance,
-                         manager_orders, manager_promo, manager_reviews, manager_tours,
+from app.routers import (admin_reference, admin_settings, admin_users, auth, catalog, favorites,
+                         finance, manager_orders, manager_promo, manager_reviews, manager_tours,
                          notifications, orders, passports, payments, reference, reviews, site)
 from app.services import maintenance
 from app.services.order_completion import run_completion_job
@@ -96,6 +96,7 @@ app.include_router(catalog.router, prefix="/api")
 app.include_router(reference.router, prefix="/api")
 app.include_router(orders.router, prefix="/api")
 app.include_router(passports.router, prefix="/api")
+app.include_router(favorites.router, prefix="/api")
 app.include_router(payments.router, prefix="/api")
 app.include_router(finance.router, prefix="/api")
 app.include_router(finance.orders_router, prefix="/api")

@@ -8,6 +8,7 @@ import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/auth/RegisterPage'
 import { BookingPage } from './pages/booking/BookingPage'
 import { OrderDetailsPage } from './pages/cabinet/OrderDetailsPage'
+import { FavoritesPage } from './pages/cabinet/FavoritesPage'
 import { OrdersPage } from './pages/cabinet/OrdersPage'
 import { ProfilePage } from './pages/cabinet/ProfilePage'
 import { TouristsPage } from './pages/cabinet/TouristsPage'
@@ -61,6 +62,8 @@ export const routes: RouteObject[] = [
               { path: 'profile', element: <ProfilePage /> },
               // Saved tourists for the booking autofill (spec 08 §3): /api/me/passports.
               { path: 'tourists', element: <TouristsPage /> },
+              // «Обране» (spec 08 §5): /api/me/favorites.
+              { path: 'favorites', element: <FavoritesPage /> },
             ],
           },
           // The back office comes in feature/frontend-backoffice.

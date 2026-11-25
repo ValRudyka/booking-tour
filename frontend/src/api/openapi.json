@@ -6139,6 +6139,175 @@
         }
       }
     },
+    "/api/me/favorites": {
+      "get": {
+        "tags": [
+          "me: favorites"
+        ],
+        "summary": "Моє обране (нові першими)",
+        "operationId": "list_favorites_api_me_favorites_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 12,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_FavoriteOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/favorites/ids": {
+      "get": {
+        "tags": [
+          "me: favorites"
+        ],
+        "summary": "Id турів в обраному (для кнопок «В обране»)",
+        "operationId": "favorite_ids_api_me_favorites_ids_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array",
+                  "title": "Response Favorite Ids Api Me Favorites Ids Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/me/favorites/{tour_id}": {
+      "put": {
+        "tags": [
+          "me: favorites"
+        ],
+        "summary": "Додати тур в обране",
+        "operationId": "add_favorite_api_me_favorites__tour_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "me: favorites"
+        ],
+        "summary": "Прибрати тур з обраного",
+        "operationId": "remove_favorite_api_me_favorites__tour_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/payments/result": {
       "get": {
         "tags": [
@@ -8411,6 +8580,134 @@
           "uploaded_at"
         ],
         "title": "DocumentOut"
+      },
+      "FavoriteOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title_uk": {
+            "type": "string",
+            "title": "Title Uk"
+          },
+          "title_en": {
+            "type": "string",
+            "title": "Title En"
+          },
+          "country": {
+            "$ref": "#/components/schemas/CountryOut"
+          },
+          "resort": {
+            "$ref": "#/components/schemas/ResortOut"
+          },
+          "hotel": {
+            "$ref": "#/components/schemas/HotelOut"
+          },
+          "transport_type": {
+            "$ref": "#/components/schemas/TransportType"
+          },
+          "departure_city": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CityOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "departure_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Departure From"
+          },
+          "departure_to": {
+            "type": "string",
+            "format": "date",
+            "title": "Departure To"
+          },
+          "nights": {
+            "type": "integer",
+            "title": "Nights"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "base_price": {
+            "type": "string",
+            "title": "Base Price"
+          },
+          "price_from_uah": {
+            "type": "string",
+            "title": "Price From Uah",
+            "description": "Ціна «від» за 1 дорослого в гривнях"
+          },
+          "free_seats": {
+            "type": "integer",
+            "title": "Free Seats"
+          },
+          "is_featured": {
+            "type": "boolean",
+            "title": "Is Featured"
+          },
+          "meal_plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MealPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "for_sale": {
+            "type": "boolean",
+            "title": "For Sale",
+            "description": "false: тур більше не продається (його сторінка — 404)"
+          },
+          "added_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Added At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title_uk",
+          "title_en",
+          "country",
+          "resort",
+          "hotel",
+          "transport_type",
+          "departure_city",
+          "departure_from",
+          "departure_to",
+          "nights",
+          "currency",
+          "base_price",
+          "price_from_uah",
+          "free_seats",
+          "is_featured",
+          "meal_plan",
+          "image_url",
+          "for_sale",
+          "added_at"
+        ],
+        "title": "FavoriteOut",
+        "description": "A tour in the client's «Обране»: the catalog card, also after the tour left the catalog."
       },
       "FinancePaymentOut": {
         "properties": {
@@ -11763,6 +12060,37 @@
           "page_size"
         ],
         "title": "Page[AuditLogOut]"
+      },
+      "Page_FavoriteOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FavoriteOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[FavoriteOut]"
       },
       "Page_FinancePaymentOut_": {
         "properties": {

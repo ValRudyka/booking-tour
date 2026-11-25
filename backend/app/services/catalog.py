@@ -12,10 +12,10 @@ from typing import Literal
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import CurrencyRate, Hotel, Resort, Tour
+from app.models import CurrencyRate, Favorite, Hotel, Resort, Tour
 from app.models.enums import MealPlan, TourStatus, TransportType
 from app.schemas.reference import CityOut, CountryOut, HotelDetailOut, HotelOut, ResortOut
-from app.schemas.tours import ProgramDayOut, TourCardOut, TourDetailOut, TourImageOut
+from app.schemas.tours import FavoriteOut, ProgramDayOut, TourCardOut, TourDetailOut, TourImageOut
 from app.services import clock
 from app.services.errors import DomainError
 from app.services.reviews import tour_review_stats
@@ -53,7 +53,9 @@ def is_for_sale(tour: Tour) -> bool:
     return tour.status == TourStatus.ACTIVE and tour.departure_to >= clock.tomorrow()
 
 
-def _query() -> tuple[Select, dict]:
+def _query(for_sale_only: bool = True) -> tuple[Select, dict]:
+    """The catalog query. `for_sale_only=False` is for «Обране» only: a favourite tour stays in the
+    client's list after it leaves the catalog, marked as not for sale."""
     free_seats = free_seats_expr()  # same rule as the checkout (services/seats.py)
     price_uah = func.round(Tour.base_price * CurrencyRate.rate_to_uah, 2)
     query = (select(Tour, price_uah.label("price_from_uah"), free_seats.label("free_seats"),
@@ -61,13 +63,14 @@ def _query() -> tuple[Select, dict]:
              .join(Hotel, Tour.hotel_id == Hotel.id)
              .join(Resort, Hotel.resort_id == Resort.id)
              .join(CurrencyRate, CurrencyRate.currency == Tour.currency)
-             # For sale = published and at least one start date from tomorrow (Kyiv), the
-             # earliest date an order accepts (services/orders.py). On its last start day a
-             # tour is no longer listed, and its page is 404.
-             # (is_for_sale() above is the same rule in Python: change both together.)
-             .where(Tour.status == TourStatus.ACTIVE, Tour.departure_to >= clock.tomorrow())
              .options(selectinload(Tour.hotel).selectinload(Hotel.resort).selectinload(Resort.country),
                       selectinload(Tour.departure_city), selectinload(Tour.images)))
+    if for_sale_only:
+        # For sale = published and at least one start date from tomorrow (Kyiv), the
+        # earliest date an order accepts (services/orders.py). On its last start day a
+        # tour is no longer listed, and its page is 404.
+        # (is_for_sale() above is the same rule in Python: change both together.)
+        query = query.where(Tour.status == TourStatus.ACTIVE, Tour.departure_to >= clock.tomorrow())
     return query, {"free_seats": free_seats, "price_uah": price_uah}
 
 
@@ -143,6 +146,19 @@ def search_tours(db: Session, filters: CatalogFilters, sort: SortKey, page: int,
     total = db.scalar(select(func.count()).select_from(query.order_by(None).subquery()))
     rows = db.execute(_order(query, sort, expr).offset((page - 1) * page_size).limit(page_size)).all()
     cards = [TourCardOut(**_card_fields(tour, price, free)) for tour, price, free, _rate in rows]
+    return cards, total
+
+
+def favorite_cards(db: Session, user_id: int, page: int, page_size: int) -> tuple[list[FavoriteOut], int]:
+    """The client's «Обране», newest first: catalog cards, also of tours no longer for sale."""
+    query, _ = _query(for_sale_only=False)
+    query = (query.join(Favorite, (Favorite.tour_id == Tour.id) & (Favorite.user_id == user_id))
+             .add_columns(Favorite.created_at))
+    total = db.scalar(select(func.count()).select_from(Favorite).where(Favorite.user_id == user_id))
+    rows = db.execute(query.order_by(Favorite.created_at.desc(), Tour.id.desc())
+                      .offset((page - 1) * page_size).limit(page_size)).all()
+    cards = [FavoriteOut(**_card_fields(tour, price, free), for_sale=is_for_sale(tour), added_at=added)
+             for tour, price, free, _rate, added in rows]
     return cards, total
 
 

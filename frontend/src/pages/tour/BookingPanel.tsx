@@ -3,6 +3,7 @@ import dayjs from 'dayjs'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TourDetail } from '../../api/types'
+import { FavoriteButton } from '../../components/FavoriteButton'
 import { LOW_SEATS } from '../../components/TourCard'
 import { mealLabel } from '../../i18n/labels'
 import { PRICE_COLOR } from '../../theme'
@@ -79,6 +80,7 @@ export function BookingPanel({ tour, firstDate, date, onDateChange, onBook }: Pr
         {t('booking.book')}
       </Button>
       {block && <Typography.Text id={reasonId} className="booking-reason">{t(`booking.${block}`)}</Typography.Text>}
+      <div className="booking-favorite"><FavoriteButton tourId={tour.id} title={tour.title_uk} variant="button" /></div>
     </Card>
   )
 }

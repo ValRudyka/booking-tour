@@ -164,6 +164,12 @@ class TourCardOut(BaseModel):
     image_url: str | None
 
 
+class FavoriteOut(TourCardOut):
+    """A tour in the client's «Обране»: the catalog card, also after the tour left the catalog."""
+    for_sale: bool = Field(description="false: тур більше не продається (його сторінка — 404)")
+    added_at: datetime
+
+
 class TourDetailOut(TourCardOut):
     hotel: HotelDetailOut               # the card's hotel + its facts
     child_price: Decimal | None
