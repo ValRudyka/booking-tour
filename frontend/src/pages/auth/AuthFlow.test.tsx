@@ -59,8 +59,10 @@ describe('auth state', () => {
     storeToken()
     mockServer({ 'GET /auth/me': () => [200, manager] })
     const { user } = renderRoute('/tours')
+    // A visible header button (spec 09) and the item in the user menu.
+    expect(await screen.findByRole('button', { name: 'Робочий кабінет' })).toBeInTheDocument()
     await user.click(await screen.findByRole('button', { name: 'Меню користувача: Іван П.' }))
-    expect(await screen.findByText('Робочий кабінет')).toBeInTheDocument()
+    expect(await screen.findByRole('menuitem', { name: 'Робочий кабінет' })).toBeInTheDocument()
     expect(screen.queryByText('Мої замовлення')).not.toBeInTheDocument()
   })
 

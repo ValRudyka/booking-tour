@@ -51,6 +51,39 @@ def _save_all(db: Session, order: Order, user: User, doc_type: OrderDocumentType
     return docs
 
 
+def _too_many() -> str:
+    return f"До замовлення можна додати не більше {settings.max_documents_per_order} документів"
+
+
+def upload_refusal(order: Order) -> str | None:
+    """Why no document can be added now apart from the status (checked by the caller): the
+    limit is reached. Also decides the «upload_documents» staff action."""
+    if len(order.documents) >= settings.max_documents_per_order:
+        return _too_many()
+    return None
+
+
+def upload_rules() -> dict:
+    """The manager's upload form (GET /manager/orders/document-rules)."""
+    return dict(doc_types=[t for t in OrderDocumentType if t in TRIP_DOCUMENT_TYPES],
+                max_documents=settings.max_documents_per_order,
+                max_file_mb=settings.max_document_mb,
+                file_types=sorted(set(private_files.PDF_JPG_PNG.values())))
+
+
+def delete_refusal(order: Order, doc: OrderDocument) -> str | None:
+    """Why this document cannot be deleted (None = it can); used by delete() and by the
+    back office (StaffOrderDocumentOut.can_delete)."""
+    if doc.doc_type not in TRIP_DOCUMENT_TYPES:
+        return "Довідки клієнта не видаляються"
+    if order.status not in UPLOAD_STATUSES:
+        return "Документи цього замовлення вже не змінюються"
+    if (order.status == S.DOCUMENTS_READY and doc.doc_type == OrderDocumentType.VOUCHER
+            and sum(d.doc_type == OrderDocumentType.VOUCHER for d in order.documents) == 1):
+        return "Не можна видалити останній ваучер: документи вже передано клієнту"
+    return None
+
+
 def upload(db: Session, manager: User, order: Order, doc_type: OrderDocumentType,
            files: list[FileUpload]) -> list[OrderDocument]:
     if doc_type not in TRIP_DOCUMENT_TYPES:
@@ -62,8 +95,7 @@ def upload(db: Session, manager: User, order: Order, doc_type: OrderDocumentType
         raise DomainError("Додайте хоча б один файл", 422)
     existing = db.scalar(select(func.count()).where(OrderDocument.order_id == order.id))
     if existing + len(files) > settings.max_documents_per_order:
-        raise DomainError(f"До замовлення можна додати не більше "
-                          f"{settings.max_documents_per_order} документів", 409)
+        raise DomainError(_too_many(), 409)
     return _save_all(db, order, manager, doc_type, files, private_files.PDF_JPG_PNG,
                      "Файл «{name}»: документ має бути PDF, JPG або PNG")
 
@@ -88,13 +120,9 @@ def get_document(order: Order, doc_id: int) -> OrderDocument:
 def delete(db: Session, order: Order, doc_id: int) -> str:
     """Returns the stored path; the caller removes the file after the commit."""
     doc = get_document(order, doc_id)
-    if doc.doc_type not in TRIP_DOCUMENT_TYPES:
-        raise DomainError("Довідки клієнта не видаляються", 409)
-    if order.status not in UPLOAD_STATUSES:
-        raise DomainError("Документи цього замовлення вже не змінюються", 409)
-    if (order.status == S.DOCUMENTS_READY and doc.doc_type == OrderDocumentType.VOUCHER
-            and sum(d.doc_type == OrderDocumentType.VOUCHER for d in order.documents) == 1):
-        raise DomainError("Не можна видалити останній ваучер: документи вже передано клієнту", 409)
+    refusal = delete_refusal(order, doc)
+    if refusal:
+        raise DomainError(refusal, 409)
     path = doc.file_path
     db.delete(doc)
     db.flush()

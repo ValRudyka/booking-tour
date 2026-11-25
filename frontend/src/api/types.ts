@@ -71,3 +71,22 @@ export type MyReview = Schemas['MyReviewOut']
 export type OrderReview = Schemas['OrderReviewOut']
 export type AppNotification = Schemas['NotificationOut']
 export type NotificationPage = Schemas['NotificationPage']
+
+// Back office (spec 09): the manager's order queue and order card
+export type StaffAction = Schemas['StaffAction']
+export type StaffActionInfo = Schemas['StaffActionOut']
+export type ManagerQueue = Schemas['ManagerQueue']
+export type ManagerOrderSort = Schemas['ManagerOrderSort']
+export type ManagerOrderRow = Schemas['ManagerOrderOut']
+export type ManagerOrderPage = Schemas['ManagerOrderPage']
+export type ManagerOrder = Schemas['ManagerOrderDetailOut']
+export type StaffOrderDocument = Schemas['StaffOrderDocumentOut']
+/** POST /manager/orders/{id}/documents answers the new rows (without can_delete). */
+export type StaffUploadedDocument = Schemas['StaffDocumentOut']
+export type StaffHistory = Schemas['StaffHistoryOut']
+export type StaffPayment = Schemas['StaffPaymentOut']
+export type ManagerShort = Schemas['ManagerShortOut']
+export type DocumentRules = Schemas['DocumentRulesOut']
+export type PaymentType = Schemas['PaymentType']
+/** Query parameters of GET /api/manager/orders, exactly as the backend declares them. */
+export type ManagerOrdersQuery = NonNullable<operations['list_orders_api_manager_orders_get']['parameters']['query']>

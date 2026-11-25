@@ -1,0 +1,191 @@
+/* The back office (spec 09): made for 1280 px and wider, still usable at 768 px (tables scroll
+   sideways), and not broken on a phone. .site-name and .skip-link come from PublicLayout.css. */
+
+.office-layout {
+  min-height: 100vh;
+}
+
+.office-header {
+  border-bottom: 1px solid #E2E8F0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.office-header-row {
+  height: 100%;
+}
+
+.office-site-name {
+  margin-right: 0;
+}
+
+.office-title {
+  white-space: nowrap;
+  margin-right: auto;
+}
+
+.office-header-actions {
+  min-width: 0;
+}
+
+.office-user {
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .office-title,
+  .office-user {
+    display: none;
+  }
+  .office-site-name {
+    margin-right: auto;
+  }
+}
+
+.office-sider {
+  background: #FFFFFF !important;
+  border-right: 1px solid #E2E8F0;
+}
+
+.office-menu {
+  border-inline-end: none !important;
+  padding-top: 8px;
+}
+
+.office-drawer-site {
+  margin-top: 16px;
+}
+
+.office-content {
+  min-width: 0;
+}
+
+.office-main {
+  padding: 24px;
+  outline: none;
+  max-width: 1600px;
+}
+
+@media (max-width: 767px) {
+  .office-main {
+    padding: 16px 12px 32px;
+  }
+}
+
+.office-page-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.office-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.office-muted {
+  color: #475569;
+}
+
+.office-reason {
+  display: block;
+  color: #334155;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.office-action-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.office-doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.office-doc-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.office-pre {
+  white-space: pre-wrap;
+}
+
+.office-block {
+  margin-bottom: 12px;
+}
+
+.office-full-width {
+  width: 100%;
+}
+
+.office-back {
+  padding-inline: 0;
+}
+
+.office-reason-alert {
+  margin-bottom: 12px;
+}
+
+.office-action-error,
+.office-comment-save {
+  margin-top: 12px;
+}
+
+.office-modal-warning {
+  margin-bottom: 16px;
+}
+
+.office-upload {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #E2E8F0;
+}
+
+.office-card-subtitle.ant-typography {
+  font-size: 15px;
+  margin: 0 0 12px;
+}
+
+.office-history-comment.ant-typography {
+  margin: 4px 0 0;
+}
+
+.office-filter-bar {
+  row-gap: 12px;
+}
+
+.office-filter-text {
+  width: 200px;
+}
+
+.office-filter-select {
+  min-width: 220px;
+}
+
+@media (min-width: 1200px) {
+  .office-side {
+    position: sticky;
+    top: 88px;
+  }
+}
+
+/* antd places the character counter of a TextArea with showCount just below the field; leave
+   room for it, otherwise it covers the field's hint (Form.Item extra). */
+.office-textarea.ant-input-textarea-show-count {
+  margin-bottom: 22px;
+}
