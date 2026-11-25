@@ -43,12 +43,22 @@ export function kyivToday(now: Date = new Date()): string {
   }
 }
 
+/** Kyiv "tomorrow" as YYYY-MM-DD: the earliest start date an order accepts (clock.tomorrow()). */
+export function kyivTomorrow(now: Date = new Date()): string {
+  // Noon UTC of the Kyiv date, plus a day, cannot slip across a date line or a DST change.
+  const next = new Date(`${kyivToday(now)}T12:00:00Z`)
+  next.setUTCDate(next.getUTCDate() + 1)
+  return next.toISOString().slice(0, 10)
+}
+
 /**
- * Nearest start date of a tour whose start dates run from `from` to `to` (form 4.6.2.1,
- * field 10: one date or a range). Once the range has begun, the nearest start is today.
- * ISO dates compare correctly as strings.
+ * The nearest start date that can still be booked, for a tour whose start dates run from `from`
+ * to `to` (form 4.6.2.1, field 10: one date or a range). Booking starts tomorrow (Kyiv), so once
+ * the range has begun the answer is tomorrow; null when nothing is bookable any more (the catalog
+ * does not list such tours). ISO dates compare correctly as strings.
  */
-export function nearestDeparture(from: string, to: string, today: string = kyivToday()): string {
-  if (from >= today) return from
-  return to >= today ? today : to
+export function nearestBookableDate(from: string, to: string,
+  tomorrow: string = kyivTomorrow()): string | null {
+  const first = from >= tomorrow ? from : tomorrow
+  return first <= to ? first : null
 }

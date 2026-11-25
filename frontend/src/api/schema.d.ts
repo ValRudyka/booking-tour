@@ -2169,6 +2169,7 @@ export interface components {
             stripe_payment_intent: string | null;
             /** Stripe Refund Id */
             stripe_refund_id: string | null;
+            origin: components["schemas"]["PaymentOrigin"];
             /**
              * Created At
              * Format: date-time
@@ -2207,13 +2208,95 @@ export interface components {
             stars: number | null;
             /** Description */
             description: string | null;
+            /** Beach Line */
+            beach_line: number | null;
+            /** Distance To Beach M */
+            distance_to_beach_m: number | null;
+            /** Distance To Airport Km */
+            distance_to_airport_km: number | null;
+            /** Check In */
+            check_in: string | null;
+            /** Check Out */
+            check_out: string | null;
+            /** Amenities */
+            amenities: string[];
+            /** Room Types */
+            room_types: string[];
             /** Rating Avg */
             rating_avg: string | null;
             /** Is Archived */
             is_archived: boolean;
         };
+        /**
+         * HotelDetailOut
+         * @description The hotel on the tour page: HotelOut + facts (form 4.6.4.2). Catalog cards and reference
+         *     lists keep the light HotelOut, so a page of cards carries no amenity lists.
+         */
+        HotelDetailOut: {
+            /** Id */
+            id: number;
+            /** Resort Id */
+            resort_id: number;
+            /** Name */
+            name: string;
+            /** Stars */
+            stars: number | null;
+            /** Rating Avg */
+            rating_avg: string | null;
+            /** Beach Line */
+            beach_line: number | null;
+            /** Distance To Beach M */
+            distance_to_beach_m: number | null;
+            /** Distance To Airport Km */
+            distance_to_airport_km: number | null;
+            /** Check In */
+            check_in: string | null;
+            /** Check Out */
+            check_out: string | null;
+            /** Amenities */
+            amenities: string[];
+            /** Room Types */
+            room_types: string[];
+        };
         /** HotelIn */
         HotelIn: {
+            /**
+             * Beach Line
+             * @description Лінія пляжу, 1–5
+             */
+            beach_line?: number | null;
+            /**
+             * Distance To Beach M
+             * @description До пляжу, м (0 — на пляжі)
+             */
+            distance_to_beach_m?: number | null;
+            /**
+             * Distance To Airport Km
+             * @description До аеропорту, км
+             */
+            distance_to_airport_km?: number | null;
+            /**
+             * Check In
+             * @description Заїзд з, HH:MM
+             */
+            check_in?: string | null;
+            /**
+             * Check Out
+             * @description Виїзд до, HH:MM
+             */
+            check_out?: string | null;
+            /**
+             * Amenities
+             * @description Зручності, до 20 пунктів
+             * @default []
+             */
+            amenities: string[];
+            /**
+             * Room Types
+             * @description Типи номерів, до 20 пунктів
+             * @default []
+             */
+            room_types: string[];
             /** Resort Id */
             resort_id: number;
             /** Name */
@@ -2246,6 +2329,20 @@ export interface components {
             stars?: number | null;
             /** Description */
             description?: string | null;
+            /** Beach Line */
+            beach_line?: number | null;
+            /** Distance To Beach M */
+            distance_to_beach_m?: number | null;
+            /** Distance To Airport Km */
+            distance_to_airport_km?: number | null;
+            /** Check In */
+            check_in?: string | null;
+            /** Check Out */
+            check_out?: string | null;
+            /** Amenities */
+            amenities?: string[] | null;
+            /** Room Types */
+            room_types?: string[] | null;
         };
         /** ImageOrder */
         ImageOrder: {
@@ -2491,6 +2588,11 @@ export interface components {
             description: string | null;
             /** Is Featured */
             is_featured: boolean;
+            meal_plan: components["schemas"]["MealPlan"] | null;
+            /** Included */
+            included: string[];
+            /** Excluded */
+            excluded: string[];
             /** Created By */
             created_by: number;
             /**
@@ -2508,6 +2610,13 @@ export interface components {
             /** Images */
             images: components["schemas"]["TourImageOut"][];
         };
+        /**
+         * MealPlan
+         * @description Board basis of a tour (form 4.6.2.1, «Тип харчування»; added in feature/catalog-improvements).
+         *     On the tour, not the hotel: the same hotel is sold with different boards.
+         * @enum {string}
+         */
+        MealPlan: "ro" | "bb" | "hb" | "fb" | "ai" | "uai";
         /** MyReviewOut */
         MyReviewOut: {
             /** Hotel Rating */
@@ -3065,6 +3174,13 @@ export interface components {
          * @enum {string}
          */
         PaymentMethod: "card" | "bank_transfer";
+        /**
+         * PaymentOrigin
+         * @description Where a payment row came from. Finance pages and reports must be able to leave demo money
+         *     out: `demo_seed` rows are written by scripts.seed_demo (dev only), no money ever moved.
+         * @enum {string}
+         */
+        PaymentOrigin: "app" | "demo_seed";
         /**
          * PaymentResultOut
          * @description Where Stripe sends the client back (until the frontend exists).
@@ -3790,6 +3906,7 @@ export interface components {
             free_seats: number;
             /** Is Featured */
             is_featured: boolean;
+            meal_plan: components["schemas"]["MealPlan"] | null;
             /** Image Url */
             image_url: string | null;
         };
@@ -3840,6 +3957,19 @@ export interface components {
              * @default false
              */
             is_featured: boolean;
+            meal_plan?: components["schemas"]["MealPlan"] | null;
+            /**
+             * Included
+             * @description «Що включено», до 20 пунктів
+             * @default []
+             */
+            included: string[];
+            /**
+             * Excluded
+             * @description «Що не включено», до 20 пунктів
+             * @default []
+             */
+            excluded: string[];
             /**
              * Program Days
              * @default []
@@ -3856,7 +3986,7 @@ export interface components {
             title_en: string;
             country: components["schemas"]["CountryOut"];
             resort: components["schemas"]["ResortOut"];
-            hotel: components["schemas"]["HotelOut"];
+            hotel: components["schemas"]["HotelDetailOut"];
             transport_type: components["schemas"]["TransportType"];
             departure_city: components["schemas"]["CityOut"] | null;
             /**
@@ -3883,6 +4013,7 @@ export interface components {
             free_seats: number;
             /** Is Featured */
             is_featured: boolean;
+            meal_plan: components["schemas"]["MealPlan"] | null;
             /** Image Url */
             image_url: string | null;
             /** Child Price */
@@ -3895,6 +4026,10 @@ export interface components {
             flight_back: string | null;
             /** Description */
             description: string | null;
+            /** Included */
+            included: string[];
+            /** Excluded */
+            excluded: string[];
             /** Hotel Description */
             hotel_description: string | null;
             /** Program Days */
@@ -3958,6 +4093,11 @@ export interface components {
             description?: string | null;
             /** Is Featured */
             is_featured?: boolean | null;
+            meal_plan?: components["schemas"]["MealPlan"] | null;
+            /** Included */
+            included?: string[] | null;
+            /** Excluded */
+            excluded?: string[] | null;
             /** Program Days */
             program_days?: components["schemas"]["ProgramDayIn"][] | null;
         };
@@ -6867,11 +7007,13 @@ export interface operations {
                 price_max?: number | string | null;
                 /** @description Зірковість, можна кілька: stars=4&stars=5 */
                 stars?: number[] | null;
+                /** @description Харчування, можна кілька: meal_plan=ai&meal_plan=uai */
+                meal_plan?: components["schemas"]["MealPlan"][] | null;
                 /** @description Лише «Гарячі пропозиції» */
                 featured?: boolean | null;
                 /** @description Лише тури з вільними місцями */
                 has_seats?: boolean | null;
-                sort?: "price_asc" | "price_desc" | "date_asc" | "date_desc" | "rating_desc";
+                sort?: "price_asc" | "price_desc" | "date_asc" | "date_desc" | "rating_desc" | "title_asc";
                 page?: number;
                 page_size?: number;
             };
@@ -7562,6 +7704,8 @@ export interface operations {
                 date_from?: string | null;
                 date_to?: string | null;
                 order_number?: string | null;
+                /** @description app — лише справжні (тестові Stripe / перекази); demo_seed — демо-дані */
+                origin?: components["schemas"]["PaymentOrigin"] | null;
                 page?: number;
                 page_size?: number;
             };

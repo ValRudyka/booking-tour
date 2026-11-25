@@ -35,6 +35,7 @@ export function makeTour(overrides: Partial<TourCard> = {}): TourCard {
     price_from_uah: '32000.00',
     free_seats: 10,
     is_featured: false,
+    meal_plan: null,
     image_url: null,
     ...overrides,
   }

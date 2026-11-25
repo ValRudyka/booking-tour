@@ -10,6 +10,7 @@ export type Country = Schemas['CountryOut']
 export type Resort = Schemas['ResortOut']
 export type City = Schemas['CityOut']
 export type TransportType = Schemas['TransportType']
+export type MealPlan = Schemas['MealPlan']
 
 /** Query parameters of GET /api/tours, exactly as the backend declares them. */
 export type TourSearchParams = NonNullable<operations['search_tours_api_tours_get']['parameters']['query']>

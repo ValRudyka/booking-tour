@@ -8,7 +8,7 @@ import { Link } from 'react-router'
 import { mediaUrl } from '../api/client'
 import type { TourCard as TourCardData } from '../api/types'
 import { PRICE_COLOR } from '../theme'
-import { formatDate, formatPrice, formatRating, nearestDeparture } from '../utils/format'
+import { formatDate, formatPrice, formatRating, nearestBookableDate } from '../utils/format'
 import './TourCard.css'
 
 /** Free seats at or below this number get the "Залишилось N місць" tag. */
@@ -31,6 +31,7 @@ export function TourCard({ tour }: { tour: TourCardData }) {
   const image = mediaUrl(tour.image_url)
   const stars = tour.hotel.stars
   const rating = tour.hotel.rating_avg
+  const nearest = nearestBookableDate(tour.departure_from, tour.departure_to)
 
   const cover = image
     ? <img className="tour-card-image" src={image} alt={tour.title_uk} loading="lazy" />
@@ -61,16 +62,19 @@ export function TourCard({ tour }: { tour: TourCardData }) {
 
           <Typography.Text type="secondary" className="tour-card-facts">
             <span><MoonOutlined aria-hidden /> {t('tour.nights', { count: tour.nights })}</span>
-            <span>
-              <CalendarOutlined aria-hidden />{' '}
-              {t('tour.nearestDate', { date: formatDate(nearestDeparture(tour.departure_from, tour.departure_to)) })}
-            </span>
+            {nearest && (
+              <span>
+                <CalendarOutlined aria-hidden /> {t('tour.nearestDate', { date: formatDate(nearest) })}
+              </span>
+            )}
             <Departure tour={tour} />
           </Typography.Text>
 
           <Typography.Text>
             {rating !== null ? t('tour.rating', { rating: formatRating(rating) }) : t('tour.noReviews')}
           </Typography.Text>
+
+          {tour.meal_plan && <div><Tag>{t(`meal.${tour.meal_plan}`)}</Tag></div>}
 
           {tour.free_seats === 0 ? <div><Tag color="error">{t('tour.noSeats')}</Tag></div>
             : tour.free_seats <= LOW_SEATS

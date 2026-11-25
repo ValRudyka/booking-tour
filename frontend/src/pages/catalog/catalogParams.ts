@@ -5,15 +5,17 @@
 // browser's Back button restores the previous search. The URL keys are the API's own parameter
 // names, so the mapping is 1:1. Everything read from the URL is validated here: a hand-edited
 // or outdated link is cleaned up instead of causing a 422 from the API.
-import type { TourSearchParams, TourSort, TransportType } from '../../api/types'
+import type { MealPlan, TourSearchParams, TourSort, TransportType } from '../../api/types'
 
 export const PAGE_SIZE = 12
-/** Sorts the catalog offers (spec §4); the API also has date_desc, which is not offered. */
-export const SORTS = ['date_asc', 'price_asc', 'price_desc', 'rating_desc'] as const satisfies readonly TourSort[]
+/** Sorts the catalog offers (spec §4, ТЗ «по алфавіту»); the API also has date_desc, not offered. */
+export const SORTS = ['date_asc', 'price_asc', 'price_desc', 'rating_desc', 'title_asc'] as const satisfies readonly TourSort[]
 export type CatalogSort = (typeof SORTS)[number]
 export const DEFAULT_SORT: CatalogSort = 'date_asc' // = the API's default: nearest departure first
 export const STAR_OPTIONS = [3, 4, 5] as const
 export const TRANSPORT_TYPES: readonly TransportType[] = ['air', 'bus', 'none']
+/** Board types from the lightest to the fullest (the order of the filter's checkboxes). */
+export const MEAL_PLANS: readonly MealPlan[] = ['ro', 'bb', 'hb', 'fb', 'ai', 'uai']
 export const NIGHTS_MIN = 1
 export const NIGHTS_MAX = 30 // form 4.6.2.1, field 11
 const Q_MAX_LENGTH = 100 // the API's limit
@@ -32,6 +34,7 @@ export interface CatalogFilters {
   price_min?: number
   price_max?: number
   stars: number[]
+  meal_plan: MealPlan[]
   has_seats?: boolean
 }
 
@@ -41,7 +44,7 @@ export interface CatalogState {
   page: number
 }
 
-export const EMPTY_FILTERS: CatalogFilters = { stars: [] }
+export const EMPTY_FILTERS: CatalogFilters = { stars: [], meal_plan: [] }
 
 function positiveInt(raw: string | null, min = 1, max = Number.MAX_SAFE_INTEGER): number | undefined {
   if (raw === null || !/^\d{1,9}$/.test(raw)) return undefined
@@ -79,6 +82,7 @@ export function parseCatalogParams(params: URLSearchParams): CatalogState {
     price_min: positiveInt(params.get('price_min'), 0),
     price_max: positiveInt(params.get('price_max'), 0),
     stars,
+    meal_plan: MEAL_PLANS.filter((plan) => params.getAll('meal_plan').includes(plan)),
     // Only "true" is a filter; the UI has no "only sold-out tours" option.
     has_seats: params.get('has_seats') === 'true' ? true : undefined,
   }
@@ -93,10 +97,11 @@ export function parseCatalogParams(params: URLSearchParams): CatalogState {
 export function toSearchParams({ filters, sort, page }: CatalogState): URLSearchParams {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(filters) as [keyof CatalogFilters, unknown][]) {
-    if (key === 'stars') continue
+    if (Array.isArray(value)) continue // lists go below, as repeated keys
     if (value !== undefined && value !== null && value !== '') params.set(key, String(value))
   }
   for (const star of [...filters.stars].sort()) params.append('stars', String(star))
+  for (const plan of MEAL_PLANS.filter((p) => filters.meal_plan.includes(p))) params.append('meal_plan', plan)
   if (sort !== DEFAULT_SORT) params.set('sort', sort)
   if (page > 1) params.set('page', String(page))
   return params

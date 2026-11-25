@@ -19,3 +19,10 @@
 .catalog-empty {
   padding: 48px 0;
 }
+
+/* Meal plan checkboxes: one per line, the labels are long. */
+.catalog-filters-column {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

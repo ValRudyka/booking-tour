@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { makeTour } from '../test/fixtures'
 import { renderWithProviders } from '../test/render'
 import { API_URL } from '../api/client'
+import { kyivTomorrow } from '../utils/format'
 import { TourCard } from './TourCard'
 
 const text = (element: HTMLElement) => element.textContent!.replace(/[  ]/g, ' ')
@@ -58,6 +59,21 @@ describe('TourCard', () => {
   it('marks a sold-out tour', () => {
     renderWithProviders(<TourCard tour={makeTour({ free_seats: 0 })} />)
     expect(screen.getByText('Місць немає')).toBeInTheDocument()
+  })
+
+  it('shows the meal plan as a tag, and nothing when it is not stated', () => {
+    const { unmount } = renderWithProviders(<TourCard tour={makeTour({ meal_plan: 'uai' })} />)
+    expect(screen.getByText('Ультра все включено')).toBeInTheDocument()
+    unmount()
+    renderWithProviders(<TourCard tour={makeTour({ meal_plan: null })} />)
+    expect(screen.queryByText(/включено|Сніданок|пансіон|Без харчування/)).not.toBeInTheDocument()
+  })
+
+  it('shows tomorrow as the nearest departure once the range has begun', () => {
+    // Starts long ago, ends far ahead: the nearest bookable date is tomorrow (Kyiv), never today.
+    renderWithProviders(<TourCard tour={makeTour({ departure_from: '2000-01-01', departure_to: '2099-12-31' })} />)
+    const [y, m, d] = kyivTomorrow().split('-')
+    expect(screen.getByText(`Найближчий виїзд ${d}.${m}.${y}`)).toBeInTheDocument()
   })
 
   it('is one link to the tour page', () => {
