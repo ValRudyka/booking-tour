@@ -371,3 +371,21 @@ def test_rules_endpoint(client, manager_headers):
     assert (body["max_title"], body["max_description"], body["max_day_text"]) == (200, 5000, 2000)
     assert (body["min_nights"], body["max_nights"], body["max_list_items"],
             body["max_list_item_length"]) == (1, 30, 20, 200)
+
+
+# ---------- archived references
+def test_a_draft_keeps_its_archived_hotel_on_edit_but_cannot_publish(client, db, manager, manager_headers):
+    from app.models import Hotel
+
+    tour = make_active_tour(db, manager, status=TourStatus.DRAFT)
+    db.get(Hotel, tour.hotel_id).is_archived = True
+    other_archived = make_hotel(db, name="Old one", is_archived=True)
+    db.flush()
+    response = client.patch(f"{URL}/{tour.id}", json={"base_price": "999.00", "hotel_id": tour.hotel_id},
+                            headers=manager_headers)
+    assert response.status_code == 200, response.text
+    response = client.patch(f"{URL}/{tour.id}", json={"hotel_id": other_archived.id}, headers=manager_headers)
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "hotel_id"]
+    allowed, reason = actions(get(client, manager_headers, tour.id))["publish"]
+    assert not allowed and "в архіві" in reason

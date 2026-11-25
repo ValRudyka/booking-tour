@@ -170,17 +170,23 @@ def seats_held(db: Session, tour_id: int, now: datetime | None = None) -> int:
 
 
 # ---------- validation
-def _check_hotel(db: Session, hotel_id: int) -> Hotel:
+def _check_hotel(db: Session, hotel_id: int, keep_archived: bool = False) -> Hotel:
+    """`keep_archived`: the tour already has this hotel (an edit that does not change it), so
+    an archived one is kept; publishing checks it again without this exception."""
     hotel = db.get(Hotel, hotel_id)
     if hotel is None:
         raise _error("Готель не знайдено", field="hotel_id")
+    if keep_archived:
+        return hotel
     if hotel.is_archived or hotel.resort.is_archived or hotel.resort.country.is_archived:
         raise _error("Готель, курорт або країна в архіві — оберіть інший готель", field="hotel_id")
     return hotel
 
 
-def _check_city(db: Session, city_id: int) -> None:
+def _check_city(db: Session, city_id: int, keep_archived: bool = False) -> None:
     city = db.get(City, city_id)
+    if city is not None and keep_archived:
+        return
     if city is None or city.is_archived or db.get(Country, city.country_id).is_archived:
         raise _error("Місто відправлення не знайдено", field="departure_city_id")
 
@@ -203,11 +209,14 @@ def _clean_list(values, label: str, field: str) -> list[str]:
         raise _error(error.message, field=field) from None
 
 
-def _check_fields(db: Session, d: dict[str, Any], seats_sold: int,
-                  seats_held_now: int = 0) -> dict[str, Any]:
+def _check_fields(db: Session, d: dict[str, Any], seats_sold: int, seats_held_now: int = 0,
+                  current: Tour | None = None) -> dict[str, Any]:
     """Validate and normalise all editable fields of a tour. Returns the cleaned values.
     The quota may not drop below the seats sold plus the seats in unexpired holds: otherwise a
-    client in the middle of paying would lose the seat at `paid` (and get an automatic refund)."""
+    client in the middle of paying would lose the seat at `paid` (and get an automatic refund).
+    `current` (an edit): the tour's own hotel and departure city stay acceptable even if the
+    admin archived them since, so a draft can still be saved (e.g. its prices, or while its
+    hotel is locked); publishing re-checks them without `current`."""
     for field, label in REQUIRED_LABELS.items():
         if d.get(field) is None:
             raise _error(f"Заповніть обов'язкове поле: {label}", field=field)
@@ -215,7 +224,8 @@ def _check_fields(db: Session, d: dict[str, Any], seats_sold: int,
     d["title_en"] = d["title_en"].strip()
     if not d["title_en"]:
         raise _error("Заповніть обов'язкове поле: назва туру англійською", field="title_en")
-    hotel = _check_hotel(db, d["hotel_id"])
+    hotel = _check_hotel(db, d["hotel_id"],
+                         keep_archived=current is not None and d["hotel_id"] == current.hotel_id)
     # Form 4.6.2.1, field 1: the Ukrainian title is generated as "Hotel + Resort" when left empty.
     d["title_uk"] = (d.get("title_uk") or "").strip() or f"{hotel.name}, {hotel.resort.name_uk}"
     for field in ("title_uk", "title_en"):
@@ -226,7 +236,8 @@ def _check_fields(db: Session, d: dict[str, Any], seats_sold: int,
     if transport in (TransportType.AIR, TransportType.BUS) and d.get("departure_city_id") is None:
         raise _error("Для авіа та автобуса вкажіть місто відправлення", field="departure_city_id")
     if d.get("departure_city_id") is not None:
-        _check_city(db, d["departure_city_id"])
+        _check_city(db, d["departure_city_id"], keep_archived=current is not None
+                    and d["departure_city_id"] == current.departure_city_id)
     d["flight_out"] = _normalize_flight(d.get("flight_out"), "flight_out")
     d["flight_back"] = _normalize_flight(d.get("flight_back"), "flight_back")
     if transport != TransportType.AIR and (d["flight_out"] or d["flight_back"]):
@@ -318,7 +329,7 @@ def update_tour(db: Session, tour: Tour, changes: dict[str, Any]) -> Tour:
     tour = lock_tour(db, tour.id)
     days = changes.pop("program_days", None)
     merged = {field: getattr(tour, field) for field in TOUR_FIELDS} | changes
-    fields = _check_fields(db, merged, tour.seats_sold, seats_held(db, tour.id))
+    fields = _check_fields(db, merged, tour.seats_sold, seats_held(db, tour.id), current=tour)
     # Locked facts may be sent unchanged (the editor PATCHes the whole form), never changed.
     reason = lock_reason(booking_counts(db, tour.id))
     if reason:
