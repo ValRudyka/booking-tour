@@ -185,7 +185,7 @@ def test_publish_refused_with_an_archived_record(client, db, manager, manager_he
     response = client.post(f"/api/manager/tours/{tour.id}/publish", headers=manager_headers)
     assert response.status_code == 422
     detail = str(response.json()["detail"])
-    assert ("в архіві" in detail) if archive != "city" else ("Місто відправлення" in detail)
+    assert "в архіві" in detail
     assert db.get(Tour, tour.id).status == TourStatus.DRAFT
 
 

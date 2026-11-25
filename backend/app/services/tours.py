@@ -187,8 +187,11 @@ def _check_city(db: Session, city_id: int, keep_archived: bool = False) -> None:
     city = db.get(City, city_id)
     if city is not None and keep_archived:
         return
-    if city is None or city.is_archived or db.get(Country, city.country_id).is_archived:
+    if city is None:
         raise _error("Місто відправлення не знайдено", field="departure_city_id")
+    # The reason, so the manager knows what to do (spec 13: publishing names the archived record).
+    if city.is_archived or db.get(Country, city.country_id).is_archived:
+        raise _error("Місто відправлення або його країна в архіві — оберіть інше місто", field="departure_city_id")
 
 
 def _normalize_flight(value: str | None, field: str) -> str | None:

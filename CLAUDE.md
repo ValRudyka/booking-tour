@@ -724,8 +724,8 @@ favorites (spec 08).
 - Frontend: `/office/users`, `/office/references`, `/office/settings`, `/office/audit-log`, the
   maintenance Alert, «Змінити пароль» for staff, the address in the footer and on `/contacts`.
 - Publishing with an archived hotel, resort, country or city was already refused
-  (`tours._validate_for_publish`); tests added. The archived-city text is «Місто відправлення не
-  знайдено» — for spec 10 to make clearer.
+  (`tours._validate_for_publish`); tests added, and an archived departure city is now named in the
+  refusal (it said «не знайдено»).
 - For the ТЗ update: the contact address and the maintenance message are settings now (form
   4.6.4.1).
 
