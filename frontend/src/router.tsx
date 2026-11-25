@@ -5,7 +5,7 @@ import { STAFF_ROLES } from './features/auth/redirect'
 import { PublicLayout } from './layouts/PublicLayout'
 import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/auth/RegisterPage'
-import { BookingPlaceholder } from './pages/BookingPlaceholder'
+import { BookingPage } from './pages/booking/BookingPage'
 import { CatalogPage } from './pages/catalog/CatalogPage'
 import { HomePage } from './pages/home/HomePage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -28,7 +28,9 @@ export const routes: RouteObject[] = [
           { path: 'login', element: <LoginPage /> },
           { path: 'register', element: <RegisterPage /> },
           // Orders are a client's (backend require_roles): staff see 403 here.
-          { path: 'booking/:tourId', element: <RequireAuth roles={['client']}><BookingPlaceholder /></RequireAuth> },
+          { path: 'booking/:tourId', element: <RequireAuth roles={['client']}><BookingPage /></RequireAuth> },
+          // The payment page comes with spec 05 on this branch; the booking wizard hands over here.
+          { path: 'orders/:id/pay', element: <RequireAuth roles={['client']}><PlaceholderPage page="orderPay" /></RequireAuth> },
           { path: 'cabinet', element: <RequireAuth roles={['client']}><PlaceholderPage page="cabinet" /></RequireAuth> },
           { path: 'cabinet/orders', element: <RequireAuth roles={['client']}><PlaceholderPage page="cabinetOrders" /></RequireAuth> },
           // The back office comes in feature/frontend-backoffice.

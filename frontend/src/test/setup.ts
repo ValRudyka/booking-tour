@@ -10,6 +10,7 @@ const realAdapter = api.defaults.adapter
 afterEach(() => {
   cleanup()
   window.localStorage.clear() // no sign-in carries over to the next test
+  window.sessionStorage.clear() // nor a booking draft
   api.defaults.adapter = realAdapter // undo mockServer()
 })
 

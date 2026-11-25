@@ -1263,7 +1263,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Замовлення з історією статусів */
+        /**
+         * Замовлення з історією статусів і розрахунком вартості
+         * @description Read-only: the price is calculated, never saved (services/orders.py: order_price).
+         */
         get: operations["get_order_api_orders__order_id__get"];
         put?: never;
         post?: never;
@@ -2823,6 +2826,83 @@ export interface components {
             payments: components["schemas"]["PaymentShortOut"][];
         };
         /**
+         * OrderDetailPriceOut
+         * @description GET /orders/{id}: the order plus its itemised price, calculated on read and never saved.
+         *     In «Оформлення» it is the current calculation; after confirm, the frozen total, discount and
+         *     rate with the lines rebuilt from them. `price` is null when the lines cannot be rebuilt exactly
+         *     (a tour or service price changed after confirm): `total_uah` is still the frozen amount.
+         */
+        OrderDetailPriceOut: {
+            /** Id */
+            id: number;
+            /** Number */
+            number: string;
+            status: components["schemas"]["OrderStatus"];
+            payment_status: components["schemas"]["PaymentStatus"];
+            /** Tour Id */
+            tour_id: number;
+            /** Tour Title Uk */
+            tour_title_uk: string;
+            /** Hotel Name */
+            hotel_name: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Adults */
+            adults: number;
+            /** Children */
+            children: number;
+            /** Insurance Type Id */
+            insurance_type_id: number | null;
+            /** Transfer Type Id */
+            transfer_type_id: number | null;
+            /** Promo Code */
+            promo_code: string | null;
+            /** Wishes */
+            wishes: string | null;
+            /** Total Uah */
+            total_uah: string;
+            /** Discount Uah */
+            discount_uah: string;
+            /** Rate Used */
+            rate_used: string;
+            /** Hold Expires At */
+            hold_expires_at: string | null;
+            /** Offer Accepted At */
+            offer_accepted_at: string | null;
+            /** Pnr */
+            pnr: string | null;
+            /** Reject Reason */
+            reject_reason: string | null;
+            cancel_reason_code: components["schemas"]["CancelReason"] | null;
+            /** Cancel Reason */
+            cancel_reason: string | null;
+            /** Fpv Uah */
+            fpv_uah: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Tourists */
+            tourists: components["schemas"]["TouristOut"][];
+            /** History */
+            history: components["schemas"]["StatusHistoryOut"][];
+            /**
+             * Payments
+             * @default []
+             */
+            payments: components["schemas"]["PaymentShortOut"][];
+            price: components["schemas"]["PriceOut"] | null;
+        };
+        /**
          * OrderDocumentType
          * @enum {string}
          */
@@ -2895,7 +2975,8 @@ export interface components {
         OrderStatus: "checkout" | "awaiting_payment" | "paid" | "in_progress" | "confirmed" | "documents_ready" | "completed" | "rejected" | "cancel_requested" | "cancelled" | "archived";
         /**
          * OrderUpdate
-         * @description Every field optional. `tourists` replaces the whole list; `promo_code: null` removes the code;
+         * @description Every field optional. `tourists` replaces the whole list (`[]` clears it, e.g. before
+         *     changing the numbers of adults and children); `promo_code: null` removes the code;
          *     `insurance_type_id` / `transfer_type_id: null` go back to the default option.
          */
         OrderUpdate: {
@@ -7381,7 +7462,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OrderDetailOut"];
+                    "application/json": components["schemas"]["OrderDetailPriceOut"];
                 };
             };
             /** @description Validation Error */

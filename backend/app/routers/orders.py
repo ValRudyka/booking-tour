@@ -9,8 +9,8 @@ from app.models import Order, User
 from app.models.enums import CancelReason, OrderStatus, UserRole
 from app.schemas.common import Page
 from app.schemas.manager_orders import DocumentOut
-from app.schemas.orders import (OrderConfirm, OrderCreate, OrderDetailOut, OrderOut,
-                                OrderUpdate, OrderWithPriceOut, PriceOut, QuoteRequest)
+from app.schemas.orders import (OrderConfirm, OrderCreate, OrderDetailOut, OrderDetailPriceOut,
+                                OrderOut, OrderUpdate, OrderWithPriceOut, PriceOut, QuoteRequest)
 from app.schemas.payments import BankDetailsOut, PaymentShortOut, PayOut, PayRequest
 from app.services import cancellation, order_documents
 from app.services import orders as order_service
@@ -28,6 +28,12 @@ Client = Annotated[User, Depends(require_roles(UserRole.CLIENT))]
 def _fail(db, error: DomainError) -> NoReturn:
     if isinstance(error, HoldExpired):
         db.commit()   # keep the System's cancellation, then tell the client
+    if error.loc is not None:
+        # A rule about one field (a tourist's passport, name, birth date): the same shape as
+        # FastAPI's own 422, so the frontend puts the message under that tourist's field.
+        # "checkout_rule" tells it that msg is a Ukrainian text meant for the client.
+        raise HTTPException(status_code=error.status_code, detail=[
+            {"loc": list(error.loc), "msg": error.message, "type": "checkout_rule"}]) from None
     raise HTTPException(status_code=error.status_code, detail=error.message) from None
 
 
@@ -92,9 +98,14 @@ def _own(db, client: User, order_id: int) -> Order:
         _fail(db, error)
 
 
-@router.get("/{order_id}", response_model=OrderDetailOut, summary="Замовлення з історією статусів")
+@router.get("/{order_id}", response_model=OrderDetailPriceOut,
+            summary="Замовлення з історією статусів і розрахунком вартості")
 def get_order(order_id: int, db: DbSession, client: Client):
-    return OrderDetailOut(**_detail(_own(db, client, order_id)))
+    """Read-only: the price is calculated, never saved (services/orders.py: order_price)."""
+    order = _own(db, client, order_id)
+    price = order_service.order_price(db, order)
+    return OrderDetailPriceOut(**_detail(order),
+                               price=PriceOut.model_validate(price) if price else None)
 
 
 @router.patch("/{order_id}", response_model=OrderWithPriceOut,

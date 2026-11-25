@@ -26,10 +26,9 @@ describe('routes', () => {
     expect(router.state.location.pathname).toBe('/tours')
   })
 
-  it('has a placeholder booking page for a signed-in client until the checkout exists', async () => {
+  it('has a placeholder payment page for a signed-in client until spec 05', async () => {
     mockApi(() => page([]), signIn())
-    renderRoute('/booking/42?date=2099-06-10')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Бронювання туру №42' })).toBeInTheDocument()
-    expect(screen.getByText(/10\.06\.2099/)).toBeInTheDocument()
+    renderRoute('/orders/42/pay')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Оплата замовлення' })).toBeInTheDocument()
   })
 })

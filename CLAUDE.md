@@ -206,6 +206,15 @@ Conventions:
   append-only (DB trigger refuses UPDATE/DELETE).
 - Promo codes are managed by managers (`services/promo_admin.py`, `/api/manager/promo-codes`);
   a code used by any order cannot be deleted or renamed, only deactivated.
+- Checkout API details (feature/frontend-checkout):
+  - `DomainError(loc=...)`: the tourist rules of `services/orders.py` name the field
+    (`["body", "tourists", i, field]`); the orders router then answers in FastAPI's 422 shape
+    with `type: "checkout_rule"` (a Ukrainian msg for the client). Other errors stay plain text.
+  - `PATCH /api/orders/{id}` with `tourists: []` clears the list (to change the numbers later).
+  - `GET /api/orders/{id}` returns `price`, calculated on read and never saved: the current
+    calculation in `checkout`; after confirm the lines are rebuilt from the frozen total, discount
+    and rate, and `price` is null if a tour or service price changed since (a full price
+    snapshot would need a migration). `total_uah` is always the stored amount.
 - `alembic/env.py` uses `fileConfig(..., disable_existing_loggers=False)`: tests run Alembic
   in-process, and the default switched off the app's loggers.
 - Every new feature ships with tests; `pytest` must be green before a PR.
@@ -279,6 +288,20 @@ Lives in `frontend/` in this repository (same Git Flow branches as the backend).
       `services/users.py`; change both together.
     - Tests: `mockServer()` (axios adapter level, real interceptors) for auth flows, `signIn()`
       for a signed-in page.
+  - **Booking wizard (feature/frontend-checkout, `pages/booking/`, spec 04):**
+    - The order is created at step 1 «Далі» (the seat hold starts, ТЗ 4.5.3 step 2); every later
+      step is a PATCH; step 4 confirms and navigates to `/orders/:id/pay` with `PayPageState`
+      (`features/booking/payHandOff.ts`): `priceChanged` when the frozen total differs from the
+      total shown on step 4 — the payment page shows «Ціну оновлено за курсом на сьогодні».
+    - The timer uses the API's `hold_expires_at` (Kyiv time); the hold covers card payment too.
+    - One action at a time: `run()` takes its lock before validation or a dialog (the backend has
+      no idempotency key, a second POST /orders would hold seats twice).
+    - Draft in sessionStorage per user and tour, never passport numbers; an explicit sign-out
+      clears drafts, an expired session keeps them. Only a `checkout` order of the same tour is
+      resumed.
+    - `features/booking/bookingRules.ts` mirrors `services/orders.py` and `services/passports.py`
+      (same texts); change both together. Business texts of the order endpoints are shown as is
+      (`bookingErrors.ts`), unlike auth. Checkout amounts use `formatMoney()` (kopecks).
 - **UI library:** `antd` 6 + `@ant-design/icons` 6 — keep their major versions in step.
   No Tailwind.
   - `feature/frontend-public` (catalog, tour page, auth, checkout, personal account): plain antd.
@@ -446,6 +469,12 @@ Backlog, in order (one branch each):
    - Note for `docs/frontend/06-client-orders-pages.md`: finished tours return 404, so the
      client's order details page shows the tour data stored with the order (title, dates, hotel,
      price) and links to `/tours/:id` only while the tour is still for sale.
+   - Note for spec 06: orders cancelled while still in `checkout` (abandoned bookings) are hidden
+     from «Мої замовлення» or shown separately, not as normal cancellations. The order details
+     page can use the price breakdown of `GET /api/orders/{id}`.
+   - Note for spec 08: saved passports need a birth date for full autofill at checkout (backend
+     change with a migration); today «Заповнити з мого профілю» gives the birth date and only
+     Latin profile names.
 8. `feature/catalog-improvements` — **done** (PR to `develop`): meal plan, included/excluded,
    `title_asc`, hotel facts, Kyiv dates everywhere, `payments.origin`, seed with photos and
    reviews, catalog UI.

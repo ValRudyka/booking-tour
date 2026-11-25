@@ -51,7 +51,8 @@ class OrderCreate(BaseModel):
 
 
 class OrderUpdate(BaseModel):
-    """Every field optional. `tourists` replaces the whole list; `promo_code: null` removes the code;
+    """Every field optional. `tourists` replaces the whole list (`[]` clears it, e.g. before
+    changing the numbers of adults and children); `promo_code: null` removes the code;
     `insurance_type_id` / `transfer_type_id: null` go back to the default option."""
     adults: int | None = None
     children: int | None = None
@@ -150,3 +151,11 @@ class OrderDetailOut(OrderOut):
 class OrderWithPriceOut(OrderDetailOut):
     """Answer of create / update / confirm: the order plus the price just calculated."""
     price: PriceOut
+
+
+class OrderDetailPriceOut(OrderDetailOut):
+    """GET /orders/{id}: the order plus its itemised price, calculated on read and never saved.
+    In «Оформлення» it is the current calculation; after confirm, the frozen total, discount and
+    rate with the lines rebuilt from them. `price` is null when the lines cannot be rebuilt exactly
+    (a tour or service price changed after confirm): `total_uah` is still the frozen amount."""
+    price: PriceOut | None

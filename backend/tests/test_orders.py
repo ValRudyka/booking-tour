@@ -4,9 +4,9 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
-from app.models import InsuranceType, Order, Setting
+from app.models import AuditLog, InsuranceType, Order, Setting
 from app.models.enums import Currency, OrderStatus, TourStatus, UserRole
 from app.services import clock
 from tests.factories import (headers_for, make_active_tour, make_order, make_promo, make_user,
@@ -31,6 +31,12 @@ def create(client, headers, tour, adults=2, children=0, expected=201, **extra):
     response = client.post(URL, json=body, headers=headers)
     assert response.status_code == expected, response.text
     return response.json()
+
+
+def error_text(response) -> str:
+    """The message of a plain error ({"detail": "text"}) or of a field error ([{"msg": ...}])."""
+    detail = response.json()["detail"]
+    return detail if isinstance(detail, str) else detail[0]["msg"]
 
 
 def free_seats(client, tour_id):
@@ -96,7 +102,7 @@ def test_create_validation(client, customer_headers, tour, overrides, message):
     body = {"tour_id": tour.id, "start_date": START.isoformat(), "adults": 2, "children": 0}
     response = client.post(URL, json=body | overrides, headers=customer_headers)
     assert response.status_code == 422, response.text
-    assert message in response.json()["detail"]
+    assert message in error_text(response)
 
 
 def test_passport_must_be_valid_6_months_after_return(client, customer_headers, tour):
@@ -106,7 +112,44 @@ def test_passport_must_be_valid_6_months_after_return(client, customer_headers, 
                                       "adults": 2, "tourists": [short, tourist(ADULT)]},
                            headers=customer_headers)
     assert response.status_code == 422
-    assert "щонайменше 6 місяців" in response.json()["detail"]
+    assert "щонайменше 6 місяців" in error_text(response)
+
+
+@pytest.mark.parametrize("second,field", [
+    (tourist(ADULT, last="Шевченко"), "last_name_lat"),
+    (tourist(ADULT, first="Тарас"), "first_name_lat"),
+    (tourist(ADULT, passport="FX-1"), "passport_number"),
+    (tourist(ADULT, expiry=START + timedelta(days=30)), "passport_expiry"),
+    (tourist(START + timedelta(days=1)), "birth_date"),
+])
+def test_tourist_errors_name_the_field(client, customer_headers, tour, second, field):
+    """Field rules answer like a FastAPI 422, with the tourist's position (ТЗ form 4.6.1.2)."""
+    response = client.post(URL, json={"tour_id": tour.id, "start_date": START.isoformat(),
+                                      "adults": 2, "tourists": [tourist(ADULT), second]},
+                           headers=customer_headers)
+    assert response.status_code == 422, response.text
+    [issue] = response.json()["detail"]
+    assert issue["loc"] == ["body", "tourists", 1, field]
+    assert issue["type"] == "checkout_rule" and issue["msg"]
+
+
+def test_patch_and_confirm_name_the_tourist_field(client, db, customer_headers, tour):
+    order = create(client, customer_headers, tour, adults=2)
+    bad = [tourist(ADULT), tourist(ADULT, passport="FX-12")]
+    response = client.patch(f"{URL}/{order['id']}", json={"tourists": bad}, headers=customer_headers)
+    assert response.json()["detail"][0]["loc"] == ["body", "tourists", 1, "passport_number"]
+    # Confirm re-checks the stored tourists: a passport that is too short for these dates.
+    order = create(client, customer_headers, tour, adults=2, tourists=two_tourists())
+    db.get(Order, order["id"]).tourists[0].passport_expiry = START
+    db.flush()
+    response = confirm(client, customer_headers, order["id"])
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "tourists", 0, "passport_expiry"]
+
+
+def test_errors_without_a_field_stay_plain_text(client, customer_headers, tour):
+    body = create(client, customer_headers, tour, adults=2, tourists=[tourist(ADULT)], expected=422)
+    assert isinstance(body["detail"], str)
 
 
 @pytest.mark.parametrize("tour_status", [TourStatus.DRAFT, TourStatus.ARCHIVED])
@@ -149,6 +192,19 @@ def test_update_tourists_and_numbers(client, customer_headers, tour):
     response = client.patch(f"{URL}/{order['id']}", json={"adults": 2, "children": 0},
                             headers=customer_headers)
     assert response.status_code == 422
+
+
+def test_empty_tourist_list_clears_them_so_numbers_can_change(client, customer_headers, tour):
+    order = create(client, customer_headers, tour, adults=2, tourists=two_tourists())
+    response = client.patch(f"{URL}/{order['id']}", json={"adults": 1, "children": 1, "tourists": []},
+                            headers=customer_headers)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert (body["adults"], body["children"], body["tourists"]) == (1, 1, [])
+    assert body["total_uah"] == "58300.00"
+    response = confirm(client, customer_headers, order["id"])     # still needs every tourist
+    assert response.status_code == 422
+    assert "потрібно 2, внесено 0" in response.json()["detail"]
 
 
 def test_more_tourists_rechecks_free_seats(client, db, customer_headers, tour):
@@ -231,6 +287,46 @@ def test_cannot_confirm_twice(client, customer_headers, tour):
     order = create(client, customer_headers, tour, tourists=two_tourists())
     assert confirm(client, customer_headers, order["id"]).status_code == 200
     assert confirm(client, customer_headers, order["id"]).status_code == 409
+
+
+# ---------- price on read (GET /orders/{id})
+def count_rows(db, model) -> int:
+    return db.scalar(select(func.count()).select_from(model))
+
+
+def test_get_checkout_order_returns_current_price_without_writing(client, db, customer_headers,
+                                                                  tour):
+    make_promo(db, code="MINUS", value="10")
+    order = create(client, customer_headers, tour, adults=2, promo_code="MINUS")
+    detail = client.get(f"{URL}/{order['id']}", headers=customer_headers).json()
+    assert detail["price"] == order["price"]          # same breakdown as create / PATCH
+
+    audit_before = count_rows(db, AuditLog)
+    set_rate(db, Currency.EUR, "50.0000")             # rate changed: GET shows today's price
+    detail = client.get(f"{URL}/{order['id']}", headers=customer_headers).json()
+    assert detail["price"]["rate"] == "50.0000"
+    assert detail["price"]["total_uah"] == "72630.00"      # (1600 × 50 + 2 × 350) − 10 %
+    db.expire_all()
+    stored = db.get(Order, order["id"])
+    assert (str(stored.total_uah), str(stored.rate_used)) == ("69750.00", "48.0000")  # not saved
+    assert len(stored.history) == 1 and count_rows(db, AuditLog) == audit_before
+
+
+def test_get_confirmed_order_returns_frozen_price(client, db, customer_headers, tour):
+    make_promo(db, code="MINUS", value="10")
+    order = create(client, customer_headers, tour, tourists=two_tourists(), promo_code="MINUS")
+    confirmed = confirm(client, customer_headers, order["id"]).json()
+    set_rate(db, Currency.EUR, "60.0000")             # after confirm the rate does not matter
+    detail = client.get(f"{URL}/{order['id']}", headers=customer_headers).json()
+    assert detail["price"] == confirmed["price"]
+    assert detail["price"]["promo_code"] == "MINUS"
+
+    # A service price changed after confirm: the lines would no longer add up to the frozen total.
+    db.get(InsuranceType, confirmed["price"]["insurance_id"]).price_uah = Decimal("999")
+    db.flush()
+    detail = client.get(f"{URL}/{order['id']}", headers=customer_headers).json()
+    assert detail["price"] is None
+    assert detail["total_uah"] == confirmed["total_uah"]
 
 
 # ---------- cancel

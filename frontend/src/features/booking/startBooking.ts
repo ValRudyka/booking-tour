@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router'
 import { loginPath } from '../auth/redirect'
 import { useAuth } from '../auth/useAuth'
 
-/** Where «Забронювати» leads. Today: a placeholder page (spec 02, §2). */
+/** Where «Забронювати» leads: the booking wizard (pages/booking, spec 04). */
 export function bookingPath(tourId: number, date: string): string {
   return `/booking/${tourId}?${new URLSearchParams({ date })}`
 }
