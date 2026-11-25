@@ -178,6 +178,34 @@ def quote(db: Session, data: dict[str, Any]) -> PriceBreakdown:
     return price
 
 
+# ---------- price of a stored order (read-only)
+def order_price(db: Session, order: Order) -> PriceBreakdown | None:
+    """The itemised price for GET /orders/{id}. Writes nothing, locks nothing.
+
+    - «Оформлення»: the current calculation (today's rate and service prices), i.e. what the next
+      edit or confirm would show. The promo discount is applied as is; confirm checks the code again.
+    - Later statuses: the price was frozen at confirm, but only total, discount and rate are stored
+      (no migration for a full snapshot). The lines are rebuilt with the frozen rate and today's
+      tour and service prices; if a manager or admin changed a price since, they no longer add up to
+      the frozen total, and None is returned rather than wrong lines (total_uah stays in the order).
+    """
+    tour = order.tour
+    if order.status == OrderStatus.CHECKOUT:
+        try:
+            rate = _rate(db, tour)
+        except DomainError:
+            return None
+        return calculate(tour, rate, order.adults, order.children, order.insurance_type,
+                         order.transfer_type, order.promo)
+    price = calculate(tour, order.rate_used, order.adults, order.children, order.insurance_type,
+                      order.transfer_type)
+    if price.subtotal_uah - order.discount_uah != order.total_uah:
+        return None
+    price.promo_code = order.promo.code if order.promo else None
+    price.discount_uah, price.total_uah = order.discount_uah, order.total_uah
+    return price
+
+
 # ---------- orders of one client
 def get_own_order(db: Session, client: User, order_id: int) -> Order:
     """Someone else's order looks exactly like a missing one (404), so ids cannot be probed."""

@@ -4,9 +4,9 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
-from app.models import InsuranceType, Order, Setting
+from app.models import AuditLog, InsuranceType, Order, Setting
 from app.models.enums import Currency, OrderStatus, TourStatus, UserRole
 from app.services import clock
 from tests.factories import (headers_for, make_active_tour, make_order, make_promo, make_user,
@@ -287,6 +287,46 @@ def test_cannot_confirm_twice(client, customer_headers, tour):
     order = create(client, customer_headers, tour, tourists=two_tourists())
     assert confirm(client, customer_headers, order["id"]).status_code == 200
     assert confirm(client, customer_headers, order["id"]).status_code == 409
+
+
+# ---------- price on read (GET /orders/{id})
+def count_rows(db, model) -> int:
+    return db.scalar(select(func.count()).select_from(model))
+
+
+def test_get_checkout_order_returns_current_price_without_writing(client, db, customer_headers,
+                                                                  tour):
+    make_promo(db, code="MINUS", value="10")
+    order = create(client, customer_headers, tour, adults=2, promo_code="MINUS")
+    detail = client.get(f"{URL}/{order['id']}", headers=customer_headers).json()
+    assert detail["price"] == order["price"]          # same breakdown as create / PATCH
+
+    audit_before = count_rows(db, AuditLog)
+    set_rate(db, Currency.EUR, "50.0000")             # rate changed: GET shows today's price
+    detail = client.get(f"{URL}/{order['id']}", headers=customer_headers).json()
+    assert detail["price"]["rate"] == "50.0000"
+    assert detail["price"]["total_uah"] == "72630.00"      # (1600 × 50 + 2 × 350) − 10 %
+    db.expire_all()
+    stored = db.get(Order, order["id"])
+    assert (str(stored.total_uah), str(stored.rate_used)) == ("69750.00", "48.0000")  # not saved
+    assert len(stored.history) == 1 and count_rows(db, AuditLog) == audit_before
+
+
+def test_get_confirmed_order_returns_frozen_price(client, db, customer_headers, tour):
+    make_promo(db, code="MINUS", value="10")
+    order = create(client, customer_headers, tour, tourists=two_tourists(), promo_code="MINUS")
+    confirmed = confirm(client, customer_headers, order["id"]).json()
+    set_rate(db, Currency.EUR, "60.0000")             # after confirm the rate does not matter
+    detail = client.get(f"{URL}/{order['id']}", headers=customer_headers).json()
+    assert detail["price"] == confirmed["price"]
+    assert detail["price"]["promo_code"] == "MINUS"
+
+    # A service price changed after confirm: the lines would no longer add up to the frozen total.
+    db.get(InsuranceType, confirmed["price"]["insurance_id"]).price_uah = Decimal("999")
+    db.flush()
+    detail = client.get(f"{URL}/{order['id']}", headers=customer_headers).json()
+    assert detail["price"] is None
+    assert detail["total_uah"] == confirmed["total_uah"]
 
 
 # ---------- cancel
