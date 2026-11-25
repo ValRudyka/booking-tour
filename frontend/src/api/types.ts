@@ -85,3 +85,23 @@ export type DocumentRules = Schemas['DocumentRulesOut']
 export type PaymentType = Schemas['PaymentType']
 /** Query parameters of GET /api/manager/orders, exactly as the backend declares them. */
 export type ManagerOrdersQuery = NonNullable<operations['list_orders_api_manager_orders_get']['parameters']['query']>
+
+// Back office (spec 10): the manager's tours
+export type TourStatus = Schemas['TourStatus']
+export type Currency = Schemas['Currency']
+export type Hotel = Schemas['HotelOut']
+export type TourAction = Schemas['TourAction']
+export type TourActionInfo = Schemas['TourActionOut']
+export type LockedField = Schemas['LockedFieldOut']
+export type ManagerTourSort = Schemas['ManagerTourSort']
+export type ManagerTourRow = Schemas['ManagerTourListItem']
+export type ManagerTourPage = Schemas['Page_ManagerTourListItem_']
+export type ManagerTour = Schemas['ManagerTourOut']
+export type ManagerTourHotel = Schemas['ManagerTourHotelOut']
+export type TourImage = Schemas['TourImageOut']
+export type TourCreate = Schemas['TourCreate']
+export type TourUpdate = Schemas['TourUpdate']
+export type TourCopyIn = Schemas['TourCopyIn']
+export type TourRules = Schemas['TourRulesOut']
+/** Query parameters of GET /api/manager/tours, exactly as the backend declares them. */
+export type ManagerToursQuery = NonNullable<operations['list_tours_api_manager_tours_get']['parameters']['query']>

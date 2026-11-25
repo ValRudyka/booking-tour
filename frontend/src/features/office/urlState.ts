@@ -54,3 +54,11 @@ export function writeParams(values: Record<string, UrlValue>, defaults: Record<s
   }
   return params
 }
+
+/** A positive whole number id (country_id=3); anything else is dropped. */
+export function readId(params: URLSearchParams, key: string): number | undefined {
+  const raw = params.get(key)
+  if (raw === null || !/^\d{1,9}$/.test(raw)) return undefined
+  const value = Number(raw)
+  return value >= 1 ? value : undefined
+}

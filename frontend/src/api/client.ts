@@ -71,7 +71,8 @@ export function toApiError(error: unknown): ApiError {
   // (features/auth/authErrors.ts); the message itself stays generic.
   if (status === 422) return new ApiError('validation', status, i18n.t('errors.validation'), text, issues)
   if (status >= 500) return new ApiError('server', status, i18n.t('errors.server'), text)
-  return new ApiError('client', status, text ?? i18n.t('errors.client'), text)
+  // A 409 may name a field too (the tours API: a locked field), so its issues are kept.
+  return new ApiError('client', status, text ?? i18n.t('errors.client'), text, issues)
 }
 
 declare module 'axios' {

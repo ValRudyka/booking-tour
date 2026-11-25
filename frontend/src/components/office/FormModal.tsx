@@ -39,7 +39,7 @@ export function FormModal<T extends object>({
 
   return (
     <Modal open={open} title={title} okText={okText} cancelText={cancelText} onCancel={onCancel}
-      onOk={() => void submit()} destroyOnHidden maskClosable={!busy}
+      onOk={() => void submit()} destroyOnHidden mask={{ closable: !busy }}
       okButtonProps={{ danger, loading: busy, disabled: busy }} cancelButtonProps={{ disabled: busy }}>
       {warning && <Alert type="warning" showIcon role="note" title={warning} className="office-modal-warning" />}
       <Form form={form} layout="vertical" validateTrigger={['onBlur', 'onChange']} preserve={false}

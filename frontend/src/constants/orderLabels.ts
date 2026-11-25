@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next'
 import type {
-  CancelReason, ManagerQueue, NameDisplay, OrderDocumentType, PaymentMethod, PaymentType, StaffAction, UserRole,
+  CancelReason, ManagerQueue, NameDisplay, OrderDocumentType, PaymentMethod, PaymentType, StaffAction, TourAction,
+  UserRole,
 } from '../api/types'
 
 // Other fixed value sets of an order, labelled in uk.json (documentType.*, cancelReason.*,
@@ -30,6 +31,12 @@ export const STAFF_ACTIONS: Record<StaffAction, true> = {
   upload_documents: true, edit_comment: true,
 }
 
+/** What a manager may do with a tour (`tour_actions`, decided by the backend's
+ * services/tour_actions.py, spec 10), in the order the pages list them. */
+export const TOUR_ACTIONS: Record<TourAction, true> = {
+  edit: true, publish: true, unpublish: true, copy: true, restore: true, archive: true,
+}
+
 /** Tabs of «Заявки» (GET /manager/orders?queue=). */
 export const MANAGER_QUEUES: Record<ManagerQueue, true> = { new: true, mine: true, all: true }
 
@@ -39,6 +46,10 @@ export const PAYMENT_TYPES: Record<PaymentType, true> = { payment: true, refund:
 
 export function staffActionLabel(t: TFunction, action: StaffAction): string {
   return t(`staffAction.${action}`)
+}
+
+export function tourActionLabel(t: TFunction, action: TourAction): string {
+  return t(`tourAction.${action}`)
 }
 
 export function roleLabel(t: TFunction, role: UserRole): string {
