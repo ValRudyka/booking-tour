@@ -160,6 +160,30 @@ Conventions:
   `GET /manager/managers`, `GET /manager/orders/document-rules`. Order documents (`services/order_documents.py`) are private
   files `upload_dir/private/orders/<id>/`; the client sees trip documents from `confirmed` on,
   `cancel_evidence` (client's files for a cancellation request) is staff-only.
+- Tour management (spec 10, `services/tours.py`, `services/tour_actions.py`):
+  - One tour = **one date range** (`departure_from..departure_to`, any start date inside it) with
+    one nights value, one price pair and one quota (form 4.6.2.1, field 10). Another price period
+    is a copy of the tour.
+  - `tour_actions` (`TourAction`: edit, publish, unpublish, archive, restore, copy) like
+    `staff_actions`: listed by status (`ALLOWED_TRANSITIONS`), `allowed`/`reason` from the
+    endpoints' own refusals (`edit_refusal`, `publish_refusal`, `archive_refusal`). Only a draft
+    is edited (ТЗ 4.4.1); archived → draft is «Відновити» (audited).
+  - `locked_fields`: `LOCKED_FIELDS` (titles, hotel, dates, nights, transport, departure city,
+    meal plan — what order pages read live until `feature/order-snapshot`) are locked while an
+    order of the tour was **ever paid** (`paid` in its history) or a booking is **active**
+    (checkout / awaiting_payment with an unexpired hold, or a partly paid transfer). PATCH may send
+    them unchanged; a change is 409 with `loc`. Prices stay editable (orders freeze theirs).
+  - Unpublish keeps active bookings payable (`confirm_order` accepts a draft tour for an existing
+    checkout order). Archive cancels the unpaid bookings like the expiry job (sessions closed,
+    clients notified, numbers in the tour's audit entry; a late card payment is refunded by the
+    webhook) and is refused while a transfer is partly paid. The dialogs show `active_bookings` /
+    `archive_cancels` from the API.
+  - Quota ≥ seats sold + seats in unexpired holds. Copy takes the new range in the body
+    (`TourCopyIn`), «Копія — …», not featured. Field errors carry `loc` (422 `type: "tour_rule"`).
+    An edit keeps the tour's own archived hotel / city; publishing re-checks them.
+  - `GET /manager/tours`: `q`, `status`, `country_id`, `resort_id`, `departure_from/to` (range
+    overlap), `sort=updated_desc|departure_asc|title_asc`; `GET /manager/tours/rules` (photo and
+    text limits).
 - Refunds (`services/payments/refunds.py`): refund rows point at their payment (`refund_of_id`);
   amount = succeeded payments − live refunds − ФПВ (`orders.fpv_uah`), split newest payment first.
   Stripe parts use the key `refund-<payment id>-<n>` (n = refund rows of that payment + 1); the
@@ -243,6 +267,20 @@ Conventions:
   - Form rules come from the server: `GET /orders/{id}/cancel-request` (evidence count / MB /
     types, `max_details`) and `GET /orders/{id}/review` (`can_write`, `premoderation`, photo
     limits, `max_text`, the order's review).
+- Client profile API (feature/frontend-client-profile, spec 08):
+  - `PATCH /auth/me` changes e-mail, names, birth date, citizenship; a client cannot clear the
+    birth date or citizenship; the phone (login) is read-only, changed through support.
+  - Personal account errors (`PATCH /auth/me`, `POST /auth/me/password`, `/me/passports`) name
+    the field: FastAPI's 422 shape with `loc` and `type: "profile_rule"` (409 for an e-mail or
+    passport number in use). `UserError(field=...)`; registration keeps plain-text errors.
+  - `POST /auth/me/password` sets `tokens_valid_after` (every session ends, this one too) and
+    refuses the current password as the new one.
+  - `saved_passports.birth_date` (nullable, required by the API), `PUT /me/passports/{id}`, the
+    same number twice in one list is 409.
+  - Order rows carry `country_name`, `resort_name`, `review_status`, `review_can_resubmit`.
+  - «Обране» (`services/favorites.py`, `/api/me/favorites`, clients only): the `favorites` table of
+    the initial schema; add only a tour for sale (404 otherwise), idempotent PUT/DELETE, at most
+    100; the list (`catalog.favorite_cards()`) keeps tours that left the catalog, `for_sale=false`.
 - `alembic/env.py` uses `fileConfig(..., disable_existing_loggers=False)`: tests run Alembic
   in-process, and the default switched off the app's loggers.
 - Every new feature ships with tests; `pytest` must be green before a PR.
@@ -364,7 +402,8 @@ Lives in `frontend/` in this repository (same Git Flow branches as the backend).
       `orderStatus.test.ts` compares it with the enums in `src/api/openapi.json` (saved by
       `gen:api`), so a new backend status without a label fails the tests.
     - `CabinetLayout` (antd Layout + Menu, Drawer under 768 px) inside `PublicLayout`; only sections
-      with an API: «Мої замовлення», «Профіль» (placeholder). Tabs and page in the URL
+      with an API: «Мої замовлення», «Історія подорожей», «Обране», «Збережені туристи»,
+      «Профіль» (spec 08). Tabs and page in the URL
       (`ordersParams.ts`).
     - Buttons only from `client_actions` (`cabinetPaths.ts: has()`); status is read only for
       informational texts. Upload limits and text lengths come from the API (`utils/fileRules.ts`).
@@ -398,6 +437,38 @@ Lives in `frontend/` in this repository (same Git Flow branches as the backend).
       children), so such tables set `expandable={{ childrenColumnName: … }}`.
     - Office tests: `test/officeFixtures.ts`; the test files preload the lazy pages and raise
       `asyncUtilTimeout` (the first Table mount is slow on a loaded machine).
+  - **Tours (spec 10, `pages/office/tours/`):**
+    - `/office/tours` (FilterBar + server Table, `officeToursParams.ts`), `/office/tours/new`,
+      `/office/tours/:id/edit?step=`. Status buttons only from `tour_actions`
+      (`TourActionButtons`, refused = disabled with the reason as tooltip and description).
+    - The editor is `Steps` + **one** antd Form whose step sections all stay mounted (hidden), so
+      «Назад» keeps values and saving validates every step; `tourForm.ts` maps form ↔ API
+      (`payloadOf` numbers program days by position, prices stay strings). A new tour is created
+      when leaving step 3 (photos need its id). An active / archived tour is read-only.
+    - Locked fields are disabled with the server's reason (`LockNote`). Never pass
+      `disabled={false}` to a control inside a disabled Form: it overrides the form (use
+      `undefined`). Server `loc` errors go under their field and open its step.
+    - Photos are saved at once (upload / delete / order; first = main) and never count as unsaved.
+    - `features/office/tourRules.ts` mirrors `services/tours.py` (flight format, money); limits come
+      from `GET /manager/tours/rules`. `useActionRunner` is the core of `useOfficeAction` /
+      `useTourAction`. `hooks/useUnsavedChanges` takes optional texts and returns `allowNext()`.
+    - FilterBar applies only changed *values*, never new option lists, so a dependent list (resorts
+      of the chosen country, `clears`, `onDraftChange`) does not wipe what is being typed.
+  - **Profile pages (feature/frontend-client-profile, `pages/cabinet/`, spec 08):**
+    - `/cabinet/profile`: `Descriptions` → «Редагувати» form; the same rules as registration
+      (`features/auth/formRules.ts`, `PasswordRules`); `mapFormError()` puts `profile_rule` texts
+      under their fields; `useUnsavedChanges()` (router blocker + `beforeunload`); the saved user
+      goes to `AuthContext.setUser()`. After a password change `endSessionAfterPasswordChange()`
+      opens `/login` with `passwordChanged` (LoginPage does not redirect a still signed-in user then)
+      and clears the session.
+    - `/cabinet/tourists`: `features/booking/PassportFields` is the one set of passport fields for
+      the booking step and the saved tourist Modal; a saved tourist fills the birth date too.
+    - «Історія подорожей» = `/cabinet/orders?group=completed` (`/cabinet/history` redirects, the
+      menu item is selected there); `ReviewState` shows the review state from the API fields.
+    - `/cabinet/favorites` and `FavoriteButton` (heart on `TourCard`, «В обране» on the tour page):
+      client toggles (optimistic ids), guest → `/login?redirect=`, staff see nothing. The heart is a
+      sibling of the card link, never inside it. `TourCard notForSale` = muted, no link.
+    - `ApiError` keeps field issues for every 4xx (a 409 may carry a `loc`).
 - **UI library:** `antd` 6 + `@ant-design/icons` 6 — keep their major versions in step.
   No Tailwind.
   - `feature/frontend-public` (catalog, tour page, auth, checkout, personal account): plain antd.
@@ -584,8 +655,32 @@ viewer with an append-only trigger, promo codes for managers; migration `admin`)
   `/office/orders/:id` (data, passports, documents, payments, history, actions with reasons,
   confirm with PNR, reject, documents ready, hand-over, archive, comment).
 
-Next: profile (spec 08, in progress in its own branch), then spec 10 (manager tours).
-Backend test suite: 735 tests. Frontend: 353 tests.
+`feature/frontend-client-profile` (PR to `develop`): profile, saved tourists, trip history,
+favorites (spec 08).
+- `/cabinet/profile` (personal data with view/edit, password change that ends every session),
+  `/cabinet/tourists` (saved passports with birth date; the booking autofill fills it too),
+  «Історія подорожей» = the «Завершені» tab (`/cabinet/history` redirects) with place and review
+  state, `/cabinet/favorites` and «В обране» on cards and the tour page.
+- Backend: profile field errors with `loc`, session cut-off on password change, `PUT /me/passports`,
+  order rows with place and review state, `/api/me/favorites`.
+- Migration `saved passport birth date` (`f4b8e2a9c1d3`, `database/12_saved_passport_birth_date.sql`).
+- For the ТЗ update: «Обране» (2.7 "out of MVP") is implemented; the phone (login) is changed
+  through support, not in the profile (4.5.1.1 step 4 says the user may change it).
+- No loyalty UI: `users.loyalty_points` / `loyalty_transactions` exist, but nothing awards points.
+
+`feature/backoffice-tours` (PR to `develop`): manager tours (spec 10), no migration.
+- Backend: `tour_actions` and `locked_fields` (ever-paid orders or active bookings), unpublish keeps
+  bookings payable, archive cancels unpaid bookings (audited, clients notified, refused while a
+  transfer is partly paid), restore, copy with new dates, quota ≥ sold + held, `loc` field errors,
+  list filters / sort / columns, `GET /manager/tours/rules`, a draft keeps its archived hotel.
+- Frontend: `/office/tours` (filters in the URL, actions with reasons and booking counts),
+  editor `/office/tours/new` and `/:id/edit` (5 steps, program, one date range, prices as strings,
+  photos with main / order, locked fields, unsaved prompt), copy dialog.
+- Spec 10 §5 «two departures» reads as one range with at least two start dates (a different price
+  period is a copy; noted in `docs/frontend/10-office-tours.md`).
+
+Next: spec 11 (moderation, promo codes, statistics; in progress in its own branch), then 12, 13.
+Backend test suite: 795 tests. Frontend: 401 tests.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
@@ -598,7 +693,8 @@ Backlog, in order (one branch each):
    (**done**, `feature/frontend-auth`), home page (**done**, `feature/frontend-home`), checkout
    and payment (**done**, `feature/frontend-checkout`: PR #17, #18), info pages (**done**,
    `feature/frontend-info-pages`), client orders cabinet (**done**, `feature/frontend-client-orders`),
-   profile (spec 08); plain antd (also set up `frontend/`).
+   profile, saved tourists, trip history and favorites (**done**, `feature/frontend-client-profile`);
+   plain antd (also set up `frontend/`).
    - Home page follow-ups (not done in `feature/frontend-home`; the first two need backend work):
      - `GET /reference/countries?with_tours=true` with `tours_count`, to replace the per-country
        catalog requests in `pages/home/useDestinations.ts`;
@@ -608,9 +704,6 @@ Backlog, in order (one branch each):
        пропозиції» can link to "all".
    - Backlog note (no work yet): limit unpaid bank-transfer orders per client — a transfer holds
      seats for `bank_transfer_hold_hours` (48 h) without any money.
-   - Note for spec 08: saved passports need a birth date for full autofill at checkout (backend
-     change with a migration); today «Заповнити з мого профілю» gives the birth date and only
-     Latin profile names.
 8. `feature/catalog-improvements` — **done** (PR to `develop`): meal plan, included/excluded,
    `title_asc`, hotel facts, Kyiv dates everywhere, `payments.origin`, seed with photos and
    reviews, catalog UI.
@@ -618,12 +711,17 @@ Backlog, in order (one branch each):
    "UI library"). Reuse `src/constants/orderStatus.ts`, `StatusTag`, `FilterBar`, `FormModal`,
    `useOfficeAction` and `features/office/menu.ts` (set `built: true`).
    - Spec 09 (layout, manager orders) — **done** (`feature/backoffice-orders`).
-   - Note for spec 10: until `feature/order-snapshot` exists, the backend must forbid changing the
-     title, hotel and dates of a tour that has paid orders (old orders show the live tour row).
+   - Spec 10 (manager tours) — **done** (`feature/backoffice-tours`). Its field locks are the
+     interim protection of old orders until `feature/order-snapshot` (backlog 17).
    - Note for spec 12: finance must see failed refunds clearly (the client cabinet hides them).
-10. `feature/favorites-history` 11. `feature/notifications-email` (also: password recovery by
+10. `feature/search-history` (favorites are done in `feature/frontend-client-profile`; the
+    `search_history` table exists) 11. `feature/notifications-email` (also: password recovery by
     e-mail, needs a reset-token table, i.e. a migration) 12. `feature/reports` (Excel/PDF)
-13. `feature/loyalty` 14. `feature/i18n-en` 15. `feature/monitoring` 16. `feature/docker`
+13. `feature/loyalty` — ТЗ 5.7 «програма лояльності для постійних клієнтів» (bonuses, personal
+    discounts, priority support). `users.loyalty_points` and `loyalty_transactions` exist, but
+    points are never awarded yet: accrual on completed orders, spending at checkout, the client's
+    balance and history in the cabinet (spec 08 shows nothing until then).
+14. `feature/i18n-en` 15. `feature/monitoring` 16. `feature/docker`
 17. `feature/order-snapshot` — store the tour title, hotel and key facts (country, resort,
     departure city, transport, meal plan) in the order at confirm, so old orders never change
     with the tour (needs a migration); then the order page reads them from the order.
