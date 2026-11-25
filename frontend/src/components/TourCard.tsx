@@ -1,18 +1,24 @@
 import {
-  CalendarOutlined, CarOutlined, EnvironmentOutlined, MoonOutlined, PictureOutlined, SendOutlined,
-  StarFilled,
+  CalendarOutlined, CarOutlined, EnvironmentOutlined, MoonOutlined, SendOutlined, StarFilled,
 } from '@ant-design/icons'
 import { Card, Flex, Tag, Typography } from 'antd'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { mediaUrl } from '../api/client'
 import type { TourCard as TourCardData } from '../api/types'
+import { mealLabel } from '../i18n/labels'
 import { PRICE_COLOR } from '../theme'
+import { PhotoPlaceholder } from './PhotoPlaceholder'
 import { formatDate, formatPrice, formatRating, nearestBookableDate } from '../utils/format'
 import './TourCard.css'
 
 /** Free seats at or below this number get the "Залишилось N місць" tag. */
 export const LOW_SEATS = 3
+
+/** Router state of a link from the catalog to a tour page. */
+export interface TourLinkState {
+  catalogSearch: string
+}
 
 function Departure({ tour }: { tour: TourCardData }) {
   const { t } = useTranslation()
@@ -28,6 +34,8 @@ function Departure({ tour }: { tour: TourCardData }) {
 /** One tour in the catalog grid (spec §4 "Картка туру"). The whole card is one link. */
 export function TourCard({ tour }: { tour: TourCardData }) {
   const { t } = useTranslation()
+  // The catalog's filters travel with the link, so the tour page's «Каталог» crumb returns to them.
+  const { search } = useLocation()
   const image = mediaUrl(tour.image_url)
   const stars = tour.hotel.stars
   const rating = tour.hotel.rating_avg
@@ -35,14 +43,11 @@ export function TourCard({ tour }: { tour: TourCardData }) {
 
   const cover = image
     ? <img className="tour-card-image" src={image} alt={tour.title_uk} loading="lazy" />
-    : (
-      <div className="tour-card-image tour-card-placeholder" role="img" aria-label={t('tour.noPhoto')}>
-        <PictureOutlined aria-hidden />
-      </div>
-    )
+    : <PhotoPlaceholder className="tour-card-image" />
 
   return (
-    <Link to={`/tours/${tour.id}`} className="tour-card-link">
+    <Link to={`/tours/${tour.id}`} state={{ catalogSearch: search } satisfies TourLinkState}
+      className="tour-card-link">
       <Card hoverable cover={cover} className="tour-card" styles={{ body: { padding: 16 } }}>
         <Flex vertical gap={6}>
           <h2 className="tour-card-title">{tour.title_uk}</h2>
@@ -74,7 +79,7 @@ export function TourCard({ tour }: { tour: TourCardData }) {
             {rating !== null ? t('tour.rating', { rating: formatRating(rating) }) : t('tour.noReviews')}
           </Typography.Text>
 
-          {tour.meal_plan && <div><Tag>{t(`meal.${tour.meal_plan}`)}</Tag></div>}
+          {tour.meal_plan && <div><Tag>{mealLabel(t, tour.meal_plan)}</Tag></div>}
 
           {tour.free_seats === 0 ? <div><Tag color="error">{t('tour.noSeats')}</Tag></div>
             : tour.free_seats <= LOW_SEATS
