@@ -19,6 +19,16 @@ def _raise(error: UserError):
     raise HTTPException(status_code=error.status_code, detail=error.message)
 
 
+def _raise_field(error: UserError):
+    """Personal account: a rule about one field answers like FastAPI's own 422 (with the rule's
+    status), so the form puts the message under that field. "profile_rule" says msg is a
+    Ukrainian text meant for the client (like "checkout_rule" in the orders router)."""
+    if error.field is None:
+        _raise(error)
+    raise HTTPException(status_code=error.status_code, detail=[
+        {"loc": ["body", error.field], "msg": error.message, "type": "profile_rule"}])
+
+
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED,
              summary="Реєстрація клієнта")
 def register(data: RegisterRequest, db: DbSession):
@@ -56,15 +66,16 @@ def update_me(data: ProfileUpdate, user: CurrentUser, db: DbSession):
     try:
         user_service.update_profile(db, user, data.model_dump(exclude_unset=True))
     except UserError as error:
-        _raise(error)
+        _raise_field(error)
     db.commit()
     return user
 
 
-@router.post("/me/password", status_code=status.HTTP_204_NO_CONTENT, summary="Змінити пароль")
+@router.post("/me/password", status_code=status.HTTP_204_NO_CONTENT, summary="Змінити пароль",
+             description="Завершує всі сеанси, зокрема поточний: після зміни потрібно увійти знову.")
 def change_password(data: PasswordChange, user: CurrentUser, db: DbSession):
     try:
         user_service.change_password(db, user, data.current_password, data.new_password)
     except UserError as error:
-        _raise(error)
+        _raise_field(error)
     db.commit()

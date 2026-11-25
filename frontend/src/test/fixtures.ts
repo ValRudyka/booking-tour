@@ -218,7 +218,7 @@ export function makeCheckoutOrder(overrides: Partial<OrderWithPrice> = {}): Orde
     created_at: new Date().toISOString(), tourists: [], history: [], payments: [], price: makePrice(),
     client_actions: ['continue_checkout', 'cancel'], tour_for_sale: true, country_name: 'Єгипет',
     resort_name: 'Хургада', departure_city_name: 'Київ', transport_type: 'air', meal_plan: 'ai',
-    pending_transfer: null, ...overrides,
+    pending_transfer: null, review_status: null, review_can_resubmit: false, ...overrides,
   }
 }
 
@@ -243,9 +243,8 @@ export function makeOrder(overrides: Partial<OrderDetailWithPrice> = {}): OrderD
 
 /** A row of GET /orders (no tourists, history or price). */
 export function makeOrderRow(overrides: Partial<OrderSummary> = {}): OrderSummary {
-  const { tourists: _t, history: _h, payments: _p, price: _price, tour_for_sale: _s, country_name: _c,
-    resort_name: _r, departure_city_name: _d, transport_type: _tt, meal_plan: _m, pending_transfer: _pt,
-    ...row } = makeOrder()
+  const { tourists: _t, history: _h, payments: _p, price: _price, tour_for_sale: _s,
+    departure_city_name: _d, transport_type: _tt, meal_plan: _m, pending_transfer: _pt, ...row } = makeOrder()
   return { ...row, ...overrides }
 }
 

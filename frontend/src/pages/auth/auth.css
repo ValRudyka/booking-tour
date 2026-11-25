@@ -24,21 +24,6 @@
   margin-bottom: 16px;
 }
 
-.password-rules {
-  margin: 4px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.password-rules li {
-  display: flex;
-  gap: 6px;
-  align-items: flex-start;
-}
-
-.password-rules .rule-met { color: #15803D; }
-.password-rules .rule-not-met { color: #B91C1C; }
-
 .forgot-panel {
   margin-top: 12px;
 }

@@ -9,7 +9,7 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import (CancelReason, ClientAction, Currency, MealPlan, OrderStatus, PaymentStatus,
-                              TransportType)
+                              ReviewStatus, TransportType)
 from app.schemas.payments import BankDetailsOut, PaymentShortOut
 
 
@@ -143,6 +143,14 @@ class OrderOut(BaseModel):
     created_at: datetime
     # What the client may do now (services/order_actions.py): the cabinet shows only these.
     client_actions: list[ClientAction]
+    # Where the trip goes, for the cards («Історія подорожей», spec 08). Read from the tour row,
+    # like the facts of OrderDetailOut (no snapshot yet: feature/order-snapshot).
+    country_name: str
+    resort_name: str
+    # The review of this order, if one was written: its moderation status, and whether the client
+    # may still correct a rejected one (services/reviews.py can_resubmit). None = no review.
+    review_status: ReviewStatus | None
+    review_can_resubmit: bool
 
 
 class OrderDetailOut(OrderOut):
@@ -152,8 +160,6 @@ class OrderDetailOut(OrderOut):
     # Tour facts for the order page. Read from the tour row (not a snapshot of the order):
     # tours are never deleted, and /tours/{id} is linked only while tour_for_sale is true.
     tour_for_sale: bool
-    country_name: str
-    resort_name: str
     departure_city_name: str | None
     transport_type: TransportType
     meal_plan: MealPlan | None

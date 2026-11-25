@@ -59,6 +59,11 @@ class ProfileUpdate(BaseModel):
     citizenship_id: int | None = None
     email: EmailStr | None = None
 
+    @field_validator("last_name", "first_name")
+    @classmethod
+    def strip_name(cls, value: str | None) -> str | None:
+        return value.strip() if value is not None else None
+
 
 class PasswordChange(BaseModel):
     current_password: str

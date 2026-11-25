@@ -82,3 +82,23 @@ export function ageOn(birthDate: string, day: string): number {
 export function isChild(birthDate: string, startDate: string): boolean {
   return ageOn(birthDate, startDate) < CHILD_AGE_LIMIT
 }
+
+// ---------- saved tourists (services/passports.py, form 4.6.1.1, field 8)
+/** services/passports.py MAX_SAVED_PASSPORTS */
+export const MAX_SAVED_PASSPORTS = 20
+/** services/passports.py EARLIEST_BIRTH_DATE */
+export const EARLIEST_BIRTH_DATE = '1900-01-01'
+/** services/passports.py AUTHORITY_CODE (field 8.4, optional) */
+const AUTHORITY_CODE = /^\d{4}$/
+
+export function isAuthorityCode(value: string): boolean {
+  return AUTHORITY_CODE.test(value.trim())
+}
+
+/** How soon a saved passport runs out, for its tag: a trip needs it valid 6 months after the
+ * return, so «soon» = less than 6 months from today (Kyiv). */
+export function expiryState(expiry: string, today: string): 'expired' | 'soon' | null {
+  if (expiry <= today) return 'expired'
+  if (expiry < addMonths(today, PASSPORT_MONTHS_AFTER_RETURN)) return 'soon'
+  return null
+}

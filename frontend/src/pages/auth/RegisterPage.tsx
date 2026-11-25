@@ -1,4 +1,3 @@
-import { CheckOutlined, CloseOutlined } from '@ant-design/icons'
 import { Alert, Button, Checkbox, DatePicker, Form, Input, Select, Typography } from 'antd'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
@@ -8,12 +7,11 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { registerRequest } from '../../api/auth'
 import { useCountries } from '../../api/reference'
 import { HelpGuide } from '../../components/HelpGuide'
-import { mapRegisterError } from '../../features/auth/authErrors'
+import { mapFormError } from '../../features/auth/authErrors'
+import { birthDateRules, emailRules, nameRules, newPasswordRules, repeatRules } from '../../features/auth/formRules'
+import { PasswordRules } from '../../features/auth/PasswordRules'
 import { homeFor, safeRedirect } from '../../features/auth/redirect'
-import {
-  isAdult, isValidEmail, isValidPhone, nameMatchesCitizenship, NAME_MAX, normalizePhone,
-  PASSWORD_MAX, PASSWORD_MIN,
-} from '../../features/auth/rules'
+import { isValidPhone, normalizePhone } from '../../features/auth/rules'
 import { useAuth } from '../../features/auth/useAuth'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { kyivToday } from '../../utils/format'
@@ -33,25 +31,6 @@ interface RegisterValues {
 
 /** Form fields the backend validates (422 loc) — the rest go to the Alert. */
 const FIELDS = ['phone', 'email', 'password', 'last_name', 'first_name', 'birth_date', 'citizenship_id', 'consent'] as const
-
-/** Password requirements: exactly what the backend checks (8–128 characters), nothing invented. */
-function PasswordRules({ value }: { value: string }) {
-  const { t } = useTranslation()
-  const rules = [
-    { label: t('auth.ruleMin'), met: value.length >= PASSWORD_MIN },
-    { label: t('auth.ruleMax'), met: value.length <= PASSWORD_MAX },
-  ]
-  return (
-    <ul className="password-rules" aria-label={t('auth.passwordRules')} aria-live="polite">
-      {rules.map((rule) => (
-        <li key={rule.label} className={rule.met ? 'rule-met' : 'rule-not-met'}>
-          {rule.met ? <CheckOutlined aria-hidden /> : <CloseOutlined aria-hidden />}
-          <span>{rule.label} <span className="visually-hidden">({t(rule.met ? 'auth.ruleMet' : 'auth.ruleNotMet')})</span></span>
-        </li>
-      ))}
-    </ul>
-  )
-}
 
 /** /register (spec 03 §2, ТЗ 4.5.1, form 4.6.1.1): the fields POST /auth/register accepts. */
 export function RegisterPage() {
@@ -90,7 +69,7 @@ export function RegisterPage() {
         consent: values.consent,
       })
     } catch (err) {
-      const mapped = mapRegisterError(err, FIELDS)
+      const mapped = mapFormError(err, FIELDS)
       // Field names come from FIELDS, so they are names of this form.
       form.setFields(mapped.fields as Parameters<typeof form.setFields>[0])
       setAlert(mapped.alert)
@@ -110,20 +89,8 @@ export function RegisterPage() {
   }
 
   const loginLink = redirect ? `/login?${new URLSearchParams({ redirect })}` : '/login'
-  // The alphabet depends on the citizenship chosen *now*: read it from the form at validation time.
-  const nameRule = (requiredKey: 'auth.lastNameRequired' | 'auth.firstNameRequired') => [
-    { required: true, whitespace: true, message: t(requiredKey) },
-    { max: NAME_MAX, message: t('auth.nameTooLong') },
-    ({ getFieldValue }: { getFieldValue: (name: string) => unknown }) => ({
-      validator: (_: unknown, value?: string) => {
-        const chosen = getFieldValue('citizenship_id')
-        const ukrainian = chosen == null || chosen === ukraine?.id
-        return !value?.trim() || nameMatchesCitizenship(value, ukrainian)
-          ? Promise.resolve()
-          : Promise.reject(new Error(t(ukrainian ? 'auth.nameUkrainian' : 'auth.nameLatin')))
-      },
-    }),
-  ]
+  const nameRule = (requiredKey: 'auth.lastNameRequired' | 'auth.firstNameRequired') =>
+    nameRules(t, requiredKey, ukraine?.id)
   const nameHint = t(isUkrainian ? 'auth.nameHintUa' : 'auth.nameHintLatin')
 
   return (
@@ -140,24 +107,16 @@ export function RegisterPage() {
           <Input type="tel" autoComplete="tel" inputMode="tel" placeholder="+380XXXXXXXXX" />
         </Form.Item>
         <Form.Item name="email" label={t('auth.email')} extra={t('auth.emailHint')}
-          rules={[{ required: true, whitespace: true, message: t('auth.emailRequired') },
-            { validator: (_, value?: string) => !value?.trim() || isValidEmail(value)
-              ? Promise.resolve() : Promise.reject(new Error(t('auth.emailFormat'))) }]}>
+          rules={emailRules(t)}>
           <Input type="email" autoComplete="email" />
         </Form.Item>
         <Form.Item name="password" label={t('auth.password')}
           extra={<PasswordRules value={password} />}
-          rules={[{ required: true, message: t('auth.passwordRequired') },
-            { min: PASSWORD_MIN, message: t('auth.passwordTooShort') },
-            { max: PASSWORD_MAX, message: t('auth.passwordTooLong') }]}>
+          rules={newPasswordRules(t)}>
           <Input.Password autoComplete="new-password" />
         </Form.Item>
         <Form.Item name="password_repeat" label={t('auth.passwordRepeat')} dependencies={['password']}
-          rules={[{ required: true, message: t('auth.passwordRepeatRequired') },
-            ({ getFieldValue }) => ({
-              validator: (_, value?: string) => !value || value === getFieldValue('password')
-                ? Promise.resolve() : Promise.reject(new Error(t('auth.passwordMismatch'))),
-            })]}>
+          rules={repeatRules(t, 'password')}>
           <Input.Password autoComplete="new-password" />
         </Form.Item>
 
@@ -176,9 +135,7 @@ export function RegisterPage() {
           <Input autoComplete="given-name" />
         </Form.Item>
         <Form.Item name="birth_date" label={t('auth.birthDate')} extra={t('auth.birthDateHint')}
-          rules={[{ required: true, message: t('auth.birthDateRequired') },
-            { validator: (_, value?: Dayjs | null) => !value || isAdult(value)
-              ? Promise.resolve() : Promise.reject(new Error(t('auth.notAdult'))) }]}>
+          rules={birthDateRules(t)}>
           <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} placeholder="ДД.ММ.РРРР"
             defaultPickerValue={dayjs(kyivToday()).subtract(25, 'year')}
             disabledDate={(day) => day.isAfter(dayjs(kyivToday()), 'day')} />

@@ -5,6 +5,8 @@ import type { components, operations } from './schema'
 type Schemas = components['schemas']
 
 export type TourCard = Schemas['TourCardOut']
+export type FavoriteTour = Schemas['FavoriteOut']
+export type FavoritePage = Schemas['Page_FavoriteOut_']
 export type TourPage = Schemas['Page_TourCardOut_']
 export type Country = Schemas['CountryOut']
 export type Resort = Schemas['ResortOut']
@@ -23,6 +25,8 @@ export type User = Schemas['UserOut']
 export type UserRole = Schemas['UserRole']
 export type TokenOut = Schemas['TokenOut']
 export type RegisterRequest = Schemas['RegisterRequest']
+export type ProfileUpdate = Schemas['ProfileUpdate']
+export type PasswordChange = Schemas['PasswordChange']
 export type SiteContacts = Schemas['SiteContactsOut']
 
 // Checkout (ТЗ 4.5.3, form 4.6.1.2)
@@ -40,6 +44,7 @@ export type OrderCreate = Schemas['OrderCreate']
 export type OrderUpdate = Schemas['OrderUpdate']
 export type ServiceOption = Schemas['ServiceOptionOut']
 export type SavedPassport = Schemas['PassportOut']
+export type SavedPassportIn = Schemas['PassportIn']
 
 // Payment (ТЗ 4.5.3 steps 7.2–9, spec 05)
 export type PaymentMethod = Schemas['PaymentMethod']

@@ -10,7 +10,10 @@ import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/auth/RegisterPage'
 import { BookingPage } from './pages/booking/BookingPage'
 import { OrderDetailsPage } from './pages/cabinet/OrderDetailsPage'
+import { FavoritesPage } from './pages/cabinet/FavoritesPage'
 import { OrdersPage } from './pages/cabinet/OrdersPage'
+import { ProfilePage } from './pages/cabinet/ProfilePage'
+import { TouristsPage } from './pages/cabinet/TouristsPage'
 import { ReviewPage } from './pages/cabinet/ReviewPage'
 import { CatalogPage } from './pages/catalog/CatalogPage'
 import { HomePage } from './pages/home/HomePage'
@@ -22,7 +25,6 @@ import { NotFoundPage } from './pages/NotFoundPage'
 import { COMING_SOON } from './features/office/menu'
 import { OfficeLayout, OfficeOrderPage, OfficeOrdersPage } from './pages/office/lazyPages'
 import { OfficeComingSoon, OfficeHome, RequireOfficeRole } from './pages/office/OfficeHome'
-import { PlaceholderPage } from './pages/PlaceholderPage'
 import { PayPage } from './pages/payment/PayPage'
 import { PaymentCancelPage, PaymentSuccessPage } from './pages/payment/PaymentResultPages'
 import { RouteErrorPage } from './pages/RouteErrorPage'
@@ -58,10 +60,17 @@ export const routes: RouteObject[] = [
             children: [
               { index: true, element: <Navigate to="orders" replace /> },
               { path: 'orders', element: <OrdersPage /> },
+              // «Історія подорожей» (spec 08 §4) is the «Завершені» tab of the orders: the same list,
+              // with the place and the review state on every card.
+              { path: 'history', element: <Navigate to="/cabinet/orders?group=completed" replace /> },
               { path: 'orders/:id', element: <OrderDetailsPage /> },
               { path: 'orders/:id/review', element: <ReviewPage /> },
-              // The profile API exists (GET/PATCH /me, passwords, passports); its page is spec 08.
-              { path: 'profile', element: <PlaceholderPage page="profile" /> },
+              // Profile and password (spec 08 §2): GET/PATCH /auth/me, POST /auth/me/password.
+              { path: 'profile', element: <ProfilePage /> },
+              // Saved tourists for the booking autofill (spec 08 §3): /api/me/passports.
+              { path: 'tourists', element: <TouristsPage /> },
+              // «Обране» (spec 08 §5): /api/me/favorites.
+              { path: 'favorites', element: <FavoritesPage /> },
             ],
           },
           // Static information pages (spec 14): texts in i18n, contacts from the admin's settings.
