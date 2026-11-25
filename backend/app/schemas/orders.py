@@ -51,7 +51,8 @@ class OrderCreate(BaseModel):
 
 
 class OrderUpdate(BaseModel):
-    """Every field optional. `tourists` replaces the whole list; `promo_code: null` removes the code;
+    """Every field optional. `tourists` replaces the whole list (`[]` clears it, e.g. before
+    changing the numbers of adults and children); `promo_code: null` removes the code;
     `insurance_type_id` / `transfer_type_id: null` go back to the default option."""
     adults: int | None = None
     children: int | None = None

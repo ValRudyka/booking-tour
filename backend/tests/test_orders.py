@@ -151,6 +151,19 @@ def test_update_tourists_and_numbers(client, customer_headers, tour):
     assert response.status_code == 422
 
 
+def test_empty_tourist_list_clears_them_so_numbers_can_change(client, customer_headers, tour):
+    order = create(client, customer_headers, tour, adults=2, tourists=two_tourists())
+    response = client.patch(f"{URL}/{order['id']}", json={"adults": 1, "children": 1, "tourists": []},
+                            headers=customer_headers)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert (body["adults"], body["children"], body["tourists"]) == (1, 1, [])
+    assert body["total_uah"] == "58300.00"
+    response = confirm(client, customer_headers, order["id"])     # still needs every tourist
+    assert response.status_code == 422
+    assert "потрібно 2, внесено 0" in response.json()["detail"]
+
+
 def test_more_tourists_rechecks_free_seats(client, db, customer_headers, tour):
     tour.seats_total = 4
     db.flush()

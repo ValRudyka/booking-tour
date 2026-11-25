@@ -255,10 +255,14 @@ def update_order(db: Session, order: Order, changes: dict[str, Any]) -> tuple[Or
     children = changes.get("children") if changes.get("children") is not None else order.children
     _check_counts(adults, children)
 
-    if changes.get("tourists") is not None:
+    if changes.get("tourists"):
         tourists = changes["tourists"]
         _check_categories([t["birth_date"] for t in tourists], adults, children, order.start_date)
         tourists = [_clean_tourist(t, order.end_date) for t in tourists]
+    elif changes.get("tourists") == []:
+        # Clearing the list lets the client change the numbers after entering tourists (the
+        # wizard's «Назад» to step 1); confirm still requires every tourist.
+        tourists = []
     else:
         tourists = None
         if order.tourists:   # the stored list must still match the (possibly new) numbers
