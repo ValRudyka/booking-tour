@@ -62,3 +62,21 @@ export function nearestBookableDate(from: string, to: string,
   const first = from >= tomorrow ? from : tomorrow
   return first <= to ? first : null
 }
+
+/** "14:00:00" (API TIME) -> "14:00" */
+export function formatTime(value: string): string {
+  return value.slice(0, 5)
+}
+
+const wholeNumber = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 0 })
+
+/** 1200 -> "1 200" (distances; integers from the API, never computed with). */
+export function formatInteger(value: number): string {
+  return wholeNumber.format(value)
+}
+
+/** "2027-06" -> [2027, 6] for the review's trip month (only the month is public, by design). */
+export function splitYearMonth(value: string): { year: string; month: number } {
+  const [year, month] = value.split('-')
+  return { year, month: Number(month) }
+}

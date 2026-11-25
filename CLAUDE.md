@@ -250,7 +250,16 @@ Lives in `frontend/` in this repository (same Git Flow branches as the backend).
   - i18n keys are type-checked.
   - Decorative icons get `aria-hidden`; otherwise antd's English icon labels end up in the
     accessible names.
-  - `theme.test.ts` checks contrast on antd's real derived tokens.
+  - `theme.test.ts` checks contrast on antd's real derived tokens. The price colour is below
+    4.5:1 on sand, so a price on a sand block sits on a white box.
+  - Shared building blocks:
+    - `i18n/labels.ts: mealLabel()` is the only meal-plan dictionary;
+    - `components/ApiErrorState` (maintenance Result / error Alert + retry);
+    - `PhotoPlaceholder`;
+    - `PhotoViewer` (every photo is a button; fullscreen via `Image.PreviewGroup`);
+    - `StarIcons` (one `role="img"` with a Ukrainian label, not a disabled `Rate`).
+  - «Забронювати» always goes through `features/booking/startBooking.ts` (the place to add the
+    sign-in redirect).
 - **UI library:** `antd` 6 + `@ant-design/icons` 6 — keep their major versions in step.
   No Tailwind.
   - `feature/frontend-public` (catalog, tour page, auth, checkout, personal account): plain antd.
@@ -352,9 +361,20 @@ viewer with an append-only trigger, promo codes for managers; migration `admin`)
 - Migrations: `tour meal plan and lists`, `hotel facts`, `payment origin`
   (`database/11_catalog_improvements.sql`).
 
-Next: the tour page `/tours/:id` (plan approved, to be updated for the new fields first), then
-auth, checkout, personal account.
-Backend test suite: 657 tests. Frontend: 80 tests.
+`feature/frontend-public`, second page (PR to `develop`): the tour page `/tours/:id`.
+- Breadcrumb back to the catalog filters (router state from TourCard).
+- Gallery: `PhotoViewer` (buttons + Image.PreviewGroup, alt kept in the preview).
+- Tabs in `?tab=`, replacing the history entry:
+  - description with the included/excluded lists;
+  - Timeline programme;
+  - hotel `Descriptions` with only the filled facts;
+  - reviews, lazy, server pages of 10, with photos.
+- Booking panel on sand (the price sits on a white box: the price colour is below 4.5:1 on sand)
+  and a mobile bottom bar.
+- 404 for tours not for sale; a placeholder `/booking/:tourId?date=`.
+
+Next: auth, checkout, personal account.
+Backend test suite: 657 tests. Frontend: 110 tests.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
@@ -363,8 +383,8 @@ Backlog, in order (one branch each):
 4. `feature/order-processing` — **done** (PR #8)
 5. `feature/reviews` — **done** (PR #9)
 6. `feature/admin` — **done** (PR #10)
-7. `feature/frontend-public` — catalog (**done**, PR #12), tour page, auth, checkout, personal
-   account; plain antd (also set up `frontend/`).
+7. `feature/frontend-public` — catalog (**done**, PR #12), tour page (**done**), auth, checkout,
+   personal account; plain antd (also set up `frontend/`).
    - Note for `docs/frontend/06-client-orders-pages.md`: finished tours return 404, so the
      client's order details page shows the tour data stored with the order (title, dates, hotel,
      price) and links to `/tours/:id` only while the tour is still for sale.

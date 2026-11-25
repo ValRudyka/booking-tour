@@ -1,10 +1,10 @@
-import { FilterOutlined, ReloadOutlined, ToolOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, Col, Drawer, Empty, Flex, Grid, Pagination, Result, Row, Select, Typography } from 'antd'
+import { FilterOutlined } from '@ant-design/icons'
+import { Button, Card, Col, Drawer, Empty, Flex, Grid, Pagination, Row, Select, Typography } from 'antd'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useTours } from '../../api/catalog'
-import { ApiError } from '../../api/client'
+import { ApiErrorState } from '../../components/ApiErrorState'
 import { TourCard } from '../../components/TourCard'
 import { TourCardSkeleton } from '../../components/TourCardSkeleton'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -148,17 +148,8 @@ interface ResultsProps {
 function CatalogResults({ isPending, error, onRetry, items, total, resetButton }: ResultsProps) {
   const { t } = useTranslation()
 
-  if (error instanceof ApiError && error.kind === 'maintenance') {
-    return (
-      <Result icon={<ToolOutlined aria-hidden />} title={t('errors.maintenanceTitle')} subTitle={error.message}
-        extra={<Button icon={<ReloadOutlined aria-hidden />} onClick={onRetry}>{t('errors.retry')}</Button>} />
-    )
-  }
   if (error) {
-    return (
-      <Alert type="error" showIcon title={t('errors.loadFailed')} description={error.message}
-        action={<Button onClick={onRetry} icon={<ReloadOutlined aria-hidden />}>{t('errors.retry')}</Button>} />
-    )
+    return <ApiErrorState error={error} onRetry={onRetry} title={t('errors.loadFailed')} />
   }
   if (isPending) {
     return (

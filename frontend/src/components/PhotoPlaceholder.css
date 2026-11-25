@@ -1,0 +1,10 @@
+/* Grey, not sand: sand is reserved for large background areas (CLAUDE.md palette). */
+.photo-placeholder {
+  display: flex !important; /* antd's Card cover forces display: block on its child */
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: #E2E8F0;
+  color: #475569;
+  font-size: 40px;
+}

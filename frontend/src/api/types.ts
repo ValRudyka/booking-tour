@@ -15,3 +15,7 @@ export type MealPlan = Schemas['MealPlan']
 /** Query parameters of GET /api/tours, exactly as the backend declares them. */
 export type TourSearchParams = NonNullable<operations['search_tours_api_tours_get']['parameters']['query']>
 export type TourSort = NonNullable<TourSearchParams['sort']>
+export type TourDetail = Schemas['TourDetailOut']
+export type HotelDetail = Schemas['HotelDetailOut']
+export type PublicReview = Schemas['PublicReviewOut']
+export type ReviewPage = Schemas['Page_PublicReviewOut_']

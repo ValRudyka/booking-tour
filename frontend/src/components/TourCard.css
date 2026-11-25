@@ -16,15 +16,6 @@
   object-fit: cover;
 }
 
-/* antd sets display: block on the cover's child, so this needs the extra class. */
-.tour-card .tour-card-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #E2E8F0;
-  color: #475569;
-  font-size: 40px;
-}
 
 .tour-card-title {
   margin: 0;

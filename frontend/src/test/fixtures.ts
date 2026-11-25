@@ -1,7 +1,9 @@
 import type { AxiosResponse } from 'axios'
 import { vi } from 'vitest'
 import { api } from '../api/client'
-import type { City, Country, Resort, TourCard, TourPage } from '../api/types'
+import type {
+  City, Country, HotelDetail, PublicReview, Resort, ReviewPage, TourCard, TourDetail, TourPage,
+} from '../api/types'
 
 export const COUNTRIES: Country[] = [
   { id: 1, iso_code: 'EG', name_uk: 'Єгипет', name_en: 'Egypt' },
@@ -74,4 +76,50 @@ export function lastToursParams(spy: ReturnType<typeof mockApi>): Record<string,
   const config = calls.at(-1)?.[1] as { params?: Record<string, unknown> } | undefined
   if (!config?.params) throw new Error('GET /tours was not called with params')
   return config.params
+}
+
+export const HOTEL_FACTS = {
+  beach_line: 1, distance_to_beach_m: 0, distance_to_airport_km: 12,
+  check_in: '14:00:00', check_out: '12:00:00',
+  amenities: ['Власний пляж', 'SPA-центр'], room_types: ['Стандартний номер', 'Сімейний номер'],
+}
+const NO_FACTS = {
+  beach_line: null, distance_to_beach_m: null, distance_to_airport_km: null, check_in: null,
+  check_out: null, amenities: [], room_types: [],
+}
+
+/** GET /api/tours/{id}: a card plus the page fields. Hotel facts empty unless `hotelFacts`. */
+export function makeTourDetail(overrides: Partial<TourDetail> = {},
+  hotelFacts: Partial<HotelDetail> = {}): TourDetail {
+  const card = makeTour()
+  return {
+    ...card,
+    hotel: { ...card.hotel, ...NO_FACTS, ...hotelFacts },
+    child_price: '350.00',
+    child_price_uah: '16000.00',
+    flight_out: 'DM 1101', flight_back: 'DM 1102',
+    description: 'Тиждень на Червоному морі.',
+    included: ['Авіапереліт', 'Проживання'],
+    excluded: ['Медичне страхування — обирається під час бронювання'],
+    hotel_description: 'Готель на першій лінії.',
+    program_days: [{ day_number: 1, description: 'Переліт і заселення.' },
+      { day_number: 2, description: 'Відпочинок на пляжі.' }],
+    images: [],
+    reviews_count: 0,
+    service_rating_avg: null,
+    ...overrides,
+  }
+}
+
+export function makeReview(overrides: Partial<PublicReview> = {}): PublicReview {
+  const id = nextId++
+  return {
+    id, author: 'Олена К.', tour_id: 1, tour_title_uk: 'Тур', hotel_name: 'Coral Bay Resort',
+    trip_month: '2026-10', published_at: '2026-10-20T10:00:00Z', hotel_rating: 5, service_rating: 4,
+    positive: 'Чудовий готель.', negative: null, photos: [], ...overrides,
+  }
+}
+
+export function reviewPage(items: PublicReview[], total = items.length, pageNumber = 1): ReviewPage {
+  return { items, total, page: pageNumber, page_size: 10 }
 }

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useCities, useCountries, useResorts } from '../../api/reference'
 import { useDebouncedCallback } from '../../hooks/useDebouncedCallback'
+import { mealLabel } from '../../i18n/labels'
 import {
   MEAL_PLANS, NIGHTS_MAX, NIGHTS_MIN, STAR_OPTIONS, TRANSPORT_TYPES, type CatalogFilters as Filters,
 } from './catalogParams'
@@ -158,7 +159,7 @@ export function CatalogFilters({ value, onChange, debounceMs, idPrefix }: Props)
       <Form.Item label={<span id={id('meal-label')}>{t('filters.meal')}</span>}>
         <div role="group" aria-labelledby={id('meal-label')}>
           <Checkbox.Group value={value.meal_plan} className="catalog-filters-column"
-            options={MEAL_PLANS.map((plan) => ({ value: plan, label: t(`meal.${plan}`) }))}
+            options={MEAL_PLANS.map((plan) => ({ value: plan, label: mealLabel(t, plan) }))}
             onChange={(next) => onChange({ meal_plan: MEAL_PLANS.filter((p) => next.includes(p)) })} />
         </div>
       </Form.Item>
