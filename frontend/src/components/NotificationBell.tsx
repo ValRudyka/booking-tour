@@ -1,5 +1,5 @@
 import { BellOutlined } from '@ant-design/icons'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { Alert, Badge, Button, Empty, Flex, Popover, Typography } from 'antd'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -16,8 +16,17 @@ import '../pages/cabinet/CabinetPages.css'
  * a Popover with the latest ones. Read on page load and every minute (no WebSocket). Opening one
  * marks it read and goes to its order. A new notification about an order also refreshes that
  * order's data, so an open order page shows the new status.
+ *
+ * The client cabinet and the back office (spec 09) share it: `orderPath` says where a notification
+ * about an order leads (null = nowhere yet), `refreshKeys` which order lists to refresh.
  */
-export function NotificationBell() {
+const cabinetOrderPath = (orderId: number) => `/cabinet/orders/${orderId}`
+const CABINET_LISTS: readonly QueryKey[] = [orderKeys.list]
+
+export function NotificationBell({ orderPath = cabinetOrderPath, refreshKeys = CABINET_LISTS }: {
+  orderPath?: (orderId: number) => string | null
+  refreshKeys?: readonly QueryKey[]
+} = {}) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -36,8 +45,10 @@ export function NotificationBell() {
     newest.current = Math.max(seen ?? 0, ...notifications.data.items.map((n) => n.id))
     const orders = new Set(fresh.map((n) => n.order_id).filter((id): id is number => id !== null))
     for (const id of orders) void queryClient.invalidateQueries({ queryKey: ['order', id] })
-    if (orders.size > 0) void queryClient.invalidateQueries({ queryKey: orderKeys.list })
-  }, [notifications.data, queryClient])
+    if (orders.size > 0) {
+      for (const queryKey of refreshKeys) void queryClient.invalidateQueries({ queryKey })
+    }
+  }, [notifications.data, queryClient, refreshKeys])
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: notificationKeys.all })
 
@@ -50,7 +61,8 @@ export function NotificationBell() {
         void refresh()
       }
     }
-    if (note.order_id !== null) navigate(`/cabinet/orders/${note.order_id}`)
+    const path = note.order_id === null ? null : orderPath(note.order_id)
+    if (path) navigate(path)
   }
 
   const readAll = async () => {

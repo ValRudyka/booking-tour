@@ -1,4 +1,4 @@
-import { DownOutlined, MailOutlined, MenuOutlined, PhoneOutlined, UserOutlined } from '@ant-design/icons'
+import { DesktopOutlined, DownOutlined, MailOutlined, MenuOutlined, PhoneOutlined, UserOutlined } from '@ant-design/icons'
 import { Button, Drawer, Dropdown, Flex, Grid, Layout, Menu, Space, Typography } from 'antd'
 import type { MenuProps } from 'antd'
 import { useState } from 'react'
@@ -8,7 +8,7 @@ import { useSiteContacts } from '../api/site'
 import { AppLink } from '../components/AppLink'
 import { NotificationBell } from '../components/NotificationBell'
 import { shortName } from '../features/auth/authContext'
-import { STAFF_ROLES } from '../features/auth/redirect'
+import { OFFICE_HOME, STAFF_ROLES } from '../features/auth/redirect'
 import { useAuth } from '../features/auth/useAuth'
 import { SITE_NAME } from '../site'
 import './PublicLayout.css'
@@ -54,6 +54,12 @@ export function PublicLayout() {
   }
   // In-app notifications (spec 06, §5): clients only for now; staff get them in the back office.
   const bell = user?.role === 'client' ? <NotificationBell /> : null
+  // Staff get a visible way into the back office (spec 09), not only the item in the user menu.
+  const officeButton = user && STAFF_ROLES.includes(user.role) ? (
+    <Button type="primary" icon={<DesktopOutlined aria-hidden />} onClick={() => go(OFFICE_HOME)}>
+      {t('nav.officeButton')}
+    </Button>
+  ) : null
   const authButtons = (
     <>
       <Button onClick={() => go('/login')}>{t('nav.login')}</Button>
@@ -79,7 +85,7 @@ export function PublicLayout() {
               <nav aria-label={t('nav.mainMenu')} className="public-nav">
                 <Menu mode="horizontal" items={items} selectedKeys={selected} disabledOverflow />
               </nav>
-              {user ? <Space>{bell}{userMenu}</Space> : <Space>{authButtons}</Space>}
+              {user ? <Space>{bell}{officeButton}{userMenu}</Space> : <Space>{authButtons}</Space>}
             </>
           ) : (
             <Space>
