@@ -19,7 +19,7 @@ export interface OfficeSection {
 }
 
 export const OFFICE_SECTIONS: readonly OfficeSection[] = [
-  { key: 'orders', path: 'orders', role: 'manager', built: false },             // spec 09
+  { key: 'orders', path: 'orders', role: 'manager', built: true },              // spec 09
   { key: 'tours', path: 'tours', role: 'manager', built: false },               // spec 10
   { key: 'reviews', path: 'reviews', role: 'manager', built: false },           // spec 11
   { key: 'promoCodes', path: 'promo-codes', role: 'manager', built: false },    // spec 11

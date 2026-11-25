@@ -23,7 +23,7 @@ const menuItems = () => within(screen.getByRole('navigation', { name: 'Розд�
 // mount the first time on a loaded machine (like the per-call timeouts of BookingPage.test).
 configure({ asyncUtilTimeout: 4000 })
 beforeAll(async () => {
-  await import('./OfficeLayout')
+  await Promise.all([import('./OfficeLayout'), import('../pages/office/OfficeOrdersPage')])
 })
 
 describe('back office layout (spec 09 §1)', () => {
