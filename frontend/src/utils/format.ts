@@ -80,3 +80,35 @@ export function splitYearMonth(value: string): { year: string; month: number } {
   const [year, month] = value.split('-')
   return { year, month: Number(month) }
 }
+
+const moneyFormat = new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** "12345.50" -> "12 345,50": an exact order amount (checkout, payment), kopecks included, so
+ * the page shows the same sum as the order in the database. */
+export function formatMoney(value: string): string {
+  return moneyFormat.format(value as DecimalString)
+}
+
+/** "FX123456" -> "FX****56": the review step shows passports only partly (spec 04, §3). */
+export function maskPassport(value: string): string {
+  if (value.length <= 4) return '*'.repeat(value.length)
+  return `${value.slice(0, 2)}${'*'.repeat(value.length - 4)}${value.slice(-2)}`
+}
+
+/** An API timestamp ("2026-11-25T12:35:00Z") as Kyiv time "14:35", like every time on the site. */
+export function formatKyivTime(timestamp: string): string {
+  const format = (timeZone: string) => new Intl.DateTimeFormat('uk-UA',
+    { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(timestamp))
+  try {
+    return format(BUSINESS_TIMEZONE)
+  } catch {
+    return format('Europe/Kiev')
+  }
+}
+
+const rateFormat = new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+
+/** "48.1250" -> "48,125": a currency rate (Numeric(12,4)) as stored, only formatted. */
+export function formatRate(value: string): string {
+  return rateFormat.format(value as DecimalString)
+}

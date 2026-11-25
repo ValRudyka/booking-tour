@@ -1,0 +1,149 @@
+.booking-title {
+  margin: 12px 0 4px !important;
+}
+
+.booking-subtitle {
+  margin-bottom: 16px !important;
+}
+
+.booking-steps {
+  margin-bottom: 16px;
+}
+
+.booking-hold,
+.booking-block {
+  margin-bottom: 16px;
+}
+
+.booking-form {
+  background: #FFFFFF;
+  padding: 16px;
+  border-radius: 6px;
+}
+
+.booking-actions {
+  margin-top: 16px;
+}
+
+.booking-tourist {
+  margin-bottom: 16px;
+}
+
+.booking-tourist-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.booking-autofill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.booking-autofill-select {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.booking-review-tourists {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.booking-review-note {
+  margin-top: 12px;
+}
+
+/* Summary: a large block, so the sand background is allowed (CLAUDE.md palette). */
+.booking-summary {
+  background: #F2E8D5 !important;
+  border-color: #E5D8BD !important;
+}
+
+.booking-summary-compact {
+  margin-top: 16px;
+}
+
+.booking-summary-sticky {
+  position: sticky;
+  top: 16px;
+}
+
+.booking-summary-title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.booking-summary-tour {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.booking-summary-photo {
+  width: 96px !important;
+  height: 72px;
+  flex: 0 0 96px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.booking-summary-muted {
+  color: #334155;
+}
+
+.booking-summary-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0 0 12px;
+}
+
+.booking-summary-facts dt {
+  color: #334155;
+}
+
+.booking-summary-facts dd {
+  margin: 0;
+}
+
+/* The price colour is below 4.5:1 on sand: prices sit on a white box (theme.test.ts). */
+.booking-summary-price {
+  background: #FFFFFF;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.booking-price-lines {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.booking-price-lines dd {
+  margin: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.booking-total-label,
+.booking-total {
+  font-size: 18px;
+  font-weight: 600;
+  padding-top: 6px;
+  border-top: 1px solid #E2E8F0;
+}
+
+.booking-rate {
+  grid-column: 1 / -1;
+  text-align: left !important;
+  color: #475569;
+  font-size: 13px;
+}

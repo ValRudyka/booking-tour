@@ -5,6 +5,7 @@ import { fetchMe, loginRequest } from '../../api/auth'
 import { ApiError, onUnauthorized } from '../../api/client'
 import type { User } from '../../api/types'
 import { AuthContext, ME_KEY, type AuthContextValue, type LoginLocationState } from './authContext'
+import { clearAllDrafts } from '../booking/bookingDraft'
 import { loginPath } from './redirect'
 import { clearToken, getToken, onTokenChangeInOtherTab, setToken } from './tokenStorage'
 
@@ -79,8 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Signing out on a protected page must end on the catalog, not on /login. The router normally
   // renders the next page in a transition, so RequireAuth would first see the guest on the old
   // page and redirect. flushSync renders the catalog right away; only then the session is cleared.
+  // An explicit sign-out also removes booking drafts (names and birth dates of tourists); an
+  // expired session (onUnauthorized above) keeps them, so the client returns to the same step.
   const logout = useCallback(() => {
     void navigate('/tours', { replace: true, flushSync: true })
+    clearAllDrafts()
     forget()
   }, [forget, navigate])
 
