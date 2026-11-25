@@ -1,4 +1,5 @@
-import axios, { AxiosError, type AxiosInstance } from 'axios'
+import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
+import { getToken } from '../features/auth/tokenStorage'
 import i18n from '../i18n'
 
 /** Backend origin, e.g. http://localhost:8000 (frontend/.env.local, see .env.example). */
@@ -9,29 +10,50 @@ export const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000')
  * instead of digging through axios internals.
  * - network: no response at all (backend down, CORS refused, offline)
  * - maintenance: 503 from the maintenance guard (form 4.6.4.1, field 7)
+ * - unauthorized: 401 (wrong login, or a token that expired or was cancelled)
+ * - rate_limited: 429 (ready for a login rate limit, feature/auth-rate-limit)
  */
 export type ApiErrorKind =
-  | 'network' | 'maintenance' | 'not_found' | 'validation' | 'client' | 'server'
+  | 'network' | 'maintenance' | 'not_found' | 'validation' | 'unauthorized' | 'rate_limited'
+  | 'client' | 'server'
+
+/** One item of a FastAPI 422 body: where (loc) and what (type); msg is often English. */
+export interface FieldIssue {
+  loc: (string | number)[]
+  type: string
+  msg: string
+}
 
 export class ApiError extends Error {
   readonly kind: ApiErrorKind
   readonly status: number | null
+  /** The backend's plain `detail` text, for mapping known messages (never shown as is). */
+  readonly detail: string | null
+  /** 422 field issues, for showing errors under the right form fields. */
+  readonly issues: FieldIssue[]
 
-  constructor(kind: ApiErrorKind, status: number | null, message: string) {
+  constructor(kind: ApiErrorKind, status: number | null, message: string,
+    detail: string | null = null, issues: FieldIssue[] = []) {
     super(message)
     this.name = 'ApiError'
     this.kind = kind
     this.status = status
+    this.detail = detail
+    this.issues = issues
   }
 }
 
 /** FastAPI errors: {detail: "text"} from HTTPException, {detail: [...]} from validation (422). */
-function detailMessage(data: unknown): string | null {
-  if (data && typeof data === 'object' && 'detail' in data) {
-    const { detail } = data as { detail: unknown }
-    if (typeof detail === 'string' && detail.trim()) return detail
+function parseDetail(data: unknown): { text: string | null; issues: FieldIssue[] } {
+  if (!data || typeof data !== 'object' || !('detail' in data)) return { text: null, issues: [] }
+  const { detail } = data as { detail: unknown }
+  if (typeof detail === 'string' && detail.trim()) return { text: detail, issues: [] }
+  if (Array.isArray(detail)) {
+    const issues = detail.filter((d): d is FieldIssue =>
+      !!d && typeof d === 'object' && Array.isArray((d as FieldIssue).loc) && typeof (d as FieldIssue).type === 'string')
+    return { text: null, issues }
   }
-  return null
+  return { text: null, issues: [] }
 }
 
 export function toApiError(error: unknown): ApiError {
@@ -40,13 +62,30 @@ export function toApiError(error: unknown): ApiError {
     return new ApiError('network', null, i18n.t('errors.network'))
   }
   const { status, data } = error.response
-  const detail = detailMessage(data)
-  if (status === 503) return new ApiError('maintenance', status, detail ?? i18n.t('errors.maintenance'))
-  if (status === 404) return new ApiError('not_found', status, detail ?? i18n.t('errors.notFound'))
-  // 422 details are technical (field paths, pydantic texts), so the user gets a generic text.
-  if (status === 422) return new ApiError('validation', status, i18n.t('errors.validation'))
-  if (status >= 500) return new ApiError('server', status, i18n.t('errors.server'))
-  return new ApiError('client', status, detail ?? i18n.t('errors.client'))
+  const { text, issues } = parseDetail(data)
+  if (status === 503) return new ApiError('maintenance', status, text ?? i18n.t('errors.maintenance'), text)
+  if (status === 404) return new ApiError('not_found', status, text ?? i18n.t('errors.notFound'), text)
+  if (status === 401) return new ApiError('unauthorized', status, i18n.t('errors.unauthorized'), text)
+  if (status === 429) return new ApiError('rate_limited', status, i18n.t('errors.rateLimited'), text)
+  // 422 details are technical (field paths, pydantic texts): pages map them per field
+  // (features/auth/authErrors.ts); the message itself stays generic.
+  if (status === 422) return new ApiError('validation', status, i18n.t('errors.validation'), text, issues)
+  if (status >= 500) return new ApiError('server', status, i18n.t('errors.server'), text)
+  return new ApiError('client', status, text ?? i18n.t('errors.client'), text)
+}
+
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /** A 401 here does not end the session with a redirect (the start-up /me check). */
+    skipAuthRedirect?: boolean
+  }
+}
+
+/** Called once for a 401 on a request that carried a token (expired, blocked, or cancelled by an
+ * admin password reset). AuthProvider sets it: sign out and go to /login. */
+let unauthorizedHandler: (() => void) | null = null
+export function onUnauthorized(handler: (() => void) | null) {
+  unauthorizedHandler = handler
 }
 
 export function createApiClient(): AxiosInstance {
@@ -57,7 +96,22 @@ export function createApiClient(): AxiosInstance {
     // send stars[]=4, which FastAPI silently ignores.
     paramsSerializer: { indexes: null },
   })
-  client.interceptors.response.use(undefined, (error: unknown) => Promise.reject(toApiError(error)))
+  client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+    const token = getToken()
+    if (token && !config.headers.has('Authorization')) config.headers.set('Authorization', `Bearer ${token}`)
+    return config
+  })
+  client.interceptors.response.use(undefined, (error: unknown) => {
+    const apiError = toApiError(error)
+    // No refresh token exists, so there is nothing to retry and no loop: a 401 with a token
+    // means the session is over. A 401 from the login form itself is just a wrong password.
+    if (apiError.kind === 'unauthorized' && error instanceof AxiosError) {
+      const sentToken = error.config?.headers?.has?.('Authorization')
+      const isLogin = (error.config?.url ?? '').endsWith('/auth/login')
+      if (sentToken && !isLogin && !error.config?.skipAuthRedirect) unauthorizedHandler?.()
+    }
+    return Promise.reject(apiError)
+  })
   return client
 }
 

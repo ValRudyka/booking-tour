@@ -15,9 +15,20 @@ from app.services.users import create_user
 PASSWORD = "Strong-pass-123"
 
 
+UA_ID: int | None = None
+
+
+@pytest.fixture(autouse=True)
+def _ukraine(db):
+    """register_payload() needs the id of Ukraine (citizenship is required at registration)."""
+    global UA_ID
+    UA_ID = db.scalar(select(Country.id).where(Country.iso_code == "UA"))
+
+
 def register_payload(**overrides):
     data = {"phone": "+380 50 123 45 67", "email": "Taras@Example.com", "password": PASSWORD,
-            "last_name": "Шевченко", "first_name": "Тарас", "consent": True}
+            "last_name": "Шевченко", "first_name": "Тарас", "consent": True,
+            "birth_date": "1990-05-14", "citizenship_id": UA_ID}
     data.update(overrides)
     return data
 
@@ -177,3 +188,58 @@ def test_require_roles(client, db):
     assert client.get("/_test/manager-only", headers=manager).status_code == 200
     assert client.get("/_test/manager-only", headers=customer).status_code == 403
     assert client.get("/_test/manager-only").status_code == 401
+
+
+# ---------- form 4.6.1.1, fields 6–7: birth date (18+) and citizenship are required
+@pytest.mark.parametrize("missing", ["birth_date", "citizenship_id"])
+def test_register_requires_birth_date_and_citizenship(client, missing):
+    payload = register_payload()
+    del payload[missing]
+    response = client.post("/api/auth/register", json=payload)
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", missing]
+
+
+@pytest.fixture()
+def kyiv_new_year(monkeypatch):
+    """23:30 UTC on 31 Dec 2025 is already 1 Jan 2026 in Kyiv."""
+    from datetime import datetime, timezone
+
+    from app.services import clock
+    monkeypatch.setattr(clock, "now", lambda: datetime(2025, 12, 31, 23, 30, tzinfo=timezone.utc))
+
+
+@pytest.mark.parametrize("birth_date, ok", [
+    ("2008-01-01", True),        # 18 today in Kyiv (still 31 Dec in UTC)
+    ("2008-01-02", False),       # 18 tomorrow
+    ("2030-01-01", False),       # in the future
+])
+def test_register_checks_age_by_the_kyiv_date(client, kyiv_new_year, birth_date, ok):
+    response = client.post("/api/auth/register", json=register_payload(birth_date=birth_date))
+    if ok:
+        assert response.status_code == 201, response.text
+    else:
+        assert response.status_code == 422
+        assert response.json()["detail"] == "Реєстрація доступна лише з 18 років"
+
+
+def test_feb_29_birthday_turns_18_on_march_1():
+    from datetime import date
+
+    from app.services.users import age_on
+    assert age_on(date(2008, 2, 29), date(2026, 2, 28)) == 17
+    assert age_on(date(2008, 2, 29), date(2026, 3, 1)) == 18
+
+
+def test_profile_birth_date_must_stay_adult(client):
+    client.post("/api/auth/register", json=register_payload())
+    headers = auth_header(client)
+    refused = client.patch("/api/auth/me", json={"birth_date": "2020-01-01"}, headers=headers)
+    assert refused.status_code == 422 and refused.json()["detail"] == "Реєстрація доступна лише з 18 років"
+    assert client.patch("/api/auth/me", json={"birth_date": "1985-03-03"}, headers=headers).status_code == 200
+
+
+def test_staff_created_by_the_admin_need_no_birth_date(db):
+    user = create_user(db, phone="+380501112233", email="m@tour.local", password=PASSWORD,
+                       last_name="Менеджер", first_name="Тест", role=UserRole.MANAGER)
+    assert user.birth_date is None and user.citizenship_id is None

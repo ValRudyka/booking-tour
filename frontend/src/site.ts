@@ -1,4 +1,3 @@
-/** Site-wide constants. The name and contacts are placeholders for the course project. */
+/** Site-wide constants. The name is a placeholder for the course project; the support contacts
+ * come from the admin's settings (GET /api/site/contacts). */
 export const SITE_NAME = 'Хвиля'
-export const CONTACT_PHONE = '+380 44 000 00 00'
-export const CONTACT_EMAIL = 'info@tour.local'

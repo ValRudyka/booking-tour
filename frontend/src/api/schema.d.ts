@@ -1708,6 +1708,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/site/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Контакти служби підтримки */
+        get: operations["contacts_api_site_contacts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -3528,10 +3545,17 @@ export interface components {
             last_name: string;
             /** First Name */
             first_name: string;
-            /** Birth Date */
-            birth_date?: string | null;
-            /** Citizenship Id */
-            citizenship_id?: number | null;
+            /**
+             * Birth Date
+             * Format: date
+             * @description Дата народження; клієнт має бути повнолітнім (18+)
+             */
+            birth_date: string;
+            /**
+             * Citizenship Id
+             * @description Громадянство (id з довідника країн)
+             */
+            citizenship_id: number;
             /** Phone */
             phone: string;
             /**
@@ -3696,6 +3720,16 @@ export interface components {
             system_email?: string | null;
             /** Maintenance Mode */
             maintenance_mode?: boolean | null;
+            /**
+             * Support Phone
+             * @description Порожній рядок прибирає телефон
+             */
+            support_phone?: string | null;
+            /**
+             * Support Email
+             * @description Порожній рядок прибирає e-mail
+             */
+            support_email?: string | null;
         };
         /** SettingsOut */
         SettingsOut: {
@@ -3715,6 +3749,10 @@ export interface components {
             system_email: string;
             /** Maintenance Mode */
             maintenance_mode: boolean;
+            /** Support Phone */
+            support_phone: string;
+            /** Support Email */
+            support_email: string;
             /**
              * Uah Rate
              * @default 1
@@ -3724,6 +3762,16 @@ export interface components {
             changes: {
                 [key: string]: components["schemas"]["SettingChange"];
             };
+        };
+        /**
+         * SiteContactsOut
+         * @description Support contacts from the global settings (form 4.6.4.1, fields 8–9); null = not set.
+         */
+        SiteContactsOut: {
+            /** Phone */
+            phone: string | null;
+            /** Email */
+            email: string | null;
         };
         /** StaffCreate */
         StaffCreate: {
@@ -8220,6 +8268,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    contacts_api_site_contacts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteContactsOut"];
                 };
             };
         };

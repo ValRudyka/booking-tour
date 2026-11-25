@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { mockApi, page } from './test/fixtures'
+import { mockApi, page, signIn } from './test/fixtures'
 import { renderRoute } from './test/render'
 
 describe('routes', () => {
@@ -20,9 +20,10 @@ describe('routes', () => {
     expect(router.state.location.pathname).toBe('/tours')
   })
 
-  it('has a placeholder booking page until the checkout exists', () => {
+  it('has a placeholder booking page for a signed-in client until the checkout exists', async () => {
+    mockApi(() => page([]), signIn())
     renderRoute('/booking/42?date=2099-06-10')
-    expect(screen.getByRole('heading', { level: 1, name: 'Бронювання туру №42' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Бронювання туру №42' })).toBeInTheDocument()
     expect(screen.getByText(/10\.06\.2099/)).toBeInTheDocument()
   })
 })

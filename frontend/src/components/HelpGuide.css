@@ -1,0 +1,14 @@
+.help-guide-button {
+  inset-inline-end: 24px !important;
+  inset-block-end: 24px !important;
+}
+
+.help-guide-link {
+  margin-inline-end: 16px;
+}
+
+/* Long step texts wrap instead of being cut. */
+.ant-modal .ant-steps-item-title {
+  white-space: normal;
+  line-height: 1.5;
+}

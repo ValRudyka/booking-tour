@@ -15,7 +15,7 @@ from app.config import settings
 from app.db import get_db
 from app.routers import (admin_reference, admin_settings, admin_users, auth, catalog, finance,
                          manager_orders, manager_promo, manager_reviews, manager_tours,
-                         notifications, orders, passports, payments, reference, reviews)
+                         notifications, orders, passports, payments, reference, reviews, site)
 from app.services import maintenance
 from app.services.order_completion import run_completion_job
 from app.services.order_expiry import run_expiry_job
@@ -99,6 +99,7 @@ app.include_router(finance.router, prefix="/api")
 app.include_router(finance.orders_router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(reviews.router, prefix="/api")
+app.include_router(site.router, prefix="/api")
 
 # Only tour photos are public. Mounting the whole upload_dir would also publish anything stored
 # there later (order documents, passports), so private files live outside uploads/tours and are

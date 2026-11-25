@@ -33,6 +33,10 @@ class RegisterRequest(ProfileFields):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     consent: bool = Field(description="Згода на обробку персональних даних (обов'язкова)")
+    # Form 4.6.1.1, fields 6–7 and scenario 4.5.1 step 3: required at registration (18+ is checked
+    # in services/users.py). The columns stay nullable: staff created by the admin may have none.
+    birth_date: date = Field(description="Дата народження; клієнт має бути повнолітнім (18+)")
+    citizenship_id: int = Field(description="Громадянство (id з довідника країн)")
 
     @field_validator("phone")
     @classmethod

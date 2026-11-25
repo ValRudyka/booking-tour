@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { BackToCatalogButton } from '../components/BackToCatalogButton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
-export type PlaceholderKey = 'about' | 'login' | 'register' | 'terms' | 'privacy'
+export type PlaceholderKey = 'about' | 'terms' | 'privacy' | 'cabinet' | 'cabinetOrders' | 'office'
 
-/** Stub for pages that come in later steps (auth, static pages). */
+/** Stub for pages that come in later steps (static pages, personal account, back office). */
 export function PlaceholderPage({ page }: { page: PlaceholderKey }) {
   const { t } = useTranslation()
   const title = t(`pages.${page}`)

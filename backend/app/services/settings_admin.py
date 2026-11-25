@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.config import settings as app_config
 from app.models import CurrencyRate, Setting, User
 from app.models.enums import Currency
+from app.schemas.auth import normalize_phone
 from app.services.audit import audit, changed
 from app.services.errors import DomainError
 
@@ -30,9 +31,14 @@ SETTING_FIELDS: dict[str, tuple[str, str, Any, Any]] = {
     "review_premoderation": ("Премодерація відгуків", "bool", None, None),
     "system_email": ("Системний e-mail", "email", None, None),
     "maintenance_mode": ("Технічні роботи", "bool", None, None),
+    # Fields 8–9 (feature/frontend-auth): how clients reach support, e.g. to reset a password.
+    # Public through GET /api/site/contacts; empty = not shown.
+    "support_phone": ("Телефон підтримки", "phone_or_empty", None, None),
+    "support_email": ("E-mail підтримки", "email_or_empty", None, None),
 }
 DEFAULTS = {"acquiring_percent": Decimal("2.5"), "booking_timeout_min": 20, "bank_transfer_hold_hours": 48,
-            "review_premoderation": True, "system_email": "", "maintenance_mode": False}
+            "review_premoderation": True, "system_email": "", "maintenance_mode": False,
+            "support_phone": "", "support_email": ""}
 
 
 def _read(db: Session, key: str) -> Any:
@@ -90,12 +96,28 @@ def _validate(changes: dict[str, Any]) -> dict[str, Any]:
             if not isinstance(value, bool):
                 raise DomainError(f"«{label}»: так або ні", 422)
             clean[key] = value
+        elif kind == "phone_or_empty":
+            phone = str(value or "").strip()
+            if phone:
+                try:
+                    phone = normalize_phone(phone)
+                except ValueError:
+                    raise DomainError(f"«{label}»: у міжнародному форматі, наприклад +380441234567", 422) from None
+            clean[key] = phone
         else:
-            email = (value or "").strip().lower()
+            email = str(value or "").strip().lower()
+            if kind == "email_or_empty" and not email:
+                clean[key] = ""
+                continue
             if not EMAIL_RE.match(email) or len(email) > 255:
                 raise DomainError(f"«{label}»: некоректна адреса", 422)
             clean[key] = email
     return clean
+
+
+def support_contacts(db: Session) -> dict[str, str | None]:
+    """Public: the support phone and e-mail (None when the admin has not set them)."""
+    return {"phone": _read(db, "support_phone") or None, "email": _read(db, "support_email") or None}
 
 
 def update(db: Session, admin: User, changes: dict[str, Any]) -> dict[str, Any]:
