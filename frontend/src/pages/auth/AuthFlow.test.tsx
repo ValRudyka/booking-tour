@@ -44,6 +44,17 @@ describe('auth state', () => {
     expect(router.state.location.pathname).toBe('/tours')
   })
 
+  it('logging out on a protected page goes to the catalog, not to /login', async () => {
+    storeToken()
+    mockServer({ 'GET /auth/me': () => [200, client] })
+    const { user, router } = renderRoute('/cabinet/orders')
+    await user.click(await screen.findByRole('button', { name: 'Меню користувача: Олена К.' }))
+    await user.click(await screen.findByText('Вийти'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/tours'))
+    expect(window.localStorage.getItem(TOKEN_KEY)).toBeNull()
+    expect(await screen.findByRole('button', { name: 'Увійти' })).toBeInTheDocument()
+  })
+
   it('shows «Робочий кабінет» to staff and the account pages to clients', async () => {
     storeToken()
     mockServer({ 'GET /auth/me': () => [200, manager] })

@@ -76,9 +76,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return result.user
   }, [queryClient])
 
+  // Signing out on a protected page must end on the catalog, not on /login. The router normally
+  // renders the next page in a transition, so RequireAuth would first see the guest on the old
+  // page and redirect. flushSync renders the catalog right away; only then the session is cleared.
   const logout = useCallback(() => {
+    void navigate('/tours', { replace: true, flushSync: true })
     forget()
-    navigate('/tours', { replace: true })
   }, [forget, navigate])
 
   const value = useMemo<AuthContextValue>(() => {

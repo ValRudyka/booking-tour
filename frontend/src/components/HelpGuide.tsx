@@ -25,7 +25,8 @@ export function HelpGuide({ content }: { content: HelpGuideContent }) {
     <>
       <FloatButton icon={<QuestionCircleOutlined aria-hidden />} tooltip={t('help.button')}
         aria-label={t('help.button')} className="help-guide-button" onClick={() => setOpen(true)} />
-      <Modal open={open} title={content.title} onCancel={() => setOpen(false)} focusTriggerAfterClose
+      <Modal open={open} title={content.title} onCancel={() => setOpen(false)}
+        focusable={{ focusTriggerAfterClose: true }}
         footer={[
           content.link && (
             <Link key="link" to={content.link.to} className="help-guide-link">{content.link.label}</Link>

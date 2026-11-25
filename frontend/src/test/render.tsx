@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { createMemoryRouter, RouterProvider } from 'react-router'
+import { createMemoryRouter } from 'react-router'
+import { RouterProvider } from 'react-router/dom' // the same as main.tsx (flushSync navigations)
 import { createQueryClient } from '../api/queryClient'
 import { AppProviders } from '../App'
 import { routes } from '../router'
