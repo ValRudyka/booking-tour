@@ -237,6 +237,8 @@ class SettingsValues(BaseModel):
     review_premoderation: bool
     system_email: str                   # field 6
     maintenance_mode: bool              # field 7
+    support_phone: str                  # field 8, "" = not set
+    support_email: str                  # field 9, "" = not set
 
 
 class SettingChange(BaseModel):
@@ -259,6 +261,8 @@ class SettingsIn(_Strict):
     review_premoderation: bool | None = None
     system_email: str | None = None
     maintenance_mode: bool | None = None
+    support_phone: str | None = Field(default=None, description="Порожній рядок прибирає телефон")
+    support_email: str | None = Field(default=None, description="Порожній рядок прибирає e-mail")
 
 
 class GatewayStatusOut(BaseModel):

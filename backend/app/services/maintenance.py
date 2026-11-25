@@ -8,7 +8,8 @@ and Retry-After, except:
   token (routers/auth.py), so staff can still log in;
 - GET /api/auth/me for an admin — the admin interface needs to know who is logged in;
 - /api/admin/... — admin only anyway, including switching maintenance off;
-- POST /api/payments/stripe/webhook — money already paid must still be recorded or refunded.
+- POST /api/payments/stripe/webhook — money already paid must still be recorded or refunded;
+- GET /api/site/contacts — how to reach support, most useful exactly while the site is down.
 Managers and finance are stopped too. The System jobs (hold expiry, completion) keep running, and
 tour photos (/uploads/tours, static files) stay available.
 """
@@ -21,7 +22,7 @@ from app.services.app_settings import get_setting
 MESSAGE = "Тривають технічні роботи. Спробуйте пізніше."
 RETRY_AFTER_SEC = "600"
 OPEN_PATHS = frozenset({"/health", "/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json",
-                        "/api/auth/login", "/api/payments/stripe/webhook"})
+                        "/api/auth/login", "/api/payments/stripe/webhook", "/api/site/contacts"})
 ADMIN_PREFIX = "/api/admin"
 
 
