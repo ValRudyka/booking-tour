@@ -4,8 +4,8 @@ An app-wide FastAPI dependency (app/main.py), so it uses the same database sessi
 endpoints. When settings.maintenance_mode is on, every request gets 503 with a Ukrainian message
 and Retry-After, except:
 - GET /health, /docs, /redoc, /openapi.json — monitoring and API docs, no data;
-- POST /api/auth/login — passwords are checked as usual, but a client gets 503 instead of a
-  token (routers/auth.py), so staff can still log in;
+- POST /api/auth/login — passwords are checked as usual (a wrong one is still 401), but anyone
+  except an admin gets 503 instead of a token (routers/auth.py), so only admins can log in;
 - GET /api/auth/me for an admin — the admin interface needs to know who is logged in;
 - /api/admin/... — admin only anyway, including switching maintenance off;
 - POST /api/payments/stripe/webhook — money already paid must still be recorded or refunded;

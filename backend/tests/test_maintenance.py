@@ -59,12 +59,18 @@ def test_clients_and_guests_get_503(client, db, manager, customer_headers, maint
     assert_down(client.get("/api/auth/me", headers=customer_headers))
 
 
-def test_client_login_refused_staff_login_works(client, db, maintenance):
+def test_only_admin_login_works(client, db, maintenance):
     with_password(db, UserRole.CLIENT, "+380501110001")
     with_password(db, UserRole.MANAGER, "+380501110002")
+    with_password(db, UserRole.FINANCE, "+380501110003")
+    with_password(db, UserRole.ADMIN, "+380501110004")
+    # Managers and finance would get a token every other endpoint refuses (the frontend then
+    # looped back to /login), so they are refused here like clients.
     assert_down(login(client, "+380501110001"))
-    staff = login(client, "+380501110002")
-    assert staff.status_code == 200 and staff.json()["user"]["role"] == "manager"
+    assert_down(login(client, "+380501110002"))
+    assert_down(login(client, "+380501110003"))
+    admin = login(client, "+380501110004")
+    assert admin.status_code == 200 and admin.json()["user"]["role"] == "admin"
     # Wrong password is still 401, not a hint that the account exists.
     assert client.post("/api/auth/login", data={"username": "+380501110001", "password": "x" * 9}
                        ).status_code == 401
