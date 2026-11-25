@@ -86,6 +86,13 @@ def bank_details(order: Order, payment: Payment) -> dict:
             "pay_until": order.hold_expires_at}
 
 
+def pending_transfer_details(order: Order) -> dict | None:
+    """Details of the bank transfer the client chose and has not paid yet (the same row that
+    a repeated «Оплатити» by transfer returns), for the client's order page; None without one."""
+    pending = _pending(order, PaymentMethod.BANK_TRANSFER)
+    return bank_details(order, pending[-1]) if pending else None
+
+
 def return_urls(order: Order) -> tuple[str, str]:
     """Where Stripe sends the client back: the frontend's pages (spec 05). The success page only
     waits for the webhook (it never marks anything paid); Stripe fills in {CHECKOUT_SESSION_ID}."""
@@ -104,12 +111,18 @@ class PayResult:
 
 
 # ---------- the client starts a payment
+def is_payable(order: Order) -> bool:
+    """The status that accepts «Оплатити» (also decides the «pay» client action, together with
+    a hold that has not run out)."""
+    return order.status == OrderStatus.AWAITING_PAYMENT
+
+
 def start_payment(db: Session, client: User, order: Order, method: PaymentMethod,
                   gateway: PaymentGateway) -> PayResult:
     order = lock_order(db, order.id)          # a double click cannot create two sessions
     if expire_if_due(db, order):
         raise HoldExpired()
-    if order.status != OrderStatus.AWAITING_PAYMENT:
+    if not is_payable(order):
         raise DomainError("Оплатити можна лише замовлення в статусі «Очікує оплати»", 409)
     if order.total_uah == 0:                  # a promo code covered everything
         order_status.change_status(db, order, OrderStatus.PAID, None, ZERO_TOTAL_COMMENT)

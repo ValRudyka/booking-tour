@@ -1,0 +1,192 @@
+.orders-groups {
+  margin-bottom: 16px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.orders-pagination {
+  margin-top: 16px;
+  text-align: right;
+}
+
+.orders-nowrap {
+  white-space: nowrap;
+}
+
+.order-card {
+  width: 100%;
+}
+
+.order-card-facts,
+.order-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 8px 0 12px;
+}
+
+.order-card-facts dt,
+.order-facts dt {
+  color: rgba(15, 23, 42, 0.65);
+}
+
+.order-card-facts dd,
+.order-facts dd {
+  margin: 0;
+}
+
+.order-header {
+  margin-bottom: 16px;
+}
+
+.order-header h1 {
+  margin: 0;
+}
+
+.order-section + .order-section {
+  margin-top: 16px;
+}
+
+.order-actions {
+  position: sticky;
+  top: 16px;
+}
+
+.order-actions .ant-btn {
+  white-space: normal;
+  height: auto;
+  min-height: 32px;
+}
+
+.order-timeline {
+  margin-top: 8px;
+}
+
+.order-timeline .ant-timeline-item-content {
+  min-height: auto;
+}
+
+.review-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-photo {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #E2E8F0;
+}
+
+.notification-list {
+  width: min(360px, 80vw);
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.notification-item:hover,
+.notification-item:focus-visible {
+  background: #F1F5F9;
+}
+
+.notification-item-unread {
+  background: #ECFEFF;
+}
+
+.cancel-policy {
+  margin-bottom: 16px;
+}
+
+.cancel-accept {
+  margin-bottom: 16px;
+}
+
+.cancel-error {
+  margin-bottom: 16px;
+}
+
+.cancel-buttons {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.order-back {
+  padding-inline: 0;
+  margin-bottom: 8px;
+}
+
+.money-subtitle {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 12px 0 4px;
+}
+
+.money-row {
+  padding: 4px 0;
+}
+
+.money-fpv {
+  margin: 12px 0 0;
+}
+
+.document-error {
+  margin-top: 8px;
+}
+
+.upload-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.review-status,
+.review-reject {
+  margin-bottom: 12px;
+}
+
+.notification-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notification-body {
+  margin: 4px 0 !important;
+  white-space: pre-line;
+}
+
+/* Section headings sit in the card head, which has its own padding. */
+.ant-card-head .cabinet-section-title {
+  margin: 0;
+}
+
+.order-tourists {
+  width: 100%;
+}
+
+.order-tourists .order-facts {
+  margin: 0;
+}

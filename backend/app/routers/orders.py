@@ -6,13 +6,14 @@ from fastapi.responses import FileResponse
 
 from app.core.deps import DbSession, require_roles
 from app.models import Order, User
-from app.models.enums import CancelReason, OrderStatus, UserRole
+from app.models.enums import CancelReason, OrderGroup, OrderStatus, UserRole
 from app.schemas.common import Page
 from app.schemas.manager_orders import DocumentOut
-from app.schemas.orders import (OrderConfirm, OrderCreate, OrderDetailOut, OrderDetailPriceOut,
-                                OrderOut, OrderUpdate, OrderWithPriceOut, PriceOut, QuoteRequest)
+from app.schemas.orders import (CancelRequestFormOut, OrderConfirm, OrderCreate, OrderDetailOut,
+                                OrderDetailPriceOut, OrderOut, OrderUpdate, OrderWithPriceOut,
+                                PriceOut, QuoteRequest, UploadLimitsOut)
 from app.schemas.payments import BankDetailsOut, PaymentShortOut, PayOut, PayRequest
-from app.services import cancellation, order_documents
+from app.services import cancellation, catalog, order_actions, order_documents
 from app.services import orders as order_service
 from app.services.errors import DomainError
 from app.services.orders import HoldExpired
@@ -37,7 +38,7 @@ def _fail(db, error: DomainError) -> NoReturn:
     raise HTTPException(status_code=error.status_code, detail=error.message) from None
 
 
-def _summary(order: Order) -> dict:
+def _summary(db, order: Order) -> dict:
     return dict(
         id=order.id, number=order.number, status=order.status, payment_status=order.payment_status,
         tour_id=order.tour_id, tour_title_uk=order.tour.title_uk, hotel_name=order.tour.hotel.name,
@@ -50,16 +51,25 @@ def _summary(order: Order) -> dict:
         pnr=order.pnr, reject_reason=order.reject_reason,
         cancel_reason_code=order.cancel_reason_code, cancel_reason=order.cancel_reason,
         fpv_uah=order.fpv_uah, created_at=order.created_at,
+        client_actions=order_actions.client_actions(db, order),
     )
 
 
-def _detail(order: Order) -> dict:
-    return _summary(order) | dict(tourists=order.tourists, history=order.history,
-                                  payments=order.payments)
+def _detail(db, order: Order) -> dict:
+    tour = order.tour
+    resort = tour.hotel.resort
+    bank = payment_service.pending_transfer_details(order)
+    return _summary(db, order) | dict(
+        tourists=order.tourists, history=order.history, payments=order.payments,
+        tour_for_sale=catalog.is_for_sale(tour), country_name=resort.country.name_uk,
+        resort_name=resort.name_uk,
+        departure_city_name=tour.departure_city.name_uk if tour.departure_city else None,
+        transport_type=tour.transport_type, meal_plan=tour.meal_plan,
+        pending_transfer=BankDetailsOut(**bank) if bank else None)
 
 
-def _with_price(order: Order, price: PriceBreakdown) -> OrderWithPriceOut:
-    return OrderWithPriceOut(**_detail(order), price=PriceOut.model_validate(price))
+def _with_price(db, order: Order, price: PriceBreakdown) -> OrderWithPriceOut:
+    return OrderWithPriceOut(**_detail(db, order), price=PriceOut.model_validate(price))
 
 
 @router.post("/quote", response_model=PriceOut, summary="Розрахунок вартості (нічого не зберігає)")
@@ -78,16 +88,19 @@ def create_order(data: OrderCreate, db: DbSession, client: Client):
     except DomainError as error:
         _fail(db, error)
     db.commit()
-    return _with_price(order, price)
+    return _with_price(db, order, price)
 
 
 @router.get("", response_model=Page[OrderOut], summary="Мої замовлення")
 def list_orders(db: DbSession, client: Client,
                 status_: Annotated[OrderStatus | None, Query(alias="status")] = None,
+                group: Annotated[OrderGroup | None, Query(
+                    description="Вкладка кабінету; без неї — усі замовлення, з покинутими "
+                                "бронюваннями (скасованими до переходу до оплати)")] = None,
                 page: Annotated[int, Query(ge=1)] = 1,
                 page_size: Annotated[int, Query(ge=1, le=50)] = 20):
-    items, total = order_service.list_own_orders(db, client, status_, page, page_size)
-    return Page(items=[OrderOut(**_summary(o)) for o in items], total=total, page=page,
+    items, total = order_service.list_own_orders(db, client, status_, page, page_size, group)
+    return Page(items=[OrderOut(**_summary(db, o)) for o in items], total=total, page=page,
                 page_size=page_size)
 
 
@@ -104,7 +117,7 @@ def get_order(order_id: int, db: DbSession, client: Client):
     """Read-only: the price is calculated, never saved (services/orders.py: order_price)."""
     order = _own(db, client, order_id)
     price = order_service.order_price(db, order)
-    return OrderDetailPriceOut(**_detail(order),
+    return OrderDetailPriceOut(**_detail(db, order),
                                price=PriceOut.model_validate(price) if price else None)
 
 
@@ -117,7 +130,7 @@ def update_order(order_id: int, data: OrderUpdate, db: DbSession, client: Client
     except DomainError as error:
         _fail(db, error)
     db.commit()
-    return _with_price(order, price)
+    return _with_price(db, order, price)
 
 
 @router.post("/{order_id}/confirm", response_model=OrderWithPriceOut,
@@ -129,7 +142,7 @@ def confirm_order(order_id: int, data: OrderConfirm, db: DbSession, client: Clie
     except DomainError as error:
         _fail(db, error)
     db.commit()
-    return _with_price(order, price)
+    return _with_price(db, order, price)
 
 
 @router.post("/{order_id}/cancel", response_model=OrderDetailOut,
@@ -141,7 +154,15 @@ def cancel_order(order_id: int, db: DbSession, client: Client):
     except DomainError as error:
         _fail(db, error)
     db.commit()
-    return OrderDetailOut(**_detail(order))
+    return OrderDetailOut(**_detail(db, order))
+
+
+@router.get("/{order_id}/cancel-request", response_model=CancelRequestFormOut,
+            summary="Що потрібно формі клопотання: обмеження файлів-довідок")
+def cancel_request_form(order_id: int, db: DbSession, client: Client):
+    _own(db, client, order_id)
+    return CancelRequestFormOut(evidence=UploadLimitsOut(**cancellation.evidence_limits()),
+                                max_details=cancellation.MAX_DETAILS)
 
 
 @router.post("/{order_id}/cancel-request", response_model=OrderDetailOut,
@@ -161,7 +182,7 @@ def cancel_request(order_id: int, db: DbSession, client: Client,
     except DomainError as error:
         _fail(db, error)
     db.commit()
-    return OrderDetailOut(**_detail(order))
+    return OrderDetailOut(**_detail(db, order))
 
 
 @router.post("/{order_id}/pay", response_model=PayOut,

@@ -224,7 +224,9 @@ describe('booking wizard /booking/:tourId', () => {
     expect(await screen.findByText('Потрібна згода з Договором публічної оферти')).toBeInTheDocument()
     await user.click(screen.getByRole('checkbox'))
     await user.dblClick(confirm)
-    await waitFor(() => expect(router.state.location.pathname).toBe('/orders/1/pay'))
+    // Confirm, then the payment page loads: under a full parallel run this can take over the
+    // default 1 s of waitFor.
+    await waitFor(() => expect(router.state.location.pathname).toBe('/orders/1/pay'), { timeout: 3000 })
     expect(count(calls, 'POST', '/orders/1/confirm')).toBe(1)
     expect(router.state.location.state).toEqual({ priceChanged: { shown: '63872.76', frozen: '64000.00' } })
     expect(window.sessionStorage.getItem(draftKey(USER.id, 7))).toBeNull()

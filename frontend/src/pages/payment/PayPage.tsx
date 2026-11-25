@@ -6,15 +6,16 @@ import { Navigate, useLocation, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../api/client'
 import { payOrder, useOrder } from '../../api/payments'
 import type { OrderDetailWithPrice, PaymentMethod, PayOut } from '../../api/types'
+import { BankDetailsTable } from '../../components/BankDetails'
 import { HelpGuide } from '../../components/HelpGuide'
-import { CLIENT_HOME } from '../../features/auth/redirect'
 import { isHoldExpired, serverText } from '../../features/booking/bookingErrors'
 import type { PayPageState } from '../../features/booking/payHandOff'
 import { browser, hasPendingTransfer, paymentOutcome } from '../../features/payment/orderOutcome'
 import { parseOrderId, successPath } from '../../features/payment/paymentPaths'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { formatDate, formatKyivDateTime, formatMoney } from '../../utils/format'
+import { formatDate, formatMoney } from '../../utils/format'
 import { PriceLines } from '../booking/BookingSummary'
+import { orderPath } from '../cabinet/cabinetPaths'
 import { useHoldRemaining } from '../booking/holdClock'
 import { HoldTimer } from '../booking/HoldTimer'
 import { LOW_HOLD_MS } from '../booking/StepReview'
@@ -194,7 +195,7 @@ function PayForm({ order }: { order: OrderDetailWithPrice }) {
             {method === 'bank_transfer' && (
               <div className="payment-method-body">
                 <Typography.Paragraph type="secondary">{t('payment.method.transferHint')}</Typography.Paragraph>
-                {bank ? <BankDetailsBlock details={bank} /> : (
+                {bank ? <BankDetailsBlock details={bank} orderId={order.id} /> : (
                   <Button type="primary" size="large" loading={busy || transfer.isFetching} onClick={getDetails}>
                     {t('payment.getDetails')}
                   </Button>
@@ -236,41 +237,24 @@ function PayForm({ order }: { order: OrderDetailWithPrice }) {
   )
 }
 
-function BankDetailsBlock({ details }: { details: NonNullable<PayOut['bank_details']> }) {
+function BankDetailsBlock({ details, orderId }: { details: NonNullable<PayOut['bank_details']>; orderId: number }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const copy = (field: string, text?: string) => ({
-    text, tooltips: [t('payment.bank.copy', { field }), t('payment.bank.copied')],
-  })
-  const value = (field: string, shown: string, text?: string) => (
-    <Typography.Text copyable={copy(field, text ?? shown)}>{shown}</Typography.Text>
-  )
   return (
     <div className="payment-bank">
       <h3 className="payment-subtitle">{t('payment.bank.title')}</h3>
-      <Descriptions bordered column={1} size="small" items={[
-        { key: 'recipient', label: t('payment.bank.recipient'), children: value(t('payment.bank.recipient'), details.recipient) },
-        { key: 'iban', label: t('payment.bank.iban'), children: value(t('payment.bank.iban'), details.iban) },
-        { key: 'edrpou', label: t('payment.bank.edrpou'), children: value(t('payment.bank.edrpou'), details.edrpou) },
-        { key: 'bank', label: t('payment.bank.bankName'), children: value(t('payment.bank.bankName'), details.bank_name) },
-        {
-          key: 'amount', label: t('payment.bank.amount'),
-          // Banks expect "77500.00": the exact decimal string from the API is copied.
-          children: value(t('payment.bank.amount'), t('checkout.summary.amount', { amount: formatMoney(details.amount_uah) }), details.amount_uah),
-        },
-        { key: 'purpose', label: t('payment.bank.purpose'), children: value(t('payment.bank.purpose'), details.purpose) },
-        ...(details.pay_until ? [{
-          key: 'until', label: t('payment.bank.payUntil'), children: formatKyivDateTime(details.pay_until),
-        }] : []),
-      ]} />
+      <BankDetailsTable details={details} />
       <Typography.Paragraph className="payment-bank-note">{t('payment.bank.note')}</Typography.Paragraph>
       <Typography.Paragraph>
         {t('payment.bank.again')}{' '}
-        <Typography.Text copyable={copy(t('payment.bank.pageLink'), window.location.href)}>
+        <Typography.Text copyable={{
+          text: window.location.href,
+          tooltips: [t('payment.bank.copy', { field: t('payment.bank.pageLink') }), t('payment.bank.copied')],
+        }}>
           {t('payment.bank.pageLink')}
         </Typography.Text>
       </Typography.Paragraph>
-      <Button type="primary" onClick={() => navigate(CLIENT_HOME)}>{t('payment.bank.done')}</Button>
+      <Button type="primary" onClick={() => navigate(orderPath(orderId))}>{t('payment.bank.done')}</Button>
     </div>
   )
 }

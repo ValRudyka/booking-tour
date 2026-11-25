@@ -1,11 +1,15 @@
-import { createBrowserRouter, type RouteObject } from 'react-router'
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router'
 import { AuthRoot } from './features/auth/AuthProvider'
 import { RequireAuth } from './features/auth/RequireAuth'
 import { STAFF_ROLES } from './features/auth/redirect'
+import { CabinetLayout } from './layouts/CabinetLayout'
 import { PublicLayout } from './layouts/PublicLayout'
 import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/auth/RegisterPage'
 import { BookingPage } from './pages/booking/BookingPage'
+import { OrderDetailsPage } from './pages/cabinet/OrderDetailsPage'
+import { OrdersPage } from './pages/cabinet/OrdersPage'
+import { ReviewPage } from './pages/cabinet/ReviewPage'
 import { CatalogPage } from './pages/catalog/CatalogPage'
 import { HomePage } from './pages/home/HomePage'
 import { AboutPage } from './pages/info/AboutPage'
@@ -39,8 +43,19 @@ export const routes: RouteObject[] = [
           { path: 'orders/:id/pay', element: <RequireAuth roles={['client']}><PayPage /></RequireAuth> },
           { path: 'payment/success', element: <RequireAuth roles={['client']}><PaymentSuccessPage /></RequireAuth> },
           { path: 'payment/cancel', element: <RequireAuth roles={['client']}><PaymentCancelPage /></RequireAuth> },
-          { path: 'cabinet', element: <RequireAuth roles={['client']}><PlaceholderPage page="cabinet" /></RequireAuth> },
-          { path: 'cabinet/orders', element: <RequireAuth roles={['client']}><PlaceholderPage page="cabinetOrders" /></RequireAuth> },
+          // The client cabinet (spec 06). Only sections with a backend API are listed.
+          {
+            path: 'cabinet',
+            element: <RequireAuth roles={['client']}><CabinetLayout /></RequireAuth>,
+            children: [
+              { index: true, element: <Navigate to="orders" replace /> },
+              { path: 'orders', element: <OrdersPage /> },
+              { path: 'orders/:id', element: <OrderDetailsPage /> },
+              { path: 'orders/:id/review', element: <ReviewPage /> },
+              // The profile API exists (GET/PATCH /me, passwords, passports); its page is spec 08.
+              { path: 'profile', element: <PlaceholderPage page="profile" /> },
+            ],
+          },
           // The back office comes in feature/frontend-backoffice.
           { path: 'office', element: <RequireAuth roles={STAFF_ROLES}><PlaceholderPage page="office" /></RequireAuth> },
           // Static information pages (spec 14): texts in i18n, contacts from the admin's settings.

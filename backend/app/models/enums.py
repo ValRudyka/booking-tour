@@ -55,6 +55,28 @@ class OrderStatus(str, enum.Enum):
     ARCHIVED = "archived"                  # Архівний
 
 
+class OrderGroup(str, enum.Enum):
+    """Filter of «Мої замовлення» (GET /api/orders?group=); a query value, never stored.
+    Every group leaves out abandoned bookings: cancelled before «Перейти до оплати»."""
+    ALL = "all"                # Усі
+    ACTIVE = "active"          # Активні
+    COMPLETED = "completed"    # Завершені (also archived after «Завершено»)
+    CANCELLED = "cancelled"    # Скасовані (rejected, cancelled, archived without a trip)
+
+
+class ClientAction(str, enum.Enum):
+    """What the client may do with an order now (OrderOut.client_actions). Computed by
+    services/order_actions.py from the same checks that enforce each action, so the frontend
+    shows exactly the buttons the backend would accept."""
+    PAY = "pay"                                # POST /orders/{id}/pay
+    CONTINUE_CHECKOUT = "continue_checkout"    # back to the booking wizard (PATCH / confirm)
+    CANCEL = "cancel"                          # POST /orders/{id}/cancel (unpaid)
+    CANCEL_REQUEST = "cancel_request"          # POST /orders/{id}/cancel-request (paid)
+    REVIEW = "review"                          # POST /orders/{id}/review
+    VIEW_REVIEW = "view_review"                # the order has a review (GET /orders/{id}/review)
+    DOWNLOAD_DOCUMENTS = "download_documents"  # trip documents are shown (may still be empty)
+
+
 class PaymentStatus(str, enum.Enum):
     AWAITING = "awaiting"                      # Очікує оплати
     PARTIALLY_PAID = "partially_paid"          # Сплачено частково

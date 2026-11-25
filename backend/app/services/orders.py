@@ -9,12 +9,12 @@ import calendar
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, exists, func, or_, select, true
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import (ORDER_NUMBER_SEQ, CurrencyRate, InsuranceType, Order, OrderTourist,
-                        PromoCode, Tour, TransferType, User)
-from app.models.enums import OrderStatus, PaymentStatus, TourStatus
+from app.models import (ORDER_NUMBER_SEQ, CurrencyRate, InsuranceType, Order, OrderStatusHistory,
+                        OrderTourist, PromoCode, Tour, TransferType, User)
+from app.models.enums import OrderGroup, OrderStatus, PaymentStatus, TourStatus
 from app.services import clock, order_status
 from app.services.app_settings import booking_timeout_min
 from app.services.errors import DomainError
@@ -216,23 +216,58 @@ def get_own_order(db: Session, client: User, order_id: int) -> Order:
     return order
 
 
+ACTIVE_STATUSES = (OrderStatus.CHECKOUT, OrderStatus.AWAITING_PAYMENT, OrderStatus.PAID,
+                   OrderStatus.IN_PROGRESS, OrderStatus.CONFIRMED, OrderStatus.DOCUMENTS_READY,
+                   OrderStatus.CANCEL_REQUESTED)
+
+
+def _group_filter(group: OrderGroup):
+    """«Мої замовлення» tabs. An archived order is «Завершені» only if the trip took place
+    (history has «Завершено»); an archived rejected / cancelled one is «Скасовані».
+    Abandoned bookings (cancelled without ever reaching «Перейти до оплати», so no offer
+    consent) are hidden from every group: no money moved and nothing is left to do."""
+    was_completed = exists().where(OrderStatusHistory.order_id == Order.id,
+                                   OrderStatusHistory.new_status == OrderStatus.COMPLETED.value)
+    abandoned = and_(Order.offer_accepted_at.is_(None),
+                     Order.status.in_([OrderStatus.CANCELLED, OrderStatus.ARCHIVED]))
+    archived = Order.status == OrderStatus.ARCHIVED
+    by_group = {
+        OrderGroup.ALL: true(),
+        OrderGroup.ACTIVE: Order.status.in_(ACTIVE_STATUSES),
+        OrderGroup.COMPLETED: or_(Order.status == OrderStatus.COMPLETED, and_(archived, was_completed)),
+        OrderGroup.CANCELLED: or_(Order.status.in_([OrderStatus.REJECTED, OrderStatus.CANCELLED]),
+                                  and_(archived, ~was_completed)),
+    }
+    return and_(by_group[group], ~abandoned)
+
+
 def list_own_orders(db: Session, client: User, status: OrderStatus | None, page: int,
-                    page_size: int) -> tuple[list[Order], int]:
+                    page_size: int, group: OrderGroup | None = None) -> tuple[list[Order], int]:
+    """Without `group` every order is listed (the booking wizard looks for its «Оформлення»
+    order by status); the cabinet always sends a group."""
     query = select(Order).where(Order.client_id == client.id)
     if status is not None:
         query = query.where(Order.status == status)
+    if group is not None:
+        query = query.where(_group_filter(group))
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     items = db.scalars(query.order_by(Order.created_at.desc(), Order.id.desc())
                        .offset((page - 1) * page_size).limit(page_size)).all()
     return list(items), total
 
 
+def hold_ran_out(order: Order, now: datetime | None = None) -> bool:
+    """The seat hold of an unpaid order is over: the System cancels it on the next touch.
+    A partly paid order (bank transfer) never runs out: money has arrived."""
+    now = now or utcnow()
+    return (order.status in HOLDING_STATUSES and order.hold_expires_at is not None
+            and order.hold_expires_at <= now and order.payment_status != PaymentStatus.PARTIALLY_PAID)
+
+
 def expire_if_due(db: Session, order: Order, now: datetime | None = None) -> bool:
     """Cancel the order as the System if its hold has run out. True if it was cancelled.
     A partly paid order (bank transfer) is never cancelled automatically: money has arrived."""
-    now = now or utcnow()
-    if order.status in HOLDING_STATUSES and order.hold_expires_at is not None \
-            and order.hold_expires_at <= now and order.payment_status != PaymentStatus.PARTIALLY_PAID:
+    if hold_ran_out(order, now):
         close_open_sessions(db, order)   # the client must not be able to pay any more
         order_status.change_status(db, order, OrderStatus.CANCELLED, None, HOLD_EXPIRED_COMMENT)
         return True
@@ -283,8 +318,13 @@ def create_order(db: Session, client: User, data: dict[str, Any]) -> tuple[Order
 def _ensure_editable(db: Session, order: Order) -> None:
     if expire_if_due(db, order):
         raise HoldExpired()
-    if order.status != OrderStatus.CHECKOUT:
+    if not is_editable(order):
         raise DomainError("Змінювати можна лише замовлення в статусі «Оформлення»", 409)
+
+
+def is_editable(order: Order) -> bool:
+    """Still in the booking wizard (also decides the «continue_checkout» client action)."""
+    return order.status == OrderStatus.CHECKOUT
 
 
 def update_order(db: Session, order: Order, changes: dict[str, Any]) -> tuple[Order, PriceBreakdown]:
@@ -367,20 +407,28 @@ def confirm_order(db: Session, client: User, order: Order,
     return order, price
 
 
+def cancel_refusal(order: Order) -> str | None:
+    """Why the client cannot cancel this order at once, or None if they can (an unpaid order).
+    Also decides the «cancel» client action (services/order_actions.py)."""
+    if order.status in (OrderStatus.PAID, OrderStatus.IN_PROGRESS, OrderStatus.CONFIRMED,
+                        OrderStatus.DOCUMENTS_READY):
+        return ("Оплачене замовлення скасовується через клопотання про скасування "
+                "(повернення коштів за вирахуванням ФПВ)")
+    if order.status not in HOLDING_STATUSES:
+        return f"Замовлення в статусі «{order_status.STATUS_LABELS[order.status]}» скасувати не можна"
+    if order.payment_status == PaymentStatus.PARTIALLY_PAID:
+        return "Замовлення частково оплачене — для скасування зверніться до менеджера"
+    return None
+
+
 def cancel_order(db: Session, client: User, order: Order) -> Order:
     """ТЗ 4.5.3 step 7.1: cancel before payment; the hold stops counting at once.
     A paid order is cancelled through a cancellation request (services/cancellation.py)."""
     if expire_if_due(db, order):
         return order   # already cancelled by the System — the client's wish is fulfilled
-    if order.status in (OrderStatus.PAID, OrderStatus.IN_PROGRESS, OrderStatus.CONFIRMED,
-                        OrderStatus.DOCUMENTS_READY):
-        raise DomainError("Оплачене замовлення скасовується через клопотання про скасування "
-                          "(повернення коштів за вирахуванням ФПВ)", 409)
-    if order.status not in HOLDING_STATUSES:
-        raise DomainError(f"Замовлення в статусі «{order_status.STATUS_LABELS[order.status]}» "
-                          f"скасувати не можна", 409)
-    if order.payment_status == PaymentStatus.PARTIALLY_PAID:
-        raise DomainError("Замовлення частково оплачене — для скасування зверніться до менеджера", 409)
+    refusal = cancel_refusal(order)
+    if refusal is not None:
+        raise DomainError(refusal, 409)
     close_open_sessions(db, order)
     order_status.change_status(db, order, OrderStatus.CANCELLED, client, "Скасовано клієнтом")
     return order

@@ -106,8 +106,14 @@ def has_voucher(order: Order) -> bool:
     return any(d.doc_type == OrderDocumentType.VOUCHER for d in order.documents)
 
 
+def documents_visible(order: Order) -> bool:
+    """The client sees the trip documents section (also the «download_documents» client
+    action; the list may still be empty while the manager prepares the files)."""
+    return order.status in CLIENT_STATUSES
+
+
 def client_documents(order: Order) -> list[OrderDocument]:
-    if order.status not in CLIENT_STATUSES:
+    if not documents_visible(order):
         return []
     return sorted((d for d in order.documents if d.doc_type in TRIP_DOCUMENT_TYPES), key=lambda d: d.id)
 

@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.models.enums import NameDisplay, ReviewStatus
+from app.schemas.orders import UploadLimitsOut
 
 
 class ReviewPhotoOut(BaseModel):
@@ -58,3 +59,12 @@ class StaffReviewOut(MyReviewOut):
 
 class RejectReviewIn(BaseModel):
     reject_reason: str
+
+
+class OrderReviewOut(BaseModel):
+    """GET /orders/{id}/review: the review of this order (if any) and what the form needs."""
+    can_write: bool                # the trip took place and there is no review yet
+    premoderation: bool            # setting review_premoderation: published after moderation
+    photos: UploadLimitsOut        # form 4.6.1.4, field 6 (MAX_REVIEW_PHOTOS, MAX_REVIEW_PHOTO_MB)
+    max_text: int                  # fields 4–5, characters each
+    review: MyReviewOut | None

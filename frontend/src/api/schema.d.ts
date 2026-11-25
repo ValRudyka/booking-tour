@@ -1318,7 +1318,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Що потрібно формі клопотання: обмеження файлів-довідок */
+        get: operations["cancel_request_form_api_orders__order_id__cancel_request_get"];
         put?: never;
         /** Клопотання про скасування оплаченого замовлення (форма 4.6.1.3) */
         post: operations["cancel_request_api_orders__order_id__cancel_request_post"];
@@ -1423,8 +1424,9 @@ export interface paths {
         };
         /**
          * Результат оплати (повернення зі Stripe)
-         * @description Opened by the client's browser after Stripe, so there is no token: the unguessable
-         *     session id is the key, and only statuses are shown.
+         * @description No sign-in: the unguessable session id is the key, and only statuses are shown. Stripe
+         *     returns clients to the frontend's /payment/success and /payment/cancel (return_urls); this
+         *     page stays for support and for sessions created before that.
          */
         get: operations["payment_result_api_payments_result_get"];
         put?: never;
@@ -1612,7 +1614,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Відгук до замовлення (якщо є) і правила форми 4.6.1.4 */
+        get: operations["order_review_api_orders__order_id__review_get"];
         put?: never;
         /** Залишити відгук про завершену подорож (форма 4.6.1.4) */
         post: operations["create_review_api_orders__order_id__review_post"];
@@ -2012,6 +2015,15 @@ export interface components {
          * @enum {string}
          */
         CancelReason: "illness" | "change_of_plans" | "data_error" | "visa_refusal" | "other";
+        /**
+         * CancelRequestFormOut
+         * @description GET /orders/{id}/cancel-request: what form 4.6.1.3 needs from the server.
+         */
+        CancelRequestFormOut: {
+            evidence: components["schemas"]["UploadLimitsOut"];
+            /** Max Details */
+            max_details: number;
+        };
         /** CityAdminOut */
         CityAdminOut: {
             /** Id */
@@ -2062,6 +2074,14 @@ export interface components {
             /** Iata Code */
             iata_code?: string | null;
         };
+        /**
+         * ClientAction
+         * @description What the client may do with an order now (OrderOut.client_actions). Computed by
+         *     services/order_actions.py from the same checks that enforce each action, so the frontend
+         *     shows exactly the buttons the backend would accept.
+         * @enum {string}
+         */
+        ClientAction: "pay" | "continue_checkout" | "cancel" | "cancel_request" | "review" | "view_review" | "download_documents";
         /** ClientMessage */
         ClientMessage: {
             /**
@@ -2815,6 +2835,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Client Actions */
+            client_actions: components["schemas"]["ClientAction"][];
             /** Tourists */
             tourists: components["schemas"]["TouristOut"][];
             /** History */
@@ -2824,6 +2846,17 @@ export interface components {
              * @default []
              */
             payments: components["schemas"]["PaymentShortOut"][];
+            /** Tour For Sale */
+            tour_for_sale: boolean;
+            /** Country Name */
+            country_name: string;
+            /** Resort Name */
+            resort_name: string;
+            /** Departure City Name */
+            departure_city_name: string | null;
+            transport_type: components["schemas"]["TransportType"];
+            meal_plan: components["schemas"]["MealPlan"] | null;
+            pending_transfer?: components["schemas"]["BankDetailsOut"] | null;
         };
         /**
          * OrderDetailPriceOut
@@ -2891,6 +2924,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Client Actions */
+            client_actions: components["schemas"]["ClientAction"][];
             /** Tourists */
             tourists: components["schemas"]["TouristOut"][];
             /** History */
@@ -2900,6 +2935,17 @@ export interface components {
              * @default []
              */
             payments: components["schemas"]["PaymentShortOut"][];
+            /** Tour For Sale */
+            tour_for_sale: boolean;
+            /** Country Name */
+            country_name: string;
+            /** Resort Name */
+            resort_name: string;
+            /** Departure City Name */
+            departure_city_name: string | null;
+            transport_type: components["schemas"]["TransportType"];
+            meal_plan: components["schemas"]["MealPlan"] | null;
+            pending_transfer?: components["schemas"]["BankDetailsOut"] | null;
             price: components["schemas"]["PriceOut"] | null;
         };
         /**
@@ -2907,6 +2953,13 @@ export interface components {
          * @enum {string}
          */
         OrderDocumentType: "voucher" | "air_ticket" | "insurance_policy" | "info_sheet" | "cancel_evidence";
+        /**
+         * OrderGroup
+         * @description Filter of «Мої замовлення» (GET /api/orders?group=); a query value, never stored.
+         *     Every group leaves out abandoned bookings: cancelled before «Перейти до оплати».
+         * @enum {string}
+         */
+        OrderGroup: "all" | "active" | "completed" | "cancelled";
         /** OrderOut */
         OrderOut: {
             /** Id */
@@ -2967,6 +3020,22 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Client Actions */
+            client_actions: components["schemas"]["ClientAction"][];
+        };
+        /**
+         * OrderReviewOut
+         * @description GET /orders/{id}/review: the review of this order (if any) and what the form needs.
+         */
+        OrderReviewOut: {
+            /** Can Write */
+            can_write: boolean;
+            /** Premoderation */
+            premoderation: boolean;
+            photos: components["schemas"]["UploadLimitsOut"];
+            /** Max Text */
+            max_text: number;
+            review: components["schemas"]["MyReviewOut"] | null;
         };
         /**
          * OrderStatus
@@ -3058,6 +3127,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Client Actions */
+            client_actions: components["schemas"]["ClientAction"][];
             /** Tourists */
             tourists: components["schemas"]["TouristOut"][];
             /** History */
@@ -3067,6 +3138,17 @@ export interface components {
              * @default []
              */
             payments: components["schemas"]["PaymentShortOut"][];
+            /** Tour For Sale */
+            tour_for_sale: boolean;
+            /** Country Name */
+            country_name: string;
+            /** Resort Name */
+            resort_name: string;
+            /** Departure City Name */
+            departure_city_name: string | null;
+            transport_type: components["schemas"]["TransportType"];
+            meal_plan: components["schemas"]["MealPlan"] | null;
+            pending_transfer?: components["schemas"]["BankDetailsOut"] | null;
             price: components["schemas"]["PriceOut"];
         };
         /** Page[AdminUserOut] */
@@ -3281,7 +3363,8 @@ export interface components {
         PaymentOrigin: "app" | "demo_seed";
         /**
          * PaymentResultOut
-         * @description Where Stripe sends the client back (until the frontend exists).
+         * @description Status of a payment by its Checkout Session id (no sign-in). Stripe now returns clients to
+         *     the frontend pages; this stays for support and for sessions created before that.
          */
         PaymentResultOut: {
             /** Order Number */
@@ -4291,6 +4374,19 @@ export interface components {
          * @enum {string}
          */
         TransportType: "air" | "bus" | "none";
+        /**
+         * UploadLimitsOut
+         * @description File rules of a client form, from the backend settings (the client checks before sending,
+         *     the server checks again, including the file contents).
+         */
+        UploadLimitsOut: {
+            /** Max Files */
+            max_files: number;
+            /** Max File Mb */
+            max_file_mb: number;
+            /** File Types */
+            file_types: string[];
+        };
         /** UserOut */
         UserOut: {
             /** Id */
@@ -7383,6 +7479,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: components["schemas"]["OrderStatus"] | null;
+                /** @description Вкладка кабінету; без неї — усі замовлення, з покинутими бронюваннями (скасованими до переходу до оплати) */
+                group?: components["schemas"]["OrderGroup"] | null;
                 page?: number;
                 page_size?: number;
             };
@@ -7564,6 +7662,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_request_form_api_orders__order_id__cancel_request_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancelRequestFormOut"];
                 };
             };
             /** @description Validation Error */
@@ -8131,6 +8260,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    order_review_api_orders__order_id__review_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderReviewOut"];
                 };
             };
             /** @description Validation Error */

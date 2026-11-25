@@ -47,6 +47,12 @@ class CatalogFilters:
     has_seats: bool | None = None
 
 
+def is_for_sale(tour: Tour) -> bool:
+    """The same rule as the catalog query below, for one loaded tour: the client's order page
+    links to /tours/{id} only while this is true (otherwise that page is 404)."""
+    return tour.status == TourStatus.ACTIVE and tour.departure_to >= clock.tomorrow()
+
+
 def _query() -> tuple[Select, dict]:
     free_seats = free_seats_expr()  # same rule as the checkout (services/seats.py)
     price_uah = func.round(Tour.base_price * CurrencyRate.rate_to_uah, 2)
@@ -58,6 +64,7 @@ def _query() -> tuple[Select, dict]:
              # For sale = published and at least one start date from tomorrow (Kyiv), the
              # earliest date an order accepts (services/orders.py). On its last start day a
              # tour is no longer listed, and its page is 404.
+             # (is_for_sale() above is the same rule in Python: change both together.)
              .where(Tour.status == TourStatus.ACTIVE, Tour.departure_to >= clock.tomorrow())
              .options(selectinload(Tour.hotel).selectinload(Hotel.resort).selectinload(Resort.country),
                       selectinload(Tour.departure_city), selectinload(Tour.images)))

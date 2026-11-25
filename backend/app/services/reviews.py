@@ -105,6 +105,33 @@ def _was_completed(db: Session, order: Order) -> bool:
         OrderStatusHistory.new_status == OrderStatus.COMPLETED.value)) > 0
 
 
+def trip_took_place(db: Session, order: Order) -> bool:
+    """Form 4.6.1.4, field 1: «Завершено», or «Архівний» after «Завершено» (an archived rejected /
+    cancelled order had no trip)."""
+    return (order.status == OrderStatus.COMPLETED
+            or (order.status == OrderStatus.ARCHIVED and _was_completed(db, order)))
+
+
+def review_of_order(db: Session, order: Order) -> Review | None:
+    return db.scalar(select(Review).where(Review.order_id == order.id))
+
+
+def review_refusal(db: Session, order: Order) -> str | None:
+    """Why no review can be written for this order now, or None if it can. Also decides the
+    «review» client action (services/order_actions.py)."""
+    if not trip_took_place(db, order):
+        return "Відгук можна залишити лише після завершення подорожі"
+    if db.scalar(select(Review.id).where(Review.order_id == order.id)) is not None:
+        return "Відгук до цього замовлення вже залишено"
+    return None
+
+
+def photo_limits() -> dict:
+    """Upload rules of field 6, for the client's form (GET /orders/{id}/review)."""
+    return dict(max_files=settings.max_review_photos, max_file_mb=settings.max_review_photo_mb,
+                file_types=sorted(set(JPG_PNG.values())))
+
+
 def create_review(db: Session, client: User, order: Order, data: dict[str, Any],
                   photos: list[FileUpload]) -> Review:
     """Form 4.6.1.4, field 1: only for a trip that took place — «Завершено», or «Архівний» after
@@ -112,11 +139,9 @@ def create_review(db: Session, client: User, order: Order, data: dict[str, Any],
     from app.services.payments.service import lock_order
 
     order = lock_order(db, order.id)          # two clicks cannot create two reviews
-    if not (order.status == OrderStatus.COMPLETED
-            or (order.status == OrderStatus.ARCHIVED and _was_completed(db, order))):
-        raise DomainError("Відгук можна залишити лише після завершення подорожі", 409)
-    if db.scalar(select(Review.id).where(Review.order_id == order.id)) is not None:
-        raise DomainError("Відгук до цього замовлення вже залишено", 409)
+    refusal = review_refusal(db, order)
+    if refusal is not None:
+        raise DomainError(refusal, 409)
     review = Review(order_id=order.id, tour_id=order.tour_id, hotel_id=order.tour.hotel_id,
                     user_id=client.id, status=ReviewStatus.PENDING, submitted_at=utcnow(),
                     name_display=data.get("name_display") or NameDisplay.SHORT)

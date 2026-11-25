@@ -2,8 +2,8 @@ import { AxiosError, type AxiosResponse } from 'axios'
 import { vi } from 'vitest'
 import { api } from '../api/client'
 import type {
-  City, Country, HotelDetail, OrderWithPrice, Price, PublicReview, Resort, ReviewPage, TourCard, TourDetail,
-  TourPage, User,
+  City, Country, HotelDetail, OrderDetailWithPrice, OrderSummary, OrderSummaryPage, OrderWithPrice, Price,
+  PublicReview, Resort, ReviewPage, TourCard, TourDetail, TourPage, User,
 } from '../api/types'
 import { TOKEN_KEY } from '../features/auth/tokenStorage'
 
@@ -153,7 +153,8 @@ export interface FakeRequest {
   body: unknown
   authorization: string | null
 }
-type Route = (request: FakeRequest) => [number, unknown]
+/** [status, body] or [status, body, response headers] (e.g. Content-Disposition of a download). */
+type Route = (request: FakeRequest) => [number, unknown] | [number, unknown, Record<string, string>]
 
 export function mockServer(routes: Record<string, Route>) {
   const calls: FakeRequest[] = []
@@ -162,6 +163,8 @@ export function mockServer(routes: Record<string, Route>) {
     'GET /reference/countries': () => [200, COUNTRIES],
     'GET /reference/cities': () => [200, CITIES],
     'GET /tours': () => [200, page([])],
+    // The header bell of a signed-in client (spec 06).
+    'GET /me/notifications': () => [200, { items: [], total: 0, page: 1, page_size: 10, unread: 0 }],
     ...routes,
   }
   api.defaults.adapter = async (config) => {
@@ -177,8 +180,8 @@ export function mockServer(routes: Record<string, Route>) {
     calls.push(request)
     const route = all[`${method} ${url}`]
     if (!route) throw new Error(`Unexpected ${method} ${url}`)
-    const [status, data] = route(request)
-    const response = { data, status, statusText: '', headers: {}, config }
+    const [status, data, responseHeaders = {}] = route(request)
+    const response = { data, status, statusText: '', headers: responseHeaders, config }
     if (status >= 400) {
       throw new AxiosError(`HTTP ${status}`, status >= 500 ? 'ERR_BAD_RESPONSE' : 'ERR_BAD_REQUEST',
         config, null, response)
@@ -212,6 +215,42 @@ export function makeCheckoutOrder(overrides: Partial<OrderWithPrice> = {}): Orde
     total_uah: '63872.76', discount_uah: '0.00', rate_used: '45.1234',
     hold_expires_at: new Date(Date.now() + 15 * 60_000).toISOString(), offer_accepted_at: null, pnr: null,
     reject_reason: null, cancel_reason_code: null, cancel_reason: null, fpv_uah: null,
-    created_at: new Date().toISOString(), tourists: [], history: [], payments: [], price: makePrice(), ...overrides,
+    created_at: new Date().toISOString(), tourists: [], history: [], payments: [], price: makePrice(),
+    client_actions: ['continue_checkout', 'cancel'], tour_for_sale: true, country_name: 'Єгипет',
+    resort_name: 'Хургада', departure_city_name: 'Київ', transport_type: 'air', meal_plan: 'ai',
+    pending_transfer: null, ...overrides,
   }
 }
+
+// ---------- client cabinet (spec 06)
+/** A paid order as GET /orders/{id} returns it, with the actions the API allows for «Оплачено». */
+export function makeOrder(overrides: Partial<OrderDetailWithPrice> = {}): OrderDetailWithPrice {
+  const base: OrderDetailWithPrice = makeCheckoutOrder({
+    id: 42, number: 'TU-2099-000042', status: 'paid', payment_status: 'paid', tourists: TOURISTS,
+    offer_accepted_at: '2099-01-01T10:05:00Z', hold_expires_at: null, client_actions: ['cancel_request'],
+    history: [
+      { old_status: null, new_status: 'checkout', changed_by: 501, comment: null, changed_at: '2099-01-01T10:00:00Z' },
+      { old_status: 'checkout', new_status: 'awaiting_payment', changed_by: 501, comment: null, changed_at: '2099-01-01T10:05:00Z' },
+      { old_status: 'awaiting_payment', new_status: 'paid', changed_by: null, comment: 'Оплату карткою отримано (Stripe)', changed_at: '2099-01-01T10:06:00Z' },
+    ],
+    payments: [{
+      id: 1, type: 'payment', method: 'card', status: 'succeeded', amount_uah: '63872.76', paid_amount: '63872.76',
+      received_at: '2099-01-01T10:06:00Z', created_at: '2099-01-01T10:05:30Z',
+    }],
+  })
+  return { ...base, ...overrides }
+}
+
+/** A row of GET /orders (no tourists, history or price). */
+export function makeOrderRow(overrides: Partial<OrderSummary> = {}): OrderSummary {
+  const { tourists: _t, history: _h, payments: _p, price: _price, tour_for_sale: _s, country_name: _c,
+    resort_name: _r, departure_city_name: _d, transport_type: _tt, meal_plan: _m, pending_transfer: _pt,
+    ...row } = makeOrder()
+  return { ...row, ...overrides }
+}
+
+export function orderPage(items: OrderSummary[], total = items.length, pageNumber = 1): OrderSummaryPage {
+  return { items, total, page: pageNumber, page_size: 10 }
+}
+
+export const NO_NOTIFICATIONS = { items: [], total: 0, page: 1, page_size: 10, unread: 0 }
