@@ -258,8 +258,27 @@ Lives in `frontend/` in this repository (same Git Flow branches as the backend).
     - `PhotoPlaceholder`;
     - `PhotoViewer` (every photo is a button; fullscreen via `Image.PreviewGroup`);
     - `StarIcons` (one `role="img"` with a Ukrainian label, not a disabled `Rate`).
-  - «Забронювати» always goes through `features/booking/startBooking.ts` (the place to add the
-    sign-in redirect).
+  - «Забронювати» always goes through `features/booking/startBooking.ts`: a guest is sent to
+    `/login?redirect=<booking URL>` and comes back there after signing in.
+  - **Auth (feature/frontend-auth):**
+    - The token comes in the login response body; there is no refresh token and it lives 60 min.
+      It is kept in `localStorage` (`features/auth/tokenStorage.ts`, XSS trade-off noted there).
+    - `AuthProvider` (root layout route) restores the user with `GET /auth/me`, which is marked
+      `skipAuthRedirect`: a refused stored token just means "guest".
+    - Any other 401 on a request that carried a token → `onUnauthorized` → sign-out and
+      `/login?redirect=<page>` with «Сеанс завершився».
+    - `RequireAuth roles=[…]`: guest → login, wrong role → 403. `safeRedirect()` accepts only
+      internal paths.
+    - Logout navigates with `flushSync` before clearing the session, otherwise RequireAuth on the
+      old page redirects to /login. Tests render with `RouterProvider` from `react-router/dom`,
+      like `main.tsx`.
+    - Backend error texts are mapped in one table, `features/auth/authErrors.ts`: 422 `loc` →
+      form field, known plain texts → field, everything else → generic Alert text. Never show
+      backend text as is.
+    - Client rules in `features/auth/rules.ts` mirror `backend/app/schemas/auth.py` and
+      `services/users.py`; change both together.
+    - Tests: `mockServer()` (axios adapter level, real interceptors) for auth flows, `signIn()`
+      for a signed-in page.
 - **UI library:** `antd` 6 + `@ant-design/icons` 6 — keep their major versions in step.
   No Tailwind.
   - `feature/frontend-public` (catalog, tour page, auth, checkout, personal account): plain antd.
@@ -373,8 +392,27 @@ viewer with an append-only trigger, promo codes for managers; migration `admin`)
   and a mobile bottom bar.
 - 404 for tours not for sale; a placeholder `/booking/:tourId?date=`.
 
-Next: auth, checkout, personal account.
-Backend test suite: 657 tests. Frontend: 110 tests.
+`feature/frontend-auth` (PR to `develop`): login, registration, auth state.
+- Backend:
+  - registration requires birth date (18+ by the Kyiv date, also on `PATCH /me`) and
+    citizenship; no migration;
+  - support phone/e-mail in the global settings (form 4.6.4.1, fields 8–9) and public
+    `GET /api/site/contacts`, open in maintenance; no migration.
+- Frontend:
+  - `AuthProvider`/`useAuth`, token in localStorage, 401 handling with «Сеанс завершився»;
+  - `RequireAuth` with placeholders `/cabinet`, `/cabinet/orders`, `/office`; `/booking` for
+    clients only;
+  - header user menu; footer contacts from the API;
+  - `/login` (phone or e-mail; «Забули пароль?» shows the support contacts, since there is no
+    recovery by e-mail yet), `/register` (rules mirror the backend, auto sign-in);
+  - field errors and server-error mapping, 429 ready, HelpGuide;
+  - guest «Забронювати» → login → back.
+- ТЗ (.md): form 4.6.4.1 fields 8–9.
+- Note: e-mail-validator refuses special-use domains (`.local`, `.test`) at registration;
+  staff created by `create_user` may still use them.
+
+Next: checkout, personal account.
+Backend test suite: 672 tests. Frontend: 163 tests.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
@@ -383,8 +421,9 @@ Backlog, in order (one branch each):
 4. `feature/order-processing` — **done** (PR #8)
 5. `feature/reviews` — **done** (PR #9)
 6. `feature/admin` — **done** (PR #10)
-7. `feature/frontend-public` — catalog (**done**, PR #12), tour page (**done**), auth, checkout,
-   personal account; plain antd (also set up `frontend/`).
+7. `feature/frontend-public` — catalog (**done**, PR #12), tour page (**done**, PR #14), auth
+   (**done**, `feature/frontend-auth`), checkout, personal account; plain antd (also set up
+   `frontend/`).
    - Note for `docs/frontend/06-client-orders-pages.md`: finished tours return 404, so the
      client's order details page shows the tour data stored with the order (title, dates, hotel,
      price) and links to `/tours/:id` only while the tour is still for sale.
@@ -393,8 +432,11 @@ Backlog, in order (one branch each):
    reviews, catalog UI.
 9. `feature/frontend-backoffice` — manager, finance, admin pages; antd + pro-components
    (ProLayout, ProTable, ProForm/StepsForm)
-10. `feature/favorites-history` 11. `feature/notifications-email` 12. `feature/reports` (Excel/PDF)
+10. `feature/favorites-history` 11. `feature/notifications-email` (also: password recovery by
+    e-mail, needs a reset-token table, i.e. a migration) 12. `feature/reports` (Excel/PDF)
 13. `feature/loyalty` 14. `feature/i18n-en` 15. `feature/monitoring` 16. `feature/docker`
+17. `feature/auth-rate-limit` — ТЗ 5.4 brute-force protection: limit login attempts per login and
+    IP, answer **429** (the frontend already shows «Забагато спроб входу. Спробуйте пізніше.»).
 
 When a feature is merged: tick it in `README.md` "Етапи", update this section, and if a
 ТЗ 2.7 "out of MVP" item got implemented, note it for the ТЗ update.
