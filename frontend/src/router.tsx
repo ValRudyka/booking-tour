@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, type RouteObject } from 'react-router'
+import { createBrowserRouter, type RouteObject } from 'react-router'
 import { AuthRoot } from './features/auth/AuthProvider'
 import { RequireAuth } from './features/auth/RequireAuth'
 import { STAFF_ROLES } from './features/auth/redirect'
@@ -7,6 +7,7 @@ import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/auth/RegisterPage'
 import { BookingPlaceholder } from './pages/BookingPlaceholder'
 import { CatalogPage } from './pages/catalog/CatalogPage'
+import { HomePage } from './pages/home/HomePage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { RouteErrorPage } from './pages/RouteErrorPage'
@@ -21,8 +22,7 @@ export const routes: RouteObject[] = [
       {
         element: <PublicLayout />,
         children: [
-          // No home page yet: the catalog is the start page.
-          { index: true, element: <Navigate to="/tours" replace /> },
+          { index: true, element: <HomePage /> },
           { path: 'tours', element: <CatalogPage /> },
           { path: 'tours/:id', element: <TourDetailsPage /> },
           { path: 'login', element: <LoginPage /> },

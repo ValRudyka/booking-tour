@@ -68,7 +68,7 @@ export function PublicLayout() {
       <a className="skip-link" href="#main">{t('app.skipToContent')}</a>
       <Header className="public-header">
         <Flex align="center" gap={16} className="public-container">
-          <Link to="/tours" className="site-name">{SITE_NAME}</Link>
+          <Link to="/" className="site-name">{SITE_NAME}</Link>
           {isDesktop ? (
             <>
               <nav aria-label={t('nav.mainMenu')} className="public-nav">
