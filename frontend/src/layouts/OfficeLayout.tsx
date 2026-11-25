@@ -1,14 +1,17 @@
 import {
-  AuditOutlined, CommentOutlined, CompassOutlined, DatabaseOutlined, GiftOutlined, HomeOutlined, LogoutOutlined,
-  MenuOutlined, RollbackOutlined, SettingOutlined, SolutionOutlined, TeamOutlined, TransactionOutlined,
+  AuditOutlined, CommentOutlined, CompassOutlined, DatabaseOutlined, DownOutlined, GiftOutlined, HomeOutlined,
+  KeyOutlined, LogoutOutlined, MenuOutlined, RollbackOutlined, SettingOutlined, SolutionOutlined, TeamOutlined,
+  TransactionOutlined, UserOutlined,
 } from '@ant-design/icons'
-import { Button, Drawer, Flex, Grid, Layout, Menu, Space, Typography } from 'antd'
+import { Button, Drawer, Dropdown, Flex, Grid, Layout, Menu, Space, Typography } from 'antd'
 import type { MenuProps } from 'antd'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { officeKeys } from '../api/office'
 import { NotificationBell } from '../components/NotificationBell'
+import { MaintenanceAlert } from '../components/office/MaintenanceAlert'
+import { StaffPasswordModal } from '../components/office/StaffPasswordModal'
 import { roleLabel } from '../constants/orderLabels'
 import { shortName } from '../features/auth/authContext'
 import { useAuth } from '../features/auth/useAuth'
@@ -37,7 +40,8 @@ const OFFICE_LISTS = [officeKeys.orders] as const
  * cabinet's CabinetLayout), a Drawer under 768 px. The menu comes from the user's role
  * (features/office/menu.ts); RequireAuth around this layout keeps clients out, and each page has
  * its own role check. Header: site name, «Робочий кабінет», the notification bell (the same
- * component as the client's), «На сайт», the user's name and role, «Вийти».
+ * component as the client's), «На сайт», the user's menu (name and role, «Змінити пароль»), «Вийти».
+ * While maintenance mode is on, an Alert sits above every page (admins; spec 13 §3).
  */
 export function OfficeLayout() {
   const { t } = useTranslation()
@@ -46,6 +50,7 @@ export function OfficeLayout() {
   const { user, logout } = useAuth()
   const isDesktop = Boolean(Grid.useBreakpoint().md)
   const [open, setOpen] = useState(false)
+  const [password, setPassword] = useState(false)
   if (!user) return null                      // RequireAuth renders this layout for staff only
 
   const sections = officeMenu(user.role)
@@ -80,9 +85,17 @@ export function OfficeLayout() {
             {isDesktop && (
               <Button icon={<HomeOutlined aria-hidden />} onClick={() => navigate('/')}>{t('office.toSite')}</Button>
             )}
-            <Typography.Text className="office-user" data-testid="office-user">
-              {t('office.userLabel', { name: shortName(user), role })}
-            </Typography.Text>
+            <Dropdown trigger={['click']} menu={{
+              items: [{ key: 'password', icon: <KeyOutlined aria-hidden />, label: t('admin.password.menu') }],
+              onClick: () => setPassword(true),
+            }}>
+              <Button type="text" icon={<UserOutlined aria-hidden />} aria-label={t('admin.password.userMenu')}>
+                <Typography.Text className="office-user" data-testid="office-user">
+                  {t('office.userLabel', { name: shortName(user), role })}
+                </Typography.Text>
+                <DownOutlined aria-hidden />
+              </Button>
+            </Dropdown>
             <Button icon={<LogoutOutlined aria-hidden />} onClick={logout}
               aria-label={isDesktop ? undefined : t('office.logout')}>
               {isDesktop ? t('office.logout') : null}
@@ -105,10 +118,12 @@ export function OfficeLayout() {
         )}
         <Content className="office-content">
           <main id="main" tabIndex={-1} className="office-main">
+            {user.role === 'admin' && <MaintenanceAlert />}
             <Outlet />
           </main>
         </Content>
       </Layout>
+      <StaffPasswordModal open={password} onClose={() => setPassword(false)} />
     </Layout>
   )
 }

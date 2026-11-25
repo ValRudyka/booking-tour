@@ -1,0 +1,36 @@
+/* The admin pages (spec 13). Layout and colours come from the antd theme and OfficeLayout.css. */
+
+.admin-link-button {
+  padding-inline: 0;
+  height: auto;
+  white-space: normal;
+  text-align: left;
+}
+
+.admin-temp-password {
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+/* A disabled button inside a tooltip wrapper (components/office/ServerActionButton). */
+.server-action-refused {
+  display: inline-block;
+  cursor: not-allowed;
+}
+
+.admin-settings-card .ant-form-item-extra {
+  max-width: 640px;
+}
+
+.admin-diff-changed td {
+  background: #FFFBEB;
+}
+
+.admin-json {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

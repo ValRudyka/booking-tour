@@ -89,7 +89,10 @@ export interface paths {
         /** Користувачі (фільтри, пошук) */
         get: operations["list_users_api_admin_users_get"];
         put?: never;
-        /** Створити співробітника (менеджер, фінансист, адміністратор) */
+        /**
+         * Створити співробітника (менеджер, фінансист, адміністратор)
+         * @description Без `password` сервер генерує тимчасовий пароль і повертає його один раз у `temporary_password`; він не зберігається відкритим текстом і не пишеться в журнал.
+         */
         post: operations["create_staff_api_admin_users_post"];
         delete?: never;
         options?: never;
@@ -111,7 +114,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Змінити роль, заблокувати / розблокувати, редагувати дані */
+        /** Змінити роль, заблокувати / розблокувати, редагувати дані співробітника */
         patch: operations["update_user_api_admin_users__user_id__patch"];
         trace?: never;
     };
@@ -1873,6 +1876,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * User Actions
+             * @default []
+             */
+            user_actions: components["schemas"]["UserActionOut"][];
         };
         /** AssignIn */
         AssignIn: {
@@ -1904,6 +1912,9 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** User Name */
+            user_name?: string | null;
+            user_role?: components["schemas"]["UserRole"] | null;
         };
         /** BankDetailsOut */
         BankDetailsOut: {
@@ -2128,6 +2139,11 @@ export interface components {
             iata_code: string | null;
             /** Is Archived */
             is_archived: boolean;
+            /**
+             * Admin Actions
+             * @default []
+             */
+            admin_actions: components["schemas"]["ReferenceActionOut"][];
         };
         /** CityIn */
         CityIn: {
@@ -2211,6 +2227,11 @@ export interface components {
             name_en: string | null;
             /** Is Archived */
             is_archived: boolean;
+            /**
+             * Admin Actions
+             * @default []
+             */
+            admin_actions: components["schemas"]["ReferenceActionOut"][];
         };
         /** CountryIn */
         CountryIn: {
@@ -2425,6 +2446,11 @@ export interface components {
             rating_avg: string | null;
             /** Is Archived */
             is_archived: boolean;
+            /**
+             * Admin Actions
+             * @default []
+             */
+            admin_actions: components["schemas"]["ReferenceActionOut"][];
         };
         /**
          * HotelDetailOut
@@ -2568,6 +2594,11 @@ export interface components {
             name: string;
             /** Is Enabled */
             is_enabled: boolean;
+            /**
+             * Admin Actions
+             * @default []
+             */
+            admin_actions: components["schemas"]["ReferenceActionOut"][];
         };
         /** LanguagePatch */
         LanguagePatch: {
@@ -3873,6 +3904,21 @@ export interface components {
             /** Marked */
             marked: number;
         };
+        /**
+         * ReferenceAction
+         * @description What the admin may do with a reference record (admin_actions on the /admin reference lists,
+         *     spec 13). Computed by services/admin_actions.py from services/reference_admin.py refusals.
+         * @enum {string}
+         */
+        ReferenceAction: "edit" | "archive" | "restore" | "delete" | "make_default" | "enable" | "disable";
+        /** ReferenceActionOut */
+        ReferenceActionOut: {
+            action: components["schemas"]["ReferenceAction"];
+            /** Allowed */
+            allowed: boolean;
+            /** Reason */
+            reason: string | null;
+        };
         /** RefundOut */
         RefundOut: {
             /** Order Id */
@@ -4005,6 +4051,11 @@ export interface components {
             name_en: string | null;
             /** Is Archived */
             is_archived: boolean;
+            /**
+             * Admin Actions
+             * @default []
+             */
+            admin_actions: components["schemas"]["ReferenceActionOut"][];
         };
         /** ResortIn */
         ResortIn: {
@@ -4074,6 +4125,11 @@ export interface components {
             is_default: boolean;
             /** Is Archived */
             is_archived: boolean;
+            /**
+             * Admin Actions
+             * @default []
+             */
+            admin_actions: components["schemas"]["ReferenceActionOut"][];
         };
         /** ServiceTypeIn */
         ServiceTypeIn: {
@@ -4105,6 +4161,22 @@ export interface components {
             updated_at: string;
             /** Updated By */
             updated_by: number | null;
+            /** Updated By Name */
+            updated_by_name?: string | null;
+        };
+        /**
+         * SettingRule
+         * @description Limits of a value, from services/settings_admin.py (the form shows them, never mirrors).
+         */
+        SettingRule: {
+            /** Min */
+            min?: string | null;
+            /** Max */
+            max?: string | null;
+            /** Places */
+            places?: number | null;
+            /** Max Length */
+            max_length?: number | null;
         };
         /**
          * SettingsIn
@@ -4137,6 +4209,26 @@ export interface components {
              * @description Порожній рядок прибирає e-mail
              */
             support_email?: string | null;
+            /**
+             * Support Address
+             * @description Порожній рядок прибирає адресу
+             */
+            support_address?: string | null;
+            /**
+             * Maintenance Message
+             * @description Порожній рядок — типовий текст
+             */
+            maintenance_message?: string | null;
+        };
+        /**
+         * SettingsLimits
+         * @description Values from backend/.env: shown read-only, changed only there.
+         */
+        SettingsLimits: {
+            /** Max Review Photos */
+            max_review_photos: number;
+            /** Max Review Photo Mb */
+            max_review_photo_mb: number;
         };
         /** SettingsOut */
         SettingsOut: {
@@ -4160,6 +4252,10 @@ export interface components {
             support_phone: string;
             /** Support Email */
             support_email: string;
+            /** Support Address */
+            support_address: string;
+            /** Maintenance Message */
+            maintenance_message: string;
             /**
              * Uah Rate
              * @default 1
@@ -4169,16 +4265,24 @@ export interface components {
             changes: {
                 [key: string]: components["schemas"]["SettingChange"];
             };
+            /** Rules */
+            rules: {
+                [key: string]: components["schemas"]["SettingRule"];
+            };
+            limits: components["schemas"]["SettingsLimits"];
         };
         /**
          * SiteContactsOut
-         * @description Support contacts from the global settings (form 4.6.4.1, fields 8–9); null = not set.
+         * @description Support contacts from the global settings (form 4.6.4.1, fields 8–9, and the office address,
+         *     spec 13 §3); null = not set.
          */
         SiteContactsOut: {
             /** Phone */
             phone: string | null;
             /** Email */
             email: string | null;
+            /** Address */
+            address?: string | null;
         };
         /**
          * StaffAction
@@ -4211,13 +4315,55 @@ export interface components {
             email: string;
             /**
              * Password
-             * @description Початковий пароль
+             * @description Початковий пароль; без нього сервер згенерує тимчасовий
              */
-            password: string;
+            password?: string | null;
             /** Last Name */
             last_name: string;
             /** First Name */
             first_name: string;
+        };
+        /** StaffCreatedOut */
+        StaffCreatedOut: {
+            /** Id */
+            id: number;
+            /** Phone */
+            phone: string;
+            /** Email */
+            email: string;
+            role: components["schemas"]["UserRole"];
+            /** Last Name */
+            last_name: string;
+            /** First Name */
+            first_name: string;
+            /** Birth Date */
+            birth_date: string | null;
+            /** Citizenship Id */
+            citizenship_id: number | null;
+            /** Loyalty Points */
+            loyalty_points: number;
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * User Actions
+             * @default []
+             */
+            user_actions: components["schemas"]["UserActionOut"][];
+            /**
+             * Temporary Password
+             * @description Згенерований тимчасовий пароль: показується один раз, ніде не зберігається
+             */
+            temporary_password?: string | null;
         };
         /** StaffDocumentOut */
         StaffDocumentOut: {
@@ -4680,6 +4826,25 @@ export interface components {
             /** File Types */
             file_types: string[];
         };
+        /**
+         * UserActionOut
+         * @description One action of services/admin_actions.py: allowed, or refused with the server's reason
+         *     (shown next to a disabled button).
+         */
+        UserActionOut: {
+            action: components["schemas"]["UserAdminAction"];
+            /** Allowed */
+            allowed: boolean;
+            /** Reason */
+            reason: string | null;
+        };
+        /**
+         * UserAdminAction
+         * @description What the admin may do with a user (AdminUserOut.user_actions, spec 13). Computed by
+         *     services/admin_actions.py from the refusals services/admin_users.py enforces.
+         * @enum {string}
+         */
+        UserAdminAction: "edit" | "change_role" | "block" | "unblock" | "reset_password";
         /** UserOut */
         UserOut: {
             /** Id */
@@ -4898,6 +5063,8 @@ export interface operations {
         parameters: {
             query?: {
                 role?: components["schemas"]["UserRole"] | null;
+                /** @description true — персонал, false — клієнти */
+                staff?: boolean | null;
                 /** @description false — заблоковані */
                 is_active?: boolean | null;
                 /** @description Ім'я, телефон або e-mail */
@@ -4950,7 +5117,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminUserOut"];
+                    "application/json": components["schemas"]["StaffCreatedOut"];
                 };
             };
             /** @description Validation Error */
