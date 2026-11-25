@@ -33,6 +33,12 @@ def create(client, headers, tour, adults=2, children=0, expected=201, **extra):
     return response.json()
 
 
+def error_text(response) -> str:
+    """The message of a plain error ({"detail": "text"}) or of a field error ([{"msg": ...}])."""
+    detail = response.json()["detail"]
+    return detail if isinstance(detail, str) else detail[0]["msg"]
+
+
 def free_seats(client, tour_id):
     return client.get(f"/api/tours/{tour_id}").json()["free_seats"]
 
@@ -96,7 +102,7 @@ def test_create_validation(client, customer_headers, tour, overrides, message):
     body = {"tour_id": tour.id, "start_date": START.isoformat(), "adults": 2, "children": 0}
     response = client.post(URL, json=body | overrides, headers=customer_headers)
     assert response.status_code == 422, response.text
-    assert message in response.json()["detail"]
+    assert message in error_text(response)
 
 
 def test_passport_must_be_valid_6_months_after_return(client, customer_headers, tour):
@@ -106,7 +112,44 @@ def test_passport_must_be_valid_6_months_after_return(client, customer_headers, 
                                       "adults": 2, "tourists": [short, tourist(ADULT)]},
                            headers=customer_headers)
     assert response.status_code == 422
-    assert "щонайменше 6 місяців" in response.json()["detail"]
+    assert "щонайменше 6 місяців" in error_text(response)
+
+
+@pytest.mark.parametrize("second,field", [
+    (tourist(ADULT, last="Шевченко"), "last_name_lat"),
+    (tourist(ADULT, first="Тарас"), "first_name_lat"),
+    (tourist(ADULT, passport="FX-1"), "passport_number"),
+    (tourist(ADULT, expiry=START + timedelta(days=30)), "passport_expiry"),
+    (tourist(START + timedelta(days=1)), "birth_date"),
+])
+def test_tourist_errors_name_the_field(client, customer_headers, tour, second, field):
+    """Field rules answer like a FastAPI 422, with the tourist's position (ТЗ form 4.6.1.2)."""
+    response = client.post(URL, json={"tour_id": tour.id, "start_date": START.isoformat(),
+                                      "adults": 2, "tourists": [tourist(ADULT), second]},
+                           headers=customer_headers)
+    assert response.status_code == 422, response.text
+    [issue] = response.json()["detail"]
+    assert issue["loc"] == ["body", "tourists", 1, field]
+    assert issue["type"] == "checkout_rule" and issue["msg"]
+
+
+def test_patch_and_confirm_name_the_tourist_field(client, db, customer_headers, tour):
+    order = create(client, customer_headers, tour, adults=2)
+    bad = [tourist(ADULT), tourist(ADULT, passport="FX-12")]
+    response = client.patch(f"{URL}/{order['id']}", json={"tourists": bad}, headers=customer_headers)
+    assert response.json()["detail"][0]["loc"] == ["body", "tourists", 1, "passport_number"]
+    # Confirm re-checks the stored tourists: a passport that is too short for these dates.
+    order = create(client, customer_headers, tour, adults=2, tourists=two_tourists())
+    db.get(Order, order["id"]).tourists[0].passport_expiry = START
+    db.flush()
+    response = confirm(client, customer_headers, order["id"])
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "tourists", 0, "passport_expiry"]
+
+
+def test_errors_without_a_field_stay_plain_text(client, customer_headers, tour):
+    body = create(client, customer_headers, tour, adults=2, tourists=[tourist(ADULT)], expected=422)
+    assert isinstance(body["detail"], str)
 
 
 @pytest.mark.parametrize("tour_status", [TourStatus.DRAFT, TourStatus.ARCHIVED])

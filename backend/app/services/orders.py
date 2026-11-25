@@ -81,9 +81,10 @@ def _check_categories(birth_dates: list[date], adults: int, children: int, start
     if len(birth_dates) != adults + children:
         raise DomainError(f"Кількість туристів ({len(birth_dates)}) має дорівнювати кількості "
                           f"дорослих і дітей ({adults + children})", 422)
-    for birth_date in birth_dates:
+    for index, birth_date in enumerate(birth_dates):
         if birth_date > start_date:
-            raise DomainError("Дата народження не може бути пізніше дати заїзду", 422)
+            raise DomainError("Дата народження не може бути пізніше дати заїзду", 422,
+                              loc=_tourist_loc(index, "birth_date"))
     real_children = sum(is_child(b, start_date) for b in birth_dates)
     if real_children != children:
         raise DomainError(f"За датами народження: дорослих — {len(birth_dates) - real_children}, "
@@ -91,16 +92,27 @@ def _check_categories(birth_dates: list[date], adults: int, children: int, start
                           f"а обрано дорослих — {adults}, дітей — {children}", 422)
 
 
-def _clean_tourist(data: dict[str, Any], end_date: date) -> dict[str, Any]:
+def _tourist_loc(index: int, field: str) -> tuple[str | int, ...]:
+    """Where a tourist's error belongs: the tourist's position in the order (the same as in the
+    request's list), so the frontend shows it under that tourist's field. Confirm checks the
+    stored tourists and uses the same positions."""
+    return ("body", "tourists", index, field)
+
+
+def _clean_tourist(data: dict[str, Any], end_date: date, index: int) -> dict[str, Any]:
     """Form 4.6.1.2, fields 3.2–3.5: Latin names, passport number, validity after the return."""
     name = f"{data['last_name_lat']} {data['first_name_lat']}".strip()
-    data["last_name_lat"] = clean_latin_name(data["last_name_lat"])
-    data["first_name_lat"] = clean_latin_name(data["first_name_lat"])
-    data["passport_number"] = clean_passport_number(data["passport_number"])
+    for field, clean in (("last_name_lat", clean_latin_name), ("first_name_lat", clean_latin_name),
+                         ("passport_number", clean_passport_number)):
+        try:
+            data[field] = clean(data[field])
+        except DomainError as error:
+            raise DomainError(error.message, error.status_code, loc=_tourist_loc(index, field)) from None
     must_be_valid_until = add_months(end_date, PASSPORT_MONTHS_AFTER_RETURN)
     if data["passport_expiry"] < must_be_valid_until:
         raise DomainError(f"Паспорт туриста {name} має діяти щонайменше 6 місяців після "
-                          f"повернення — до {must_be_valid_until:%d.%m.%Y}", 422)
+                          f"повернення — до {must_be_valid_until:%d.%m.%Y}", 422,
+                          loc=_tourist_loc(index, "passport_expiry"))
     return data
 
 
@@ -212,7 +224,7 @@ def create_order(db: Session, client: User, data: dict[str, Any]) -> tuple[Order
     tourists = data.get("tourists")
     if tourists is not None:
         _check_categories([t["birth_date"] for t in tourists], adults, children, data["start_date"])
-        tourists = [_clean_tourist(t, end_date) for t in tourists]
+        tourists = [_clean_tourist(t, end_date, i) for i, t in enumerate(tourists)]
 
     now = utcnow()
     available = free_seats(db, tour.id, now)
@@ -258,7 +270,7 @@ def update_order(db: Session, order: Order, changes: dict[str, Any]) -> tuple[Or
     if changes.get("tourists"):
         tourists = changes["tourists"]
         _check_categories([t["birth_date"] for t in tourists], adults, children, order.start_date)
-        tourists = [_clean_tourist(t, order.end_date) for t in tourists]
+        tourists = [_clean_tourist(t, order.end_date, i) for i, t in enumerate(tourists)]
     elif changes.get("tourists") == []:
         # Clearing the list lets the client change the numbers after entering tourists (the
         # wizard's «Назад» to step 1); confirm still requires every tourist.
@@ -310,11 +322,11 @@ def confirm_order(db: Session, client: User, order: Order,
                           f"внесено {len(order.tourists)}", 422)
     _check_categories([t.birth_date for t in order.tourists], order.adults, order.children,
                       order.start_date)
-    for tourist in order.tourists:   # passports may have been entered for other dates
+    for index, tourist in enumerate(order.tourists):   # passports may have been entered for other dates
         _clean_tourist({"last_name_lat": tourist.last_name_lat,
                         "first_name_lat": tourist.first_name_lat,
                         "passport_number": tourist.passport_number,
-                        "passport_expiry": tourist.passport_expiry}, order.end_date)
+                        "passport_expiry": tourist.passport_expiry}, order.end_date, index)
 
     price, promo = _price(db, tour, order.adults, order.children, order.insurance_type,
                           order.transfer_type, order.promo.code if order.promo else None,

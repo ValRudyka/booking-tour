@@ -28,6 +28,12 @@ Client = Annotated[User, Depends(require_roles(UserRole.CLIENT))]
 def _fail(db, error: DomainError) -> NoReturn:
     if isinstance(error, HoldExpired):
         db.commit()   # keep the System's cancellation, then tell the client
+    if error.loc is not None:
+        # A rule about one field (a tourist's passport, name, birth date): the same shape as
+        # FastAPI's own 422, so the frontend puts the message under that tourist's field.
+        # "checkout_rule" tells it that msg is a Ukrainian text meant for the client.
+        raise HTTPException(status_code=error.status_code, detail=[
+            {"loc": list(error.loc), "msg": error.message, "type": "checkout_rule"}]) from None
     raise HTTPException(status_code=error.status_code, detail=error.message) from None
 
 
