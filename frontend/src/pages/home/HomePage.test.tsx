@@ -109,4 +109,39 @@ describe('HomePage', () => {
     expect(screen.getAllByText('Технічні роботи')).toHaveLength(1)
     expect(screen.queryByRole('region', { name: 'Гарячі пропозиції' })).not.toBeInTheDocument()
   })
+
+  it('lists the countries with tours, most tours first, each opening the filtered catalog', async () => {
+    // COUNTRIES: Єгипет (1), Туреччина (2), Україна (3, a departure country with no tours).
+    const totals: Record<number, number> = { 1: 3, 2: 12, 3: 0 }
+    const spy = toursApi({ count: (params) => page([], totals[params.country_id as number]) })
+    const { router, user } = renderRoute('/')
+    const block = section('Популярні напрямки')
+    const links = await within(block).findAllByRole('link')
+    expect(links.map((link) => link.textContent?.trim())).toEqual(['Туреччина 12 турів', 'Єгипет 3 тури'])
+    expect(spy).toHaveBeenCalledWith('/tours', { params: { country_id: 1, page: 1, page_size: 1 } })
+
+    await user.click(within(block).getByRole('link', { name: /Туреччина/ }))
+    expect(router.state.location.pathname).toBe('/tours')
+    expect(router.state.location.search).toBe('?country_id=2')
+  })
+
+  it('shows an error with a retry in the destinations block only', async () => {
+    toursApi({
+      nearest: () => page([makeTour({ title_uk: 'Тур на місці' })]),
+      count: () => { throw new ApiError('network', null, "Не вдалося з'єднатися з сервером.") },
+    })
+    renderRoute('/')
+    const block = section('Популярні напрямки')
+    expect(await within(block).findByText('Не вдалося завантажити напрямки')).toBeInTheDocument()
+    expect(within(section('Найближчі виїзди')).getByRole('heading', { level: 3, name: 'Тур на місці' })).toBeInTheDocument()
+  })
+
+  it('explains the four booking steps', () => {
+    toursApi()
+    renderRoute('/')
+    const steps = within(section('Як забронювати')).getAllByRole('listitem')
+    expect(steps.map((step) => within(step).getByRole('heading', { level: 3 }).textContent)).toEqual([
+      '1. Оберіть тур', '2. Заповніть дані', '3. Оплатіть онлайн', '4. Отримайте документи',
+    ])
+  })
 })

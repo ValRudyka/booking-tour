@@ -2,6 +2,8 @@ import { useTranslation } from 'react-i18next'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { HomeBanner } from './HomeBanner'
 import { HOT_PARAMS, NEAREST_PARAMS } from './homeSearch'
+import { HowToBook } from './HowToBook'
+import { PopularDestinations } from './PopularDestinations'
 import { TourStrip } from './TourStrip'
 import './HomePage.css'
 
@@ -15,6 +17,8 @@ export function HomePage() {
       <TourStrip title={t('home.hot.title')} params={HOT_PARAMS} optional />
       <TourStrip title={t('home.nearest.title')} params={NEAREST_PARAMS}
         allLink={{ to: '/tours', label: t('home.nearest.all') }} emptyText={t('home.nearest.empty')} />
+      <PopularDestinations />
+      <HowToBook />
     </div>
   )
 }
