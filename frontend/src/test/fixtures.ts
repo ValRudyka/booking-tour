@@ -1,13 +1,15 @@
-import type { AxiosResponse } from 'axios'
+import { AxiosError, type AxiosResponse } from 'axios'
 import { vi } from 'vitest'
 import { api } from '../api/client'
 import type {
-  City, Country, HotelDetail, PublicReview, Resort, ReviewPage, TourCard, TourDetail, TourPage,
+  City, Country, HotelDetail, PublicReview, Resort, ReviewPage, TourCard, TourDetail, TourPage, User,
 } from '../api/types'
+import { TOKEN_KEY } from '../features/auth/tokenStorage'
 
 export const COUNTRIES: Country[] = [
   { id: 1, iso_code: 'EG', name_uk: 'Єгипет', name_en: 'Egypt' },
   { id: 2, iso_code: 'TR', name_uk: 'Туреччина', name_en: 'Turkey' },
+  { id: 3, iso_code: 'UA', name_uk: 'Україна', name_en: 'Ukraine' },
 ]
 export const RESORTS: Resort[] = [
   { id: 10, country_id: 1, name_uk: 'Хургада', name_en: 'Hurghada' },
@@ -60,6 +62,7 @@ export function mockApi(tours: Handler, extra: Record<string, Handler> = {}) {
     '/reference/countries': () => COUNTRIES,
     '/reference/resorts': (params) => RESORTS.filter((r) => r.country_id === params.country_id),
     '/reference/cities': () => CITIES,
+    '/site/contacts': () => ({ phone: null, email: null }),
     ...extra,
   }
   return vi.spyOn(api, 'get').mockImplementation(async (url: string, config?: { params?: unknown }) => {
@@ -122,4 +125,64 @@ export function makeReview(overrides: Partial<PublicReview> = {}): PublicReview 
 
 export function reviewPage(items: PublicReview[], total = items.length, pageNumber = 1): ReviewPage {
   return { items, total, page: pageNumber, page_size: 10 }
+}
+
+export function makeUser(overrides: Partial<User> = {}): User {
+  return {
+    id: 501, phone: '+380501234567', email: 'olena@example.com', role: 'client',
+    last_name: 'Коваленко', first_name: 'Олена', birth_date: '1990-05-14', citizenship_id: 3,
+    loyalty_points: 0, is_active: true, created_at: '2026-11-01T10:00:00Z', ...overrides,
+  }
+}
+
+/** A signed-in visitor for a test: a stored token and GET /auth/me answering with `user`.
+ * Pass the result to mockApi's `extra` handlers. */
+export function signIn(user: User = makeUser()): Record<string, () => User> {
+  window.localStorage.setItem(TOKEN_KEY, 'test-token')
+  return { '/auth/me': () => user }
+}
+
+// ---------- a fake backend at the axios adapter level: unlike mockApi, the real interceptors run
+// (token header, 401 handling), which the auth tests need.
+export interface FakeRequest {
+  method: string
+  url: string
+  params: Record<string, unknown>
+  /** JSON body as an object, or a form body (login) as URLSearchParams. */
+  body: unknown
+  authorization: string | null
+}
+type Route = (request: FakeRequest) => [number, unknown]
+
+export function mockServer(routes: Record<string, Route>) {
+  const calls: FakeRequest[] = []
+  const all: Record<string, Route> = {
+    'GET /site/contacts': () => [200, { phone: null, email: null }],
+    'GET /reference/countries': () => [200, COUNTRIES],
+    'GET /reference/cities': () => [200, CITIES],
+    'GET /tours': () => [200, page([])],
+    ...routes,
+  }
+  api.defaults.adapter = async (config) => {
+    const method = (config.method ?? 'get').toUpperCase()
+    const url = config.url ?? ''
+    const raw = config.data
+    const body = typeof raw === 'string'
+      ? (raw.startsWith('{') ? JSON.parse(raw) : new URLSearchParams(raw))
+      : raw instanceof URLSearchParams ? raw : raw ?? null
+    const headers = config.headers as unknown as { get?: (name: string) => unknown }
+    const authorization = (headers.get?.('Authorization') as string | undefined) ?? null
+    const request = { method, url, params: (config.params ?? {}) as Record<string, unknown>, body, authorization }
+    calls.push(request)
+    const route = all[`${method} ${url}`]
+    if (!route) throw new Error(`Unexpected ${method} ${url}`)
+    const [status, data] = route(request)
+    const response = { data, status, statusText: '', headers: {}, config }
+    if (status >= 400) {
+      throw new AxiosError(`HTTP ${status}`, status >= 500 ? 'ERR_BAD_RESPONSE' : 'ERR_BAD_REQUEST',
+        config, null, response)
+    }
+    return response
+  }
+  return calls
 }

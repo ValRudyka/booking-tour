@@ -1,11 +1,15 @@
-import { MailOutlined, MenuOutlined, PhoneOutlined } from '@ant-design/icons'
-import { Button, Drawer, Flex, Grid, Layout, Menu, Space, Typography } from 'antd'
+import { DownOutlined, MailOutlined, MenuOutlined, PhoneOutlined, UserOutlined } from '@ant-design/icons'
+import { Button, Drawer, Dropdown, Flex, Grid, Layout, Menu, Space, Typography } from 'antd'
 import type { MenuProps } from 'antd'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
+import { useSiteContacts } from '../api/site'
 import { AppLink } from '../components/AppLink'
-import { CONTACT_EMAIL, CONTACT_PHONE, SITE_NAME } from '../site'
+import { shortName } from '../features/auth/authContext'
+import { STAFF_ROLES } from '../features/auth/redirect'
+import { useAuth } from '../features/auth/useAuth'
+import { SITE_NAME } from '../site'
 import './PublicLayout.css'
 
 const { Header, Content, Footer } = Layout
@@ -19,6 +23,8 @@ export function PublicLayout() {
   const screens = Grid.useBreakpoint()
   const [menuOpen, setMenuOpen] = useState(false)
   const isDesktop = Boolean(screens.md)
+  const { user, logout } = useAuth()
+  const contacts = useSiteContacts()
 
   const items: MenuProps['items'] = [
     { key: '/tours', label: <Link to="/tours">{t('nav.tours')}</Link> },
@@ -30,11 +36,31 @@ export function PublicLayout() {
     setMenuOpen(false)
     navigate(path)
   }
+  // A signed-in user: the account pages (clients) or the back office (staff), and sign-out.
+  const userItems = user ? [
+    ...(STAFF_ROLES.includes(user.role)
+      ? [{ key: '/office', label: t('nav.office') }]
+      : [{ key: '/cabinet', label: t('nav.cabinet') }, { key: '/cabinet/orders', label: t('nav.myOrders') }]),
+    { type: 'divider' as const },
+    { key: 'logout', label: t('nav.logout') },
+  ] : []
+  const onUserItem = (key: string) => {
+    setMenuOpen(false)
+    if (key === 'logout') logout()
+    else navigate(key)
+  }
   const authButtons = (
     <>
       <Button onClick={() => go('/login')}>{t('nav.login')}</Button>
       <Button type="primary" onClick={() => go('/register')}>{t('nav.register')}</Button>
     </>
+  )
+  const userMenu = user && (
+    <Dropdown trigger={['click']} menu={{ items: userItems, onClick: ({ key }) => onUserItem(key) }}>
+      <Button icon={<UserOutlined aria-hidden />} aria-label={t('nav.userMenu', { name: shortName(user) })}>
+        {shortName(user)} <DownOutlined aria-hidden />
+      </Button>
+    </Dropdown>
   )
 
   return (
@@ -48,7 +74,7 @@ export function PublicLayout() {
               <nav aria-label={t('nav.mainMenu')} className="public-nav">
                 <Menu mode="horizontal" items={items} selectedKeys={selected} disabledOverflow />
               </nav>
-              <Space>{authButtons}</Space>
+              {user ? userMenu : <Space>{authButtons}</Space>}
             </>
           ) : (
             <Button className="menu-button" icon={<MenuOutlined aria-hidden />} aria-label={t('nav.menu')}
@@ -64,7 +90,14 @@ export function PublicLayout() {
             <Menu mode="vertical" items={items} selectedKeys={selected}
               onClick={() => setMenuOpen(false)} className="drawer-menu" />
           </nav>
-          <Flex vertical gap={8} className="drawer-auth">{authButtons}</Flex>
+          {user ? (
+            <nav aria-label={t('nav.userMenu', { name: shortName(user) })} className="drawer-auth">
+              <Typography.Text strong>{shortName(user)}</Typography.Text>
+              <Menu mode="vertical" className="drawer-menu"
+                items={userItems}
+                onClick={({ key }) => onUserItem(key)} />
+            </nav>
+          ) : <Flex vertical gap={8} className="drawer-auth">{authButtons}</Flex>}
         </Drawer>
       )}
 
@@ -76,16 +109,23 @@ export function PublicLayout() {
 
       <Footer className="public-footer">
         <Flex wrap gap={24} justify="space-between" className="public-container">
+          {/* Support contacts from the admin's settings; nothing is shown until they are set. */}
           <Space orientation="vertical" size={4}>
-            <Typography.Text strong>{t('footer.contacts')}</Typography.Text>
-            <Typography.Text>
-              <PhoneOutlined aria-hidden /> {t('footer.phone')}:{' '}
-              <a href={`tel:${CONTACT_PHONE.replace(/\s/g, '')}`}>{CONTACT_PHONE}</a>
-            </Typography.Text>
-            <Typography.Text>
-              <MailOutlined aria-hidden /> {t('footer.email')}:{' '}
-              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
-            </Typography.Text>
+            {(contacts.data?.phone || contacts.data?.email) && (
+              <Typography.Text strong>{t('footer.contacts')}</Typography.Text>
+            )}
+            {contacts.data?.phone && (
+              <Typography.Text>
+                <PhoneOutlined aria-hidden /> {t('footer.phone')}:{' '}
+                <a href={`tel:${contacts.data.phone}`}>{contacts.data.phone}</a>
+              </Typography.Text>
+            )}
+            {contacts.data?.email && (
+              <Typography.Text>
+                <MailOutlined aria-hidden /> {t('footer.email')}:{' '}
+                <a href={`mailto:${contacts.data.email}`}>{contacts.data.email}</a>
+              </Typography.Text>
+            )}
           </Space>
           <Space orientation="vertical" size={4}>
             <AppLink to="/terms">{t('footer.terms')}</AppLink>

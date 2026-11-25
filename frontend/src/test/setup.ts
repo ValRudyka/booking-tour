@@ -1,10 +1,17 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
+import { api } from '../api/client'
 import '../i18n'
 
+const realAdapter = api.defaults.adapter
+
 // Vitest runs without globals, so React Testing Library cannot register its own cleanup.
-afterEach(() => cleanup())
+afterEach(() => {
+  cleanup()
+  window.localStorage.clear() // no sign-in carries over to the next test
+  api.defaults.adapter = realAdapter // undo mockServer()
+})
 
 // jsdom has no matchMedia; antd's Grid/responsive observer needs it. Desktop width by default,
 // tests can override it with setViewportWidth().

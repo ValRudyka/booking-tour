@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import { API_URL, ApiError } from '../../api/client'
 import type { TourDetail } from '../../api/types'
-import { HOTEL_FACTS, makeTourDetail, mockApi, page } from '../../test/fixtures'
+import { HOTEL_FACTS, makeTourDetail, mockApi, page, signIn } from '../../test/fixtures'
 import { renderRoute } from '../../test/render'
 import { setViewportWidth } from '../../test/setup'
 import { kyivTomorrow } from '../../utils/format'
@@ -164,13 +164,23 @@ describe('TourDetailsPage', () => {
     expect(plain(screen.getByText(/1.200 м/).textContent)).toBe('1 200 м')
   })
 
-  it('books the chosen date through the booking placeholder', async () => {
+  it('a signed-in client books the chosen date through the booking placeholder', async () => {
     const tour = makeTourDetail({ departure_from: '2099-06-01', departure_to: '2099-06-01' })
-    serve(tour)
+    mockApi(() => page([]), { [`/tours/${tour.id}`]: () => tour, ...signIn() })
     const { router, user } = await openTour(tour)
     await user.click(screen.getAllByRole('button', { name: 'Забронювати' })[0])
     expect(router.state.location.pathname).toBe(`/booking/${tour.id}`)
     expect(router.state.location.search).toBe('?date=2099-06-01')
+  })
+
+  it('sends a guest to sign in first, with the booking URL as redirect', async () => {
+    const tour = makeTourDetail({ departure_from: '2099-06-01', departure_to: '2099-06-01' })
+    serve(tour)
+    const { router, user } = await openTour(tour)
+    await user.click(screen.getAllByRole('button', { name: 'Забронювати' })[0])
+    expect(router.state.location.pathname).toBe('/login')
+    expect(new URLSearchParams(router.state.location.search).get('redirect'))
+      .toBe(`/booking/${tour.id}?date=2099-06-01`)
   })
 
   it('offers dates from tomorrow (Kyiv) once the season has begun', async () => {
@@ -207,7 +217,7 @@ describe('TourDetailsPage', () => {
     renderRoute('/tours/abc')
     expect(screen.getByRole('heading', { level: 1, name: 'Тур не знайдено або він більше не продається' }))
       .toBeInTheDocument()
-    expect(spy).not.toHaveBeenCalled()
+    expect(spy.mock.calls.filter(([url]) => String(url).startsWith('/tours'))).toHaveLength(0)
   })
 
   it('shows an API error with a retry button', async () => {
