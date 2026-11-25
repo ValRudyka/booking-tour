@@ -464,7 +464,7 @@ viewer with an append-only trigger, promo codes for managers; migration `admin`)
   the maintenance screen, the optional blocks hide themselves.
 - No reviews block (no public list of recent reviews). Frontend only, no backend changes.
 
-`feature/frontend-checkout` (PR #17 to `develop`, specs 04 + 05): booking and payment.
+`feature/frontend-checkout`: booking (spec 04, merged in PR #17) and payment (spec 05, PR to `develop`).
 - Booking wizard `/booking/:tourId` (4 steps, order created at step 1, hold timer, server prices,
   draft without passport numbers, resume of the same tour's order, confirm → payment).
 - Payment `/orders/:id/pay` (card via Stripe Checkout, bank transfer details), `/payment/success`
@@ -485,7 +485,7 @@ Backlog, in order (one branch each):
 6. `feature/admin` — **done** (PR #10)
 7. `feature/frontend-public` — catalog (**done**, PR #12), tour page (**done**, PR #14), auth
    (**done**, `feature/frontend-auth`), home page (**done**, `feature/frontend-home`), checkout
-   and payment (**done**, `feature/frontend-checkout`, PR #17), personal account; plain antd
+   and payment (**done**, `feature/frontend-checkout`: PR #17 + the payment PR), personal account; plain antd
    (also set up `frontend/`).
    - Home page follow-ups (not done in `feature/frontend-home`; the first two need backend work):
      - `GET /reference/countries?with_tours=true` with `tours_count`, to replace the per-country
