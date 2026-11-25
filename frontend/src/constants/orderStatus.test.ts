@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import uk from '../i18n/uk.json'
-import { CANCEL_REASONS, DOCUMENT_TYPES, NAME_DISPLAYS, PAYMENT_METHODS } from './orderLabels'
+import {
+  CANCEL_REASONS, DOCUMENT_TYPES, MANAGER_QUEUES, NAME_DISPLAYS, PAYMENT_METHODS, PAYMENT_TYPES, STAFF_ACTIONS, USER_ROLES,
+} from './orderLabels'
 import { STATUS_SECTIONS, STATUS_TONES } from './orderStatus'
 
 // The enums exactly as the backend publishes them (`npm run gen:api` saves this snapshot). When
@@ -38,6 +40,10 @@ describe('status dictionary (src/constants/orderStatus.ts)', () => {
     ['CancelReason', CANCEL_REASONS, 'cancelReason'],
     ['PaymentMethod', PAYMENT_METHODS, 'paymentMethod'],
     ['NameDisplay', NAME_DISPLAYS, 'nameDisplay'],
+    ['StaffAction', STAFF_ACTIONS, 'staffAction'],
+    ['ManagerQueue', MANAGER_QUEUES, 'managerQueue'],
+    ['UserRole', USER_ROLES, 'userRole'],
+    ['PaymentType', PAYMENT_TYPES, 'paymentType'],
   ] as const)('%s: every backend value has a label', (schema, record, section) => {
     const values = backendEnum(schema)
     expect(Object.keys(record).sort()).toEqual(values)

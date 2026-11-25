@@ -77,6 +77,33 @@ class ClientAction(str, enum.Enum):
     DOWNLOAD_DOCUMENTS = "download_documents"  # trip documents are shown (may still be empty)
 
 
+class StaffAction(str, enum.Enum):
+    """What a manager may do with an order (ManagerOrderDetailOut.staff_actions, spec 09).
+    Computed by services/staff_actions.py from the refusals the action endpoints enforce."""
+    TAKE = "take"                              # POST /manager/orders/{id}/take
+    ASSIGN = "assign"                          # POST .../assign
+    CONFIRM = "confirm"                        # POST .../confirm (PNR, operator deadline)
+    REJECT = "reject"                          # POST .../reject (reason)
+    UPLOAD_DOCUMENTS = "upload_documents"      # POST .../documents
+    DOCUMENTS_READY = "documents_ready"        # POST .../documents-ready
+    ARCHIVE = "archive"                        # POST .../archive
+    EDIT_COMMENT = "edit_comment"              # PATCH .../ (internal comment)
+
+
+class ManagerQueue(str, enum.Enum):
+    """Tabs of «Вхідні заявки»: new (paid, nobody responsible), mine, all (not archived)."""
+    NEW = "new"
+    MINE = "mine"
+    ALL = "all"
+
+
+class ManagerOrderSort(str, enum.Enum):
+    CREATED_DESC = "created_desc"
+    CREATED_ASC = "created_asc"
+    START_ASC = "start_asc"
+    START_DESC = "start_desc"
+
+
 class PaymentStatus(str, enum.Enum):
     AWAITING = "awaiting"                      # Очікує оплати
     PARTIALLY_PAID = "partially_paid"          # Сплачено частково

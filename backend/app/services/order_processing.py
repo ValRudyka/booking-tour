@@ -8,12 +8,14 @@ change_status(), which also notifies the client and returns seats on rejection.
 import re
 from datetime import date
 
-from sqlalchemy import func, select
+from datetime import timedelta
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import AuditLog, Order, Tour, User
+from app.models.enums import ManagerOrderSort, ManagerQueue, UserRole
 from app.models.enums import OrderStatus as S
-from app.models.enums import UserRole
 from app.services import clock, notifications, order_documents
 from app.services.errors import DomainError
 from app.services.order_status import STATUS_LABELS, change_status
@@ -27,27 +29,90 @@ MAX_COMMENT = 5000
 # shown to managers with ?overdue=true (decide: upload documents, or reject with a refund).
 OVERDUE_STATUSES = (S.PAID, S.IN_PROGRESS, S.CONFIRMED)
 
+# Which status each action needs (ТЗ 4.4.1). The action functions below and the back office's
+# staff_actions (services/staff_actions.py) both read these, so a button never disagrees with
+# the endpoint behind it.
+TAKE_STATUSES = (S.PAID,)
+DECIDE_STATUSES = (S.IN_PROGRESS,)                  # confirm or reject
+DOCUMENTS_READY_STATUSES = (S.CONFIRMED,)
+ARCHIVE_STATUSES = (S.COMPLETED, S.REJECTED, S.CANCELLED)
+# Hand-over makes sense once the order is paid (an unpaid booking has nothing to process) and
+# until it is archived.
+ASSIGN_STATUSES = (S.PAID, S.IN_PROGRESS, S.CONFIRMED, S.DOCUMENTS_READY, S.CANCEL_REQUESTED,
+                   S.COMPLETED, S.REJECTED, S.CANCELLED)
+
+_SORTS = {
+    ManagerOrderSort.CREATED_DESC: (Order.created_at.desc(), Order.id.desc()),
+    ManagerOrderSort.CREATED_ASC: (Order.created_at.asc(), Order.id.asc()),
+    ManagerOrderSort.START_ASC: (Order.start_date.asc(), Order.id.asc()),
+    ManagerOrderSort.START_DESC: (Order.start_date.desc(), Order.id.desc()),
+}
+
 
 def short_name(user: User | None) -> str | None:
     return f"{user.last_name} {user.first_name[:1]}." if user else None
 
 
+def is_overdue(order: Order) -> bool:
+    """The trip date has come, but the order never reached «Документи готові»."""
+    return order.status in OVERDUE_STATUSES and order.start_date <= clock.today()
+
+
+def _queue_filter(queue: ManagerQueue, manager: User):
+    """«Нові»: paid and nobody responsible yet; «Мої»: I am responsible; «Усі»: no filter."""
+    if queue == ManagerQueue.NEW:
+        return (Order.status == S.PAID) & Order.manager_id.is_(None)
+    if queue == ManagerQueue.MINE:
+        return Order.manager_id == manager.id
+    return None
+
+
+def queue_counts(db: Session, manager: User) -> dict[str, int]:
+    """Counts of the three tabs over the working list (archived left out), without the search
+    filters, like the unread count of the bell."""
+    counts = {}
+    for queue in ManagerQueue:
+        query = select(func.count()).select_from(Order).where(Order.status != S.ARCHIVED)
+        condition = _queue_filter(queue, manager)
+        if condition is not None:
+            query = query.where(condition)
+        counts[queue.value] = db.scalar(query)
+    return counts
+
+
 def list_orders(db: Session, manager: User, *, statuses: list[S] | None, tour_id: int | None,
                 start_from: date | None, start_to: date | None, number: str | None, mine: bool,
-                overdue: bool, page: int, page_size: int) -> tuple[list[Order], int]:
+                overdue: bool, page: int, page_size: int, queue: ManagerQueue = ManagerQueue.ALL,
+                client: str | None = None, created_from: date | None = None,
+                created_to: date | None = None,
+                sort: ManagerOrderSort = ManagerOrderSort.CREATED_DESC) -> tuple[list[Order], int]:
     query = select(Order)
     if statuses:
         query = query.where(Order.status.in_(statuses))
     else:                                       # archived orders leave the working lists (4.5.9)
         query = query.where(Order.status != S.ARCHIVED)
+    condition = _queue_filter(queue, manager)
+    if condition is not None:
+        query = query.where(condition)
     if tour_id is not None:
         query = query.where(Order.tour_id == tour_id)
     if start_from is not None:
         query = query.where(Order.start_date >= start_from)
     if start_to is not None:
         query = query.where(Order.start_date <= start_to)
+    if created_from is not None:                # Kyiv days, like the other date filters
+        query = query.where(Order.created_at >= clock.day_start(created_from))
+    if created_to is not None:
+        query = query.where(Order.created_at < clock.day_start(created_to + timedelta(days=1)))
     if number:
         query = query.where(Order.number.icontains(number.strip(), autoescape=True))
+    if client and client.strip():
+        text = client.strip()
+        query = query.where(Order.client_id.in_(select(User.id).where(or_(
+            (User.last_name + " " + User.first_name).icontains(text, autoescape=True),
+            User.first_name.icontains(text, autoescape=True),
+            User.phone.icontains(text, autoescape=True),
+            User.email.icontains(text, autoescape=True)))))
     if mine:
         query = query.where(Order.manager_id == manager.id)
     if overdue:
@@ -55,9 +120,15 @@ def list_orders(db: Session, manager: User, *, statuses: list[S] | None, tour_id
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     items = db.scalars(query.options(selectinload(Order.tour).selectinload(Tour.hotel),
                                      selectinload(Order.client), selectinload(Order.manager))
-                       .order_by(Order.created_at.desc(), Order.id.desc())
+                       .order_by(*_SORTS[sort])
                        .offset((page - 1) * page_size).limit(page_size)).all()
     return list(items), total
+
+
+def active_managers(db: Session) -> list[User]:
+    """Who an order can be handed over to (form 4.6.2.2, field 8)."""
+    return list(db.scalars(select(User).where(User.role == UserRole.MANAGER, User.is_active.is_(True))
+                           .order_by(User.last_name, User.first_name, User.id)))
 
 
 def get_order(db: Session, order_id: int) -> Order:
@@ -74,10 +145,29 @@ def _locked(db: Session, order_id: int) -> Order:
     return order
 
 
-def _ensure_responsible(order: Order, manager: User) -> None:
+# ---------- refusals: why an action cannot be done now (None = it can)
+# Each is used by its action (-> 409) and by staff_actions (-> a disabled button with this text).
+def owner_refusal(order: Order, manager: User) -> str | None:
     if order.manager_id is not None and order.manager_id != manager.id:
-        raise DomainError(f"Замовлення веде інший менеджер ({short_name(order.manager)}). "
-                          f"Змінювати його може лише відповідальний менеджер", 409)
+        return (f"Замовлення веде інший менеджер ({short_name(order.manager)}). "
+                f"Змінювати його може лише відповідальний менеджер")
+    return None
+
+
+def documents_ready_refusal(order: Order) -> str | None:
+    return None if order_documents.has_voucher(order) else "Спершу завантажте ваучер"
+
+
+def archive_refusal(db: Session, order: Order) -> str | None:
+    if order.status in (S.REJECTED, S.CANCELLED) and not refund_finished(db, order):
+        return "Архівувати можна після завершення повернення коштів клієнту"
+    return None
+
+
+def _ensure_responsible(order: Order, manager: User) -> None:
+    refusal = owner_refusal(order, manager)
+    if refusal:
+        raise DomainError(refusal, 409)
 
 
 def _ensure_status(order: Order, *allowed: S, action: str) -> None:
@@ -100,7 +190,7 @@ def take(db: Session, manager: User, order_id: int) -> Order:
     """«Взяти в роботу»: paid -> in_progress, the manager becomes responsible (4.5.4 step 2)."""
     order = _locked(db, order_id)
     _ensure_responsible(order, manager)
-    _ensure_status(order, S.PAID, action="Взяти в роботу")
+    _ensure_status(order, *TAKE_STATUSES, action="Взяти в роботу")
     order.manager_id = manager.id
     change_status(db, order, S.IN_PROGRESS, manager, "Заявку взято в роботу")
     return order
@@ -110,8 +200,8 @@ def assign(db: Session, manager: User, order_id: int, new_manager_id: int) -> Or
     """Hand the order over to another manager (form 4.6.2.2, field 8), logged in audit_log."""
     order = _locked(db, order_id)
     _ensure_responsible(order, manager)
-    if order.status == S.ARCHIVED:
-        raise DomainError("Архівне замовлення не передається", 409)
+    if order.status not in ASSIGN_STATUSES:
+        raise DomainError("Передати можна лише оплачене замовлення, яке ще не архівовано", 409)
     target = db.get(User, new_manager_id)
     if target is None or target.role != UserRole.MANAGER or not target.is_active:
         raise DomainError("Відповідальним можна призначити лише активного менеджера", 422)
@@ -132,7 +222,7 @@ def confirm(db: Session, manager: User, order_id: int, *, pnr: str, operator_dea
     """Seats confirmed: PNR + operator's payment deadline -> «Підтверджено» (4.5.4 step 4.2)."""
     order = _locked(db, order_id)
     _ensure_responsible(order, manager)
-    _ensure_status(order, S.IN_PROGRESS, action="Підтвердити бронювання")
+    _ensure_status(order, *DECIDE_STATUSES, action="Підтвердити бронювання")
     pnr = (pnr or "").strip().upper()
     if not PNR_RE.match(pnr):
         raise DomainError("PNR — від 5 до 20 латинських літер і цифр", 422)
@@ -152,7 +242,7 @@ def reject(db: Session, manager: User, order_id: int, *, reason: str,
     goes to the finance queue for a full refund (4.5.4 step 4.1)."""
     order = _locked(db, order_id)
     _ensure_responsible(order, manager)
-    _ensure_status(order, S.IN_PROGRESS, action="Відхилити заявку")
+    _ensure_status(order, *DECIDE_STATUSES, action="Відхилити заявку")
     order.reject_reason = _text(reason, "причину відхилення", True)
     change_status(db, order, S.REJECTED, manager, order.reject_reason,
                   _text(client_message, "Повідомлення клієнту", False))
@@ -165,9 +255,10 @@ def reject(db: Session, manager: User, order_id: int, *, reason: str,
 def documents_ready(db: Session, manager: User, order_id: int, client_message: str | None) -> Order:
     order = _locked(db, order_id)
     _ensure_responsible(order, manager)
-    _ensure_status(order, S.CONFIRMED, action="Позначити «Документи готові»")
-    if not order_documents.has_voucher(order):
-        raise DomainError("Спершу завантажте ваучер", 409)
+    _ensure_status(order, *DOCUMENTS_READY_STATUSES, action="Позначити «Документи готові»")
+    refusal = documents_ready_refusal(order)
+    if refusal:
+        raise DomainError(refusal, 409)
     change_status(db, order, S.DOCUMENTS_READY, manager, None,
                   _text(client_message, "Повідомлення клієнту", False))
     return order
@@ -194,8 +285,9 @@ def archive(db: Session, manager: User, order_id: int) -> Order:
     is still owed to the client (refund finished, nothing pending)."""
     order = _locked(db, order_id)
     _ensure_responsible(order, manager)
-    _ensure_status(order, S.COMPLETED, S.REJECTED, S.CANCELLED, action="Архівувати")
-    if order.status in (S.REJECTED, S.CANCELLED) and not refund_finished(db, order):
-        raise DomainError("Архівувати можна після завершення повернення коштів клієнту", 409)
+    _ensure_status(order, *ARCHIVE_STATUSES, action="Архівувати")
+    refusal = archive_refusal(db, order)
+    if refusal:
+        raise DomainError(refusal, 409)
     change_status(db, order, S.ARCHIVED, manager, "Замовлення архівовано")
     return order

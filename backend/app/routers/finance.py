@@ -123,9 +123,9 @@ def _order(db, order_id: int) -> Order:
 
 @orders_router.get("/orders/{order_id}", response_model=ManagerOrderDetailOut,
                    summary="Замовлення для повернення: платежі, причина, довідки клієнта")
-def get_order(order_id: int, db: DbSession, _: Finance):
+def get_order(order_id: int, db: DbSession, controller: Finance):
     # The internal comment is for managers only (form 4.6.2.2, field 6).
-    return staff_detail(_order(db, order_id)).model_copy(update={"internal_comment": None})
+    return staff_detail(db, _order(db, order_id), controller).model_copy(update={"internal_comment": None})
 
 
 @orders_router.get("/orders/{order_id}/documents/{doc_id}/download",

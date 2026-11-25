@@ -1,3 +1,5 @@
+import { Skeleton } from 'antd'
+import { Suspense, type ReactNode } from 'react'
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router'
 import { AuthRoot } from './features/auth/AuthProvider'
 import { RequireAuth } from './features/auth/RequireAuth'
@@ -17,11 +19,17 @@ import { ContactsPage } from './pages/info/ContactsPage'
 import { FaqPage } from './pages/info/FaqPage'
 import { PrivacyPage, TermsPage } from './pages/info/LegalPages'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { COMING_SOON } from './features/office/menu'
+import { OfficeLayout, OfficeOrderPage, OfficeOrdersPage } from './pages/office/lazyPages'
+import { OfficeComingSoon, OfficeHome, RequireOfficeRole } from './pages/office/OfficeHome'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { PayPage } from './pages/payment/PayPage'
 import { PaymentCancelPage, PaymentSuccessPage } from './pages/payment/PaymentResultPages'
 import { RouteErrorPage } from './pages/RouteErrorPage'
 import { TourDetailsPage } from './pages/tour/TourDetailsPage'
+
+const loading = <Skeleton active={false} paragraph={{ rows: 6 }} />
+const suspended = (node: ReactNode) => <Suspense fallback={loading}>{node}</Suspense>
 
 export const routes: RouteObject[] = [
   {
@@ -56,14 +64,33 @@ export const routes: RouteObject[] = [
               { path: 'profile', element: <PlaceholderPage page="profile" /> },
             ],
           },
-          // The back office comes in feature/frontend-backoffice.
-          { path: 'office', element: <RequireAuth roles={STAFF_ROLES}><PlaceholderPage page="office" /></RequireAuth> },
           // Static information pages (spec 14): texts in i18n, contacts from the admin's settings.
           { path: 'about', element: <AboutPage /> },
           { path: 'contacts', element: <ContactsPage /> },
           { path: 'terms', element: <TermsPage /> },
           { path: 'privacy', element: <PrivacyPage /> },
           { path: 'faq', element: <FaqPage /> },
+          { path: '*', element: <NotFoundPage /> },
+        ],
+      },
+      // The back office (spec 09): its own layout, staff only; each section checks its role.
+      {
+        path: 'office',
+        element: <RequireAuth roles={STAFF_ROLES}>{suspended(<OfficeLayout />)}</RequireAuth>,
+        children: [
+          { index: true, element: <OfficeHome /> },
+          {
+            path: 'orders',
+            element: <RequireOfficeRole role="manager">{suspended(<OfficeOrdersPage />)}</RequireOfficeRole>,
+          },
+          {
+            path: 'orders/:id',
+            element: <RequireOfficeRole role="manager">{suspended(<OfficeOrderPage />)}</RequireOfficeRole>,
+          },
+          ...COMING_SOON.map((section) => ({
+            path: section.path,
+            element: <RequireOfficeRole role={section.role}><OfficeComingSoon section={section.key} /></RequireOfficeRole>,
+          })),
           { path: '*', element: <NotFoundPage /> },
         ],
       },
