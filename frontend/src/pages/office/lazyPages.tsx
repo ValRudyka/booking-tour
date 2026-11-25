@@ -7,3 +7,4 @@ export const OfficeOrderPage = lazy(() => import('./OfficeOrderPage').then((m) =
 export const OfficeUsersPage = lazy(() => import('./admin/OfficeUsersPage').then((m) => ({ default: m.OfficeUsersPage })))
 export const OfficeReferencesPage = lazy(() => import('./admin/OfficeReferencesPage').then((m) => ({ default: m.OfficeReferencesPage })))
 export const OfficeSettingsPage = lazy(() => import('./admin/OfficeSettingsPage').then((m) => ({ default: m.OfficeSettingsPage })))
+export const OfficeAuditLogPage = lazy(() => import('./admin/OfficeAuditLogPage').then((m) => ({ default: m.OfficeAuditLogPage })))

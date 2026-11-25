@@ -28,7 +28,7 @@ export const OFFICE_SECTIONS: readonly OfficeSection[] = [
   { key: 'users', path: 'users', role: 'admin', built: true },                  // spec 13
   { key: 'references', path: 'references', role: 'admin', built: true },        // spec 13
   { key: 'settings', path: 'settings', role: 'admin', built: true },            // spec 13
-  { key: 'audit', path: 'audit-log', role: 'admin', built: false },             // spec 13
+  { key: 'audit', path: 'audit-log', role: 'admin', built: true },              // spec 13
 ]
 
 /** Sections whose page comes with a later spec: the router gives them a «з'явиться згодом» page. */
