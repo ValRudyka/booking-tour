@@ -49,9 +49,14 @@ def add_months(day: date, months: int) -> date:
 
 
 # ---------- checks
-def _bookable_tour(db: Session, tour_id: int, lock: bool) -> Tour:
+def _bookable_tour(db: Session, tour_id: int, lock: bool, *, existing_booking: bool = False) -> Tour:
+    """New bookings need a published tour. A booking made while the tour was public
+    (`existing_booking`, its seats still held) may finish after the tour was unpublished
+    (spec 10: unpublish keeps active bookings payable; services/tours.py locks what they pay
+    for). Archive cancels such bookings, so an archived tour is refused either way."""
     tour = lock_tour(db, tour_id) if lock else db.get(Tour, tour_id)
-    if tour is None or tour.status != TourStatus.ACTIVE:
+    allowed = (TourStatus.ACTIVE, TourStatus.DRAFT) if existing_booking else (TourStatus.ACTIVE,)
+    if tour is None or tour.status not in allowed:
         raise DomainError("Тур недоступний для бронювання", 422)
     return tour
 
@@ -384,7 +389,7 @@ def confirm_order(db: Session, client: User, order: Order,
     _ensure_editable(db, order)
     if not accept_offer:
         raise DomainError("Потрібна згода з Договором публічної оферти", 422)
-    tour = _bookable_tour(db, order.tour_id, lock=True)
+    tour = _bookable_tour(db, order.tour_id, lock=True, existing_booking=True)
     if len(order.tourists) != order.adults + order.children:
         raise DomainError(f"Внесіть дані всіх туристів: потрібно {order.adults + order.children}, "
                           f"внесено {len(order.tourists)}", 422)

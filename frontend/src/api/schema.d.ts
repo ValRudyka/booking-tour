@@ -655,6 +655,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/manager/tours/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Обмеження форми туру (фото, тексти) */
+        get: operations["rules_api_manager_tours_rules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/manager/tours/{tour_id}": {
         parameters: {
             query?: never;
@@ -682,7 +699,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Копіювати тур у нову чернетку */
+        /** Копіювати тур у нову чернетку з новими датами */
         post: operations["copy_tour_api_manager_tours__tour_id__copy_post"];
         delete?: never;
         options?: never;
@@ -716,7 +733,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Зняти з публікації (повернути в чернетку) */
+        /** Зняти з публікації (повернути в чернетку; бронювання лишаються) */
         post: operations["unpublish_api_manager_tours__tour_id__unpublish_post"];
         delete?: never;
         options?: never;
@@ -733,8 +750,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Архівувати */
+        /** Архівувати (неоплачені бронювання скасовуються) */
         post: operations["archive_api_manager_tours__tour_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/manager/tours/{tour_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Відновити з архіву (у чернетку) */
+        post: operations["restore_api_manager_tours__tour_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -783,7 +817,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Змінити порядок фото */
+        /** Змінити порядок фото (перше — головне) */
         put: operations["reorder_images_api_manager_tours__tour_id__images_order_put"];
         post?: never;
         delete?: never;
@@ -2466,6 +2500,16 @@ export interface components {
             /** Is Enabled */
             is_enabled?: boolean | null;
         };
+        /**
+         * LockedFieldOut
+         * @description A form field that cannot change now (services/tours.py LOCKED_FIELDS) and why.
+         */
+        LockedFieldOut: {
+            /** Field */
+            field: string;
+            /** Reason */
+            reason: string;
+        };
         /** ManagerOrderDetailOut */
         ManagerOrderDetailOut: {
             /** Id */
@@ -2647,8 +2691,53 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * ManagerTourHotelOut
+         * @description The tour's hotel with its resort and country, so the editor shows it even when it was
+         *     archived since (the reference lists hide archived rows).
+         */
+        ManagerTourHotelOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Stars */
+            stars: number | null;
+            /** Resort Id */
+            resort_id: number;
+            /** Resort Name */
+            resort_name: string;
+            /** Country Id */
+            country_id: number;
+            /** Country Name */
+            country_name: string;
+            /**
+             * Is Archived
+             * @description Готель, курорт або країна в архіві
+             */
+            is_archived: boolean;
+        };
         /** ManagerTourListItem */
         ManagerTourListItem: {
+            /** Tour Actions */
+            tour_actions: components["schemas"]["TourActionOut"][];
+            /** Locked Fields */
+            locked_fields: components["schemas"]["LockedFieldOut"][];
+            /**
+             * Active Bookings
+             * @description Бронювання з чинним утриманням або частково оплачені
+             */
+            active_bookings: number;
+            /**
+             * Archive Cancels
+             * @description Скільки неоплачених бронювань скасує архівування
+             */
+            archive_cancels: number;
+            /**
+             * For Sale
+             * @description Видно в каталозі (той самий критерій, що й у каталозі)
+             */
+            for_sale: boolean;
             /** Id */
             id: number;
             status: components["schemas"]["TourStatus"];
@@ -2656,6 +2745,14 @@ export interface components {
             title_uk: string;
             /** Hotel Id */
             hotel_id: number;
+            /** Hotel Name */
+            hotel_name: string;
+            /** Resort Name */
+            resort_name: string;
+            /** Country Name */
+            country_name: string;
+            /** Image Url */
+            image_url: string | null;
             /**
              * Departure From
              * Format: date
@@ -2666,12 +2763,19 @@ export interface components {
              * Format: date
              */
             departure_to: string;
+            /**
+             * Nearest Start
+             * @description Найближча дата заїзду від завтра; null — дати минули
+             */
+            nearest_start: string | null;
             /** Nights */
             nights: number;
             /** Seats Total */
             seats_total: number;
             /** Seats Sold */
             seats_sold: number;
+            /** Free Seats */
+            free_seats: number;
             /** Base Price */
             base_price: string;
             currency: components["schemas"]["Currency"];
@@ -2688,6 +2792,25 @@ export interface components {
          * @description Full tour for the back-office form.
          */
         ManagerTourOut: {
+            /** Tour Actions */
+            tour_actions: components["schemas"]["TourActionOut"][];
+            /** Locked Fields */
+            locked_fields: components["schemas"]["LockedFieldOut"][];
+            /**
+             * Active Bookings
+             * @description Бронювання з чинним утриманням або частково оплачені
+             */
+            active_bookings: number;
+            /**
+             * Archive Cancels
+             * @description Скільки неоплачених бронювань скасує архівування
+             */
+            archive_cancels: number;
+            /**
+             * For Sale
+             * @description Видно в каталозі (той самий критерій, що й у каталозі)
+             */
+            for_sale: boolean;
             /** Id */
             id: number;
             status: components["schemas"]["TourStatus"];
@@ -2697,6 +2820,7 @@ export interface components {
             title_en: string;
             /** Hotel Id */
             hotel_id: number;
+            hotel: components["schemas"]["ManagerTourHotelOut"];
             transport_type: components["schemas"]["TransportType"];
             /** Departure City Id */
             departure_city_id: number | null;
@@ -2720,6 +2844,11 @@ export interface components {
             seats_total: number;
             /** Seats Sold */
             seats_sold: number;
+            /**
+             * Seats Held
+             * @description Місця в бронюваннях з чинним утриманням
+             */
+            seats_held: number;
             /** Base Price */
             base_price: string;
             /** Child Price */
@@ -2751,6 +2880,12 @@ export interface components {
             /** Images */
             images: components["schemas"]["TourImageOut"][];
         };
+        /**
+         * ManagerTourSort
+         * @description Sort of the back-office tour list.
+         * @enum {string}
+         */
+        ManagerTourSort: "updated_desc" | "departure_asc" | "title_asc";
         /**
          * MealPlan
          * @description Board basis of a tour (form 4.6.2.1, «Тип харчування»; added in feature/catalog-improvements).
@@ -4228,6 +4363,24 @@ export interface components {
             user: components["schemas"]["UserOut"];
         };
         /**
+         * TourAction
+         * @description What a manager may do with a tour (ManagerTourOut.tour_actions, spec 10).
+         *     Computed by services/tour_actions.py from the refusals the endpoints enforce. Not stored.
+         * @enum {string}
+         */
+        TourAction: "edit" | "publish" | "unpublish" | "archive" | "restore" | "copy";
+        /**
+         * TourActionOut
+         * @description One action of services/tour_actions.py: allowed, or refused with the server's reason.
+         */
+        TourActionOut: {
+            action: components["schemas"]["TourAction"];
+            /** Allowed */
+            allowed: boolean;
+            /** Reason */
+            reason: string | null;
+        };
+        /**
          * TourCardOut
          * @description One tour in the public catalog.
          */
@@ -4270,6 +4423,22 @@ export interface components {
             meal_plan: components["schemas"]["MealPlan"] | null;
             /** Image Url */
             image_url: string | null;
+        };
+        /**
+         * TourCopyIn
+         * @description The copy gets new dates (spec 10: the old ones are never copied).
+         */
+        TourCopyIn: {
+            /**
+             * Departure From
+             * Format: date
+             */
+            departure_from: string;
+            /**
+             * Departure To
+             * Format: date
+             */
+            departure_to: string;
         };
         /** TourCreate */
         TourCreate: {
@@ -4413,6 +4582,28 @@ export interface components {
             sort_order: number;
             /** Url */
             readonly url: string;
+        };
+        /**
+         * TourRulesOut
+         * @description Limits of the tour form from the backend (the editor checks before sending; the server
+         *     checks again).
+         */
+        TourRulesOut: {
+            photos: components["schemas"]["UploadLimitsOut"];
+            /** Max Title */
+            max_title: number;
+            /** Max Description */
+            max_description: number;
+            /** Max Day Text */
+            max_day_text: number;
+            /** Min Nights */
+            min_nights: number;
+            /** Max Nights */
+            max_nights: number;
+            /** Max List Items */
+            max_list_items: number;
+            /** Max List Item Length */
+            max_list_item_length: number;
         };
         /**
          * TourStatus
@@ -6308,6 +6499,13 @@ export interface operations {
             query?: {
                 status?: components["schemas"]["TourStatus"] | null;
                 q?: string | null;
+                country_id?: number | null;
+                resort_id?: number | null;
+                /** @description Період виїзду: від */
+                departure_from?: string | null;
+                /** @description Період виїзду: до */
+                departure_to?: string | null;
+                sort?: components["schemas"]["ManagerTourSort"];
                 page?: number;
                 page_size?: number;
             };
@@ -6366,6 +6564,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rules_api_manager_tours_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TourRulesOut"];
                 };
             };
         };
@@ -6445,7 +6663,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TourCopyIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             201: {
@@ -6530,6 +6752,37 @@ export interface operations {
         };
     };
     archive_api_manager_tours__tour_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tour_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagerTourOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_api_manager_tours__tour_id__restore_post: {
         parameters: {
             query?: never;
             header?: never;

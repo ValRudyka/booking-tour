@@ -8,7 +8,7 @@ import pytest
 from app.config import settings
 from app.models import Tour
 from app.models.enums import TourStatus
-from tests.factories import make_tour
+from tests.factories import copy_dates, error_text, make_tour
 
 URL = "/api/manager/tours"
 JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 100
@@ -52,7 +52,7 @@ def test_type_detected_from_content_not_name(client, manager_headers, tour):
     for file in (fake, gif):
         response = upload(client, manager_headers, tour.id, file)
         assert response.status_code == 422
-        assert "JPG або PNG" in response.json()["detail"]
+        assert "JPG або PNG" in error_text(response)
     assert files_on_disk(tour.id) == []
 
 
@@ -70,7 +70,7 @@ def test_size_limit(client, manager_headers, tour, monkeypatch):
     big = JPEG + b"\x00" * (1024 * 1024)
     response = upload(client, manager_headers, tour.id, ("big.jpg", big, "image/jpeg"))
     assert response.status_code == 413
-    assert "1 МБ" in response.json()["detail"]
+    assert "1 МБ" in error_text(response)
     assert files_on_disk(tour.id) == []
 
 
@@ -80,7 +80,7 @@ def test_max_images_per_tour(client, manager_headers, tour, monkeypatch):
     response = upload(client, manager_headers, tour.id, ("b.jpg", JPEG, "image/jpeg"),
                       ("c.jpg", JPEG, "image/jpeg"))
     assert response.status_code == 422
-    assert "не більше 2 фото" in response.json()["detail"]
+    assert "не більше 2 фото" in error_text(response)
 
 
 def test_delete_image_removes_row_and_file(client, manager_headers, tour):
@@ -129,7 +129,7 @@ def test_photos_of_active_tour_are_locked(client, db, manager, manager_headers, 
 
 def test_copy_duplicates_photo_files(client, manager_headers, tour):
     upload(client, manager_headers, tour.id, ("a.jpg", JPEG, "image/jpeg"), ("b.png", PNG, "image/png"))
-    copy = client.post(f"{URL}/{tour.id}/copy", headers=manager_headers).json()
+    copy = client.post(f"{URL}/{tour.id}/copy", json=copy_dates(), headers=manager_headers).json()
     assert len(copy["images"]) == 2
     assert len(files_on_disk(copy["id"])) == 2
     source_urls = {i["url"] for i in client.get(f"{URL}/{tour.id}", headers=manager_headers)
