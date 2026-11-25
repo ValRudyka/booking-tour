@@ -50,8 +50,11 @@ def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession):
             detail="Невірний логін або пароль",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if user.role == UserRole.CLIENT and maintenance.is_on(db):
-        raise maintenance.unavailable(db)          # staff can still log in to switch it off
+    # Maintenance blocks everyone except admins (only they can switch it off). The password is
+    # checked first, so a wrong one is still 401; a manager or finance token would be refused by
+    # every other endpoint anyway, so they get the 503 here, on the login page.
+    if user.role != UserRole.ADMIN and maintenance.is_on(db):
+        raise maintenance.unavailable(db)
     token = create_access_token(user.id, user.role.value)
     return TokenOut(access_token=token, user=UserOut.model_validate(user))
 

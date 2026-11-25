@@ -1,0 +1,4 @@
+/* Also shown without a layout (the back office sits outside PublicLayout). */
+.maintenance-page {
+  padding-top: 64px;
+}

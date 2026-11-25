@@ -47,7 +47,7 @@ alembic revision --autogenerate -m "..."   # after changing models; review the f
 alembic check                         # models and DB must match
 pytest -q                             # uses TEST_DATABASE_URL (wiped every run)
 uvicorn app.main:app --reload         # http://127.0.0.1:8000/docs
-python -m scripts.create_user --role admin --phone +380500000001 --email admin@tour.local --password "Admin-pass-1" --last-name Адмін --first-name Системний
+python -m scripts.create_user --role admin --phone +380500000001 --email admin@tour.local --password "<your password>" --last-name Адмін --first-name Системний   # dev admin (see below)
 python -m scripts.generate_er         # regenerate docs/er_diagram.puml from models
 python -m scripts.seed_demo           # dev only: 10 hotels, 28 tours with photos, 9 past trips with reviews, 2 promo codes (idempotent; on an older seed: --reset, then seed again)
 python -m scripts.seed_demo --reset   # remove only what the seed created (--remove-legacy: old v1 data)
@@ -78,6 +78,9 @@ npm run gen:api      # saves src/api/openapi.json from http://127.0.0.1:8000, th
 `APP_ENV` (development|test|production, **default production**): dev-only scripts
 (`seed_demo`, `complete_orders --force`) run only in development/test (`scripts/dev_guard.py`,
 also refuses an `sk_live_` key); conftest sets `test`.
+Dev admin: create one with `scripts.create_user --role admin` (command above) and choose its
+password yourself. **Never write a password into a committed file** (README, CLAUDE.md, docs,
+tests use generated ones); keep dev credentials outside the repo.
 DB user is **`tour_app`** (owns the databases `tour_website` and `tour_website_test`).
 
 ## Architecture
@@ -379,6 +382,14 @@ Lives in `frontend/` in this repository (same Git Flow branches as the backend).
       `/login?redirect=<page>` with «Сеанс завершився».
     - `RequireAuth roles=[…]`: guest → login, wrong role → 403. `safeRedirect()` accepts only
       internal paths.
+    - **A 503 never signs anyone out** (fix/maintenance-staff-loop). Maintenance blocks everyone
+      except admins, `/auth/me` and the login of managers / finance / clients too. A `/auth/me`
+      503 keeps the token and sets `status: 'maintenance'`; `RequireAuth` then renders
+      `components/MaintenancePage` (the API's message, «Спробувати ще раз») instead of redirecting
+      to /login. A 503 on any other signed-in request calls `onMaintenance` (`api/client.ts`), which
+      re-checks `/auth/me` (an admin gets 200 and is unaffected). While in maintenance `/auth/me` is
+      asked again every minute (`MAINTENANCE_RECHECK_MS`) and on window focus, so the page comes
+      back by itself. A refused login shows the 503 text on the login page.
     - Logout navigates with `flushSync` before clearing the session, otherwise RequireAuth on the
       old page redirects to /login. Tests render with `RouterProvider` from `react-router/dom`,
       like `main.tsx`.
@@ -730,9 +741,14 @@ favorites (spec 08).
   4.6.4.1).
 
 
+`fix/maintenance-staff-loop` (PR to `develop`): during maintenance only admins log in (managers and
+finance get 503 like clients); the frontend shows a maintenance page instead of sending a 503 to
+/login, and comes back by itself. No migration.
+
+
 Next: spec 11 (moderation, promo codes, statistics; in progress in its own branch), then
 `fix/maintenance-staff-message`, then spec 12.
-Backend test suite: 811 tests. Frontend: 428 tests.
+Backend test suite: 811 tests. Frontend: 436 tests.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
