@@ -18,6 +18,17 @@ class TourStatus(str, enum.Enum):
     ARCHIVED = "archived"      # Архівний
 
 
+class MealPlan(str, enum.Enum):
+    """Board basis of a tour (form 4.6.2.1, «Тип харчування»; added in feature/catalog-improvements).
+    On the tour, not the hotel: the same hotel is sold with different boards."""
+    RO = "ro"      # Без харчування (room only)
+    BB = "bb"      # Сніданок
+    HB = "hb"      # Сніданок і вечеря
+    FB = "fb"      # Повний пансіон
+    AI = "ai"      # Все включено
+    UAI = "uai"    # Ультра все включено
+
+
 class TransportType(str, enum.Enum):
     AIR = "air"                # Авіа
     BUS = "bus"                # Автобус
@@ -83,6 +94,13 @@ class PaymentType(str, enum.Enum):
 class PaymentMethod(str, enum.Enum):
     CARD = "card"                    # Stripe
     BANK_TRANSFER = "bank_transfer"  # ручний переказ, підтверджує фін. контролер
+
+
+class PaymentOrigin(str, enum.Enum):
+    """Where a payment row came from. Finance pages and reports must be able to leave demo money
+    out: `demo_seed` rows are written by scripts.seed_demo (dev only), no money ever moved."""
+    APP = "app"              # made by the application: Stripe (test mode), mock gateway, bank transfer
+    DEMO_SEED = "demo_seed"  # demo data, not a real (or test) payment
 
 
 class TransactionStatus(str, enum.Enum):

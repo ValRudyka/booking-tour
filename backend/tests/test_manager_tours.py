@@ -1,18 +1,19 @@
 """Manager tour management: create, edit, copy, statuses (ТЗ 4.5.2, form 4.6.2.1, 4.4.1)."""
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from sqlalchemy import select
 
 from app.models import AuditLog, Hotel, Tour
 from app.models.enums import TourStatus, UserRole
+from app.services import clock
 from tests.factories import city, headers_for, make_hotel, make_tour, make_user
 
 URL = "/api/manager/tours"
 
 
 def payload(hotel_id, **overrides):
-    start = date.today() + timedelta(days=30)
+    start = clock.today() + timedelta(days=30)
     data = {"title_uk": "Анталія, все включено", "title_en": "Antalya all inclusive",
             "hotel_id": hotel_id, "transport_type": "none", "departure_from": start.isoformat(),
             "departure_to": (start + timedelta(days=20)).isoformat(), "nights": 7,
@@ -73,7 +74,7 @@ def test_flight_numbers_normalized_for_air(client, db, manager_headers, hotel):
 @pytest.mark.parametrize("overrides,message", [
     ({"nights": 0}, "від 1 до 30 ночей"),
     ({"nights": 31}, "від 1 до 30 ночей"),
-    ({"departure_to": (date.today() + timedelta(days=1)).isoformat()}, "не може бути раніше"),
+    ({"departure_to": (clock.today() + timedelta(days=1)).isoformat()}, "не може бути раніше"),
     ({"base_price": "0"}, "більшою за 0"),
     ({"child_price": "-1"}, "від'ємною"),
     ({"seats_total": 0}, "не менше 1"),
@@ -136,7 +137,7 @@ def test_update_checks_merged_tour(client, manager_headers, hotel):
     assert response.status_code == 422
     # the dates are validated together with the stored "from" date
     response = client.patch(f"{URL}/{tour['id']}",
-                            json={"departure_to": date.today().isoformat()}, headers=manager_headers)
+                            json={"departure_to": clock.today().isoformat()}, headers=manager_headers)
     assert response.status_code == 422
 
 
@@ -209,8 +210,8 @@ def test_forbidden_transitions(client, db, manager, manager_headers, start, acti
 
 
 def test_publish_rejects_past_dates(client, db, manager, manager_headers):
-    tour = make_tour(db, manager, departure_from=date.today() - timedelta(days=20),
-                     departure_to=date.today() - timedelta(days=1))
+    tour = make_tour(db, manager, departure_from=clock.today() - timedelta(days=20),
+                     departure_to=clock.today() - timedelta(days=1))
     response = client.post(f"{URL}/{tour.id}/publish", headers=manager_headers)
     assert response.status_code == 422
     assert "минули" in response.json()["detail"]
@@ -226,7 +227,7 @@ def test_publish_rejects_archived_hotel(client, db, manager, manager_headers):
 
 
 def make_active_ready_tour(db, manager):
-    start = date.today() + timedelta(days=10)
+    start = clock.today() + timedelta(days=10)
     return make_tour(db, manager, departure_from=start, departure_to=start + timedelta(days=5))
 
 

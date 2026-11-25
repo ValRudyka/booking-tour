@@ -5,7 +5,7 @@ audit() writes who changed what with the old and new values, made JSON-safe. Fie
 looks secret (password, secret, key, token, hash) are never written.
 """
 import enum
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any
 
@@ -22,7 +22,7 @@ def _safe(value: Any) -> Any:
         return value.value
     if isinstance(value, Decimal):
         return str(value)
-    if isinstance(value, (datetime, date)):
+    if isinstance(value, (datetime, date, time)):
         return value.isoformat()
     if isinstance(value, dict):
         return clean(value)

@@ -49,7 +49,7 @@ pytest -q                             # uses TEST_DATABASE_URL (wiped every run)
 uvicorn app.main:app --reload         # http://127.0.0.1:8000/docs
 python -m scripts.create_user --role admin --phone +380500000001 --email admin@tour.local --password "Admin-pass-1" --last-name Адмін --first-name Системний
 python -m scripts.generate_er         # regenerate docs/er_diagram.puml from models
-python -m scripts.seed_demo           # dev only: 10 hotels, 25 tours, 2 promo codes (idempotent)
+python -m scripts.seed_demo           # dev only: 10 hotels, 28 tours with photos, 9 past trips with reviews, 2 promo codes (idempotent; on an older seed: --reset, then seed again)
 python -m scripts.seed_demo --reset   # remove only what the seed created (--remove-legacy: old v1 data)
 python -m scripts.expire_orders       # cancel orders whose seat hold ran out (server does it every minute)
 python -m scripts.complete_orders     # documents_ready -> completed after the trip (server: every hour)
@@ -136,7 +136,9 @@ Conventions:
   the signed webhook. Idempotency: payment row `FOR UPDATE` + forward-only payment states
   (pending -> succeeded | failed) + refund rows/idempotency keys; no events table. Every money
   movement is its own row (partial bank transfers too). Order `payment_status` is set together
-  with `change_status` in `apply_received_money()`.
+  with `change_status` in `apply_received_money()`. `payments.origin`: `app` (real or Stripe test
+  money, mock gateway, bank transfer) or `demo_seed` (written by `scripts.seed_demo`, no money
+  moved). The finance register returns it and filters `?origin=`; **reports must count only `app`**.
 - Notifications (`services/notifications.py`): `change_status()` itself notifies the client of
   every client-visible transition (not of the client's own actions); pass the manager's text as
   `client_message`. Staff get `notify_managers()` / `notify_finance()`. In-app only (table
@@ -154,10 +156,34 @@ Conventions:
   row is pending and only the ФПВ is kept: then payment_status and `cancel_requested -> cancelled`.
   Webhooks `refund.updated` / `refund.failed` (failed can follow succeeded) — `handle_refund_event`.
   The manager may archive rejected/cancelled orders only when `refund_finished()`.
-- Business dates ("today" for trips) come from `services/clock.py: today()` (Europe/Kyiv, needs
-  `tzdata` on Windows); the completion job (`services/order_completion.py`) completes
-  `documents_ready` orders with `end_date < today`; orders that never got documents are only
-  reported (`?overdue=true` in the manager list).
+- Business dates: "today" is **always** the Kyiv date from `services/clock.py` (`today()`,
+  `tomorrow()`, `day_start(d)` for filtering UTC timestamps by Kyiv days; `now()` is the one
+  place tests patch). Never `date.today()` or a naive `datetime.now()` in `app/`:
+  `tests/test_business_dates.py` scans for them. Date filters (finance register, audit log) use
+  Kyiv days. The completion job (`services/order_completion.py`) completes `documents_ready`
+  orders with `end_date < today`; orders that never got documents are only reported
+  (`?overdue=true` in the manager list).
+- "For sale" = `status = active` and a start date from **tomorrow** (Kyiv) remains
+  (`departure_to >= clock.tomorrow()`), the same rule as the order start date. On its last start
+  day a tour leaves the catalog and its page is 404; publishing needs such a date too. So pages
+  about past trips (client's orders) must show the data stored with the order, not `/tours/:id`.
+- Catalog extras (feature/catalog-improvements):
+  - `tours.meal_plan` (`MealPlan`: ro/bb/hb/fb/ai/uai, nullable, on the tour, not the hotel);
+  - `tours.included` / `excluded` (TEXT[]). Insurance and transfer never go in `included`: they
+    are chosen at checkout;
+  - hotel facts (`beach_line`, `distance_to_beach_m`, `distance_to_airport_km`, `check_in`,
+    `check_out`, `amenities`, `room_types`; form 4.6.4.2, admin reference). Only the tour page
+    returns them (`HotelDetailOut`); cards keep `HotelOut`;
+  - lists are cleaned by `services/text_lists.py` (at most 20 items of 200 characters);
+  - `sort=title_asc` uses `COLLATE "uk-x-icu"`. **The database needs ICU**: migration
+    `c3d8a1f5b742` stops with a message without it.
+- Demo seed provenance (`scripts.seed_demo`, dev only):
+  - resorts and hotels = audit «created» by the seed admin;
+  - tours and promo codes = `created_by` the seed manager;
+  - tour photos = audit «tour_image created» by the seed manager;
+  - past trips = orders of the 4 blocked seed clients (`seed-client-N@tour.local`), payments
+    `origin=demo_seed`.
+  - `--reset` deletes exactly these (orders too, audited) and archives anything other people use.
 - Reviews (`services/reviews.py`): status `pending -> published | rejected`, `published ->
   rejected` (unpublish), `rejected -> pending` once (client's PATCH, `resubmitted_at`). Only for
   completed orders (or archived after completed); `reviews.hotel_id` is saved when written. Staff
@@ -305,17 +331,30 @@ viewer with an append-only trigger, promo codes for managers; migration `admin`)
 `APP_ENV` guard; data migration `resort Alanya spelling` «Аланья» → «Аланія») → merged to
 `develop` (PR #11).
 
-`feature/frontend-public`, in progress. First page done (PR to `develop`):
+`feature/frontend-public`, first page merged (PR #12):
 - `frontend/` set up: Vite, TS 6, antd theme, i18n, router, TanStack Query + axios, generated API
   types, Vitest;
 - public layout;
 - catalog `/tours` with URL state, filters, sort and server-side pagination;
 - backend `fix(api)` CORS for the Vite dev origin.
 
-Next pages: tour page, auth, checkout, personal account.
-Backend test suite: 623 tests (`test_bank_transfer.py::test_register_filters` fails between 00:00
-and ~02:00 Kyiv time: the finance register filters by UTC day, the test uses the local date).
-Frontend: 74 tests.
+`feature/catalog-improvements` (PR to `develop`):
+- Kyiv business date everywhere, including the finance register and audit log day filters; this
+  fixed the midnight failure of `test_register_filters`;
+- "for sale" = a start date from tomorrow;
+- tour meal plan, included/excluded lists, `title_asc` with the ICU collation;
+- structured hotel facts (form 4.6.4.2);
+- `payments.origin`;
+- seed with hotel facts, generated photos, 9 completed demo trips with published reviews, full
+  `--reset`;
+- frontend meal filter/tag, А–Я sort, nearest bookable date;
+- ТЗ (.md) updated: form 4.6.2.1 rows 21–23, new form 4.6.4.2.
+- Migrations: `tour meal plan and lists`, `hotel facts`, `payment origin`
+  (`database/11_catalog_improvements.sql`).
+
+Next: the tour page `/tours/:id` (plan approved, to be updated for the new fields first), then
+auth, checkout, personal account.
+Backend test suite: 657 tests. Frontend: 80 tests.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
@@ -324,15 +363,14 @@ Backlog, in order (one branch each):
 4. `feature/order-processing` — **done** (PR #8)
 5. `feature/reviews` — **done** (PR #9)
 6. `feature/admin` — **done** (PR #10)
-7. `feature/frontend-public` — catalog (**done**), tour page, auth, checkout, personal account;
-   plain antd (also set up `frontend/`)
-8. `feature/catalog-improvements` — backend, then the catalog UI:
-   - `tours.meal_plan` (VARCHAR + CHECK `ro, bb, hb, fb, ai, uai`, nullable; on the tour, not the
-     hotel). Covers the manager form, `TourCardOut.meal_plan`, a repeated `meal_plan` filter and
-     the seed filled from `hotels_uk.json`. Not in ТЗ form 4.6.2.1: note it for the ТЗ update.
-   - `title_asc` sort (ТЗ: "по алфавіту").
-   - `services/catalog.py`: `date.today()` -> `clock.today()` (Kyiv).
-   - Frontend: meal plan filter and card tag, alphabetical sort.
+7. `feature/frontend-public` — catalog (**done**, PR #12), tour page, auth, checkout, personal
+   account; plain antd (also set up `frontend/`).
+   - Note for `docs/frontend/06-client-orders-pages.md`: finished tours return 404, so the
+     client's order details page shows the tour data stored with the order (title, dates, hotel,
+     price) and links to `/tours/:id` only while the tour is still for sale.
+8. `feature/catalog-improvements` — **done** (PR to `develop`): meal plan, included/excluded,
+   `title_asc`, hotel facts, Kyiv dates everywhere, `payments.origin`, seed with photos and
+   reviews, catalog UI.
 9. `feature/frontend-backoffice` — manager, finance, admin pages; antd + pro-components
    (ProLayout, ProTable, ProForm/StepsForm)
 10. `feature/favorites-history` 11. `feature/notifications-email` 12. `feature/reports` (Excel/PDF)

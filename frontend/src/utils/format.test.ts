@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatPrice, formatRating, kyivToday, nearestDeparture } from './format'
+import {
+  formatDate, formatPrice, formatRating, kyivToday, kyivTomorrow, nearestBookableDate,
+} from './format'
 
 // Intl uses a narrow no-break space as the uk-UA thousands separator.
 const plain = (text: string) => text.replace(/[\u00a0\u202f]/g, ' ')
@@ -39,18 +41,30 @@ describe('kyivToday', () => {
   })
 })
 
-describe('nearestDeparture', () => {
-  const today = '2026-12-10'
+describe('kyivTomorrow', () => {
+  it('is the day after the Kyiv date, across a year end', () => {
+    // 22:30 UTC on 30 Dec is already 31 Dec in Kyiv, so tomorrow is 1 Jan.
+    expect(kyivTomorrow(new Date('2026-12-30T22:30:00Z'))).toBe('2027-01-01')
+    expect(kyivTomorrow(new Date('2026-12-30T21:30:00Z'))).toBe('2026-12-31')
+  })
+})
+
+describe('nearestBookableDate', () => {
+  const tomorrow = '2026-12-11'
 
   it('is the first start date when it is still ahead', () => {
-    expect(nearestDeparture('2026-12-20', '2026-12-31', today)).toBe('2026-12-20')
+    expect(nearestBookableDate('2026-12-20', '2026-12-31', tomorrow)).toBe('2026-12-20')
   })
 
-  it('is today once the range of start dates has begun', () => {
-    expect(nearestDeparture('2026-12-01', '2026-12-31', today)).toBe(today)
+  it('is tomorrow once the range of start dates has begun (booking starts tomorrow)', () => {
+    expect(nearestBookableDate('2026-12-01', '2026-12-31', tomorrow)).toBe(tomorrow)
   })
 
   it('is the single date of a one-day range', () => {
-    expect(nearestDeparture('2026-12-15', '2026-12-15', today)).toBe('2026-12-15')
+    expect(nearestBookableDate('2026-12-15', '2026-12-15', tomorrow)).toBe('2026-12-15')
+  })
+
+  it('is null when only today or the past is left', () => {
+    expect(nearestBookableDate('2026-12-01', '2026-12-10', tomorrow)).toBeNull()
   })
 })

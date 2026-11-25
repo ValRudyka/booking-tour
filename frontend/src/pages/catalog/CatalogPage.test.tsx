@@ -80,6 +80,28 @@ describe('CatalogPage', () => {
     await waitFor(() => expect(screen.getByRole('checkbox', { name: '5 зірок' })).not.toBeChecked())
   })
 
+  it('filters by meal plan through the URL', async () => {
+    const spy = mockApi(threeTours)
+    const { router, user } = renderRoute('/tours?page=2&meal_plan=uai')
+    await screen.findByText('Знайдено 3 тури')
+    expect(screen.getByRole('group', { name: 'Харчування' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Ультра все включено' })).toBeChecked()
+
+    await user.click(screen.getByRole('checkbox', { name: 'Все включено' }))
+    expect(searchOf(router).getAll('meal_plan')).toEqual(['ai', 'uai'])   // fixed order, light to full
+    expect(searchOf(router).has('page')).toBe(false)
+    await waitFor(() => expect(lastToursParams(spy)).toMatchObject({ meal_plan: ['ai', 'uai'], page: 1 }))
+  })
+
+  it('sorts by title (А–Я)', async () => {
+    const spy = mockApi(threeTours)
+    const { router, user } = renderRoute('/tours')
+    await screen.findByText('Знайдено 3 тури')
+    await chooseOption(user, 'Сортування', 'За назвою (А–Я)')
+    await waitFor(() => expect(searchOf(router).get('sort')).toBe('title_asc'))
+    await waitFor(() => expect(lastToursParams(spy)).toMatchObject({ sort: 'title_asc' }))
+  })
+
   it('searches by name after a short pause in typing', async () => {
     const spy = mockApi(threeTours)
     const { router, user } = renderRoute('/tours')

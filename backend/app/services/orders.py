@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.models import (ORDER_NUMBER_SEQ, CurrencyRate, InsuranceType, Order, OrderTourist,
                         PromoCode, Tour, TransferType, User)
 from app.models.enums import OrderStatus, PaymentStatus, TourStatus
-from app.services import order_status
+from app.services import clock, order_status
 from app.services.app_settings import booking_timeout_min
 from app.services.errors import DomainError
 from app.services.order_expiry import HOLD_EXPIRED_COMMENT
@@ -58,7 +58,7 @@ def _bookable_tour(db: Session, tour_id: int, lock: bool) -> Tour:
 
 def _check_start_date(tour: Tour, start_date: date) -> date:
     """Returns end_date = start_date + nights."""
-    if start_date < date.today() + timedelta(days=1):
+    if start_date < clock.tomorrow():
         raise DomainError("Дата заїзду — не раніше завтрашнього дня", 422)
     if not tour.departure_from <= start_date <= tour.departure_to:
         raise DomainError(f"Дата заїзду має бути в межах {tour.departure_from:%d.%m.%Y}–"
@@ -146,7 +146,7 @@ def _price(db: Session, tour: Tour, adults: int, children: int, insurance, trans
     price = calculate(tour, rate, adults, children, insurance, transfer)
     if not promo_code:
         return price, None
-    promo = find_valid_promo(db, promo_code, price.subtotal_uah, date.today(),
+    promo = find_valid_promo(db, promo_code, price.subtotal_uah, clock.today(),
                              exclude_order_id=exclude_order_id, lock=lock_promo)
     return calculate(tour, rate, adults, children, insurance, transfer, promo), promo
 
@@ -200,7 +200,7 @@ def expire_if_due(db: Session, order: Order, now: datetime | None = None) -> boo
 
 
 def _next_number(db: Session) -> str:
-    return f"TU-{date.today().year}-{db.scalar(ORDER_NUMBER_SEQ.next_value()):06d}"
+    return f"TU-{clock.today().year}-{db.scalar(ORDER_NUMBER_SEQ.next_value()):06d}"
 
 
 def create_order(db: Session, client: User, data: dict[str, Any]) -> tuple[Order, PriceBreakdown]:

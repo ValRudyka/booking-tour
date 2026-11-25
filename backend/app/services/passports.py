@@ -2,13 +2,13 @@
 shared with the checkout (form 4.6.1.2, fields 3.2–3.4)."""
 import re
 from collections.abc import Sequence
-from datetime import date
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import SavedPassport, User
+from app.services import clock
 from app.services.errors import DomainError
 
 LATIN_NAME = re.compile(r"^[A-Za-z][A-Za-z '\-]*$")
@@ -42,7 +42,7 @@ def add_passport(db: Session, user: User, data: dict[str, Any]) -> SavedPassport
     authority = (data.get("issuing_authority") or "").strip() or None
     if authority is not None and not AUTHORITY_CODE.match(authority):
         raise DomainError("Орган, що видав, — 4-значний цифровий код", 422)
-    if data["expiry_date"] <= date.today():   # field 8.5
+    if data["expiry_date"] <= clock.today():   # field 8.5
         raise DomainError("Термін дії паспорта має бути пізнішим за сьогоднішню дату", 422)
     if len(list_passports(db, user)) >= MAX_SAVED_PASSPORTS:
         raise DomainError(f"Можна зберегти не більше {MAX_SAVED_PASSPORTS} паспортів", 422)

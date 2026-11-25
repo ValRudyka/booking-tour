@@ -1,6 +1,6 @@
 """Client checkout: create, edit, confirm, cancel, hold timer, access (ТЗ 4.5.3, form 4.6.1.2)."""
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -8,11 +8,12 @@ from sqlalchemy import select
 
 from app.models import InsuranceType, Order, Setting
 from app.models.enums import Currency, OrderStatus, TourStatus, UserRole
+from app.services import clock
 from tests.factories import (headers_for, make_active_tour, make_order, make_promo, make_user,
                              set_rate, tourist, years_before)
 
 URL = "/api/orders"
-START = date.today() + timedelta(days=12)
+START = clock.today() + timedelta(days=12)
 ADULT = years_before(START, 35)
 CHILD = years_before(START, 6)
 
@@ -45,7 +46,7 @@ def two_tourists():
 def test_create_order_holds_seats(client, db, customer, customer_headers, tour):
     before = datetime.now(timezone.utc)
     body = create(client, customer_headers, tour, adults=2, children=1)
-    assert re.fullmatch(rf"TU-{date.today().year}-\d{{6}}", body["number"])
+    assert re.fullmatch(rf"TU-{clock.today().year}-\d{{6}}", body["number"])
     assert body["status"] == "checkout" and body["payment_status"] == "awaiting"
     assert body["end_date"] == (START + timedelta(days=7)).isoformat()
     assert body["total_uah"] == body["price"]["total_uah"] == "97050.00"
@@ -83,9 +84,9 @@ def test_create_with_tourists_and_promo(client, db, customer_headers, tour):
 
 @pytest.mark.parametrize("overrides,message", [
     ({"adults": 0}, "щонайменше один дорослий"),
-    ({"start_date": date.today().isoformat()}, "не раніше завтрашнього дня"),
-    ({"start_date": (date.today() + timedelta(days=5)).isoformat()}, "в межах"),
-    ({"start_date": (date.today() + timedelta(days=25)).isoformat()}, "в межах"),
+    ({"start_date": clock.today().isoformat()}, "не раніше завтрашнього дня"),
+    ({"start_date": (clock.today() + timedelta(days=5)).isoformat()}, "в межах"),
+    ({"start_date": (clock.today() + timedelta(days=25)).isoformat()}, "в межах"),
     ({"tourists": [tourist(ADULT)]}, "має дорівнювати"),
     ({"adults": 1, "children": 1, "tourists": [tourist(ADULT), tourist(ADULT)]}, "дітей — 0"),
     ({"tourists": [tourist(ADULT, last="Шевченко"), tourist(ADULT)]}, "латиницею"),

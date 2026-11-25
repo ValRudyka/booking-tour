@@ -1,5 +1,5 @@
 """Administrator: reference data — CRUD, archive instead of delete, single default service."""
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.models import AuditLog, Country, Hotel, InsuranceType, Language, TransferType
 from app.models.enums import UserRole
+from app.services import clock
 from tests.factories import (country, headers_for, make_active_tour, make_hotel, make_order, make_user,
                              resort)
 
@@ -23,7 +24,7 @@ def post(client, headers, kind, body):
 
 
 def tour_payload(hotel_id, **extra):
-    start = date.today() + timedelta(days=30)
+    start = clock.today() + timedelta(days=30)
     return {"title_uk": "Тур", "title_en": "Tour", "hotel_id": hotel_id, "transport_type": "none",
             "departure_from": start.isoformat(), "departure_to": (start + timedelta(days=10)).isoformat(),
             "nights": 7, "seats_total": 10, "base_price": "800.00", "currency": "EUR",

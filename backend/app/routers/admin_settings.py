@@ -1,6 +1,6 @@
 """System administrator: global settings (form 4.6.4.1), payment gateway status and the audit
 log (ТЗ 4.5.8, 5.9, 7). Role admin only."""
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, timedelta
 from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,6 +11,7 @@ from app.models.enums import UserRole
 from app.schemas.admin import AuditLogOut, GatewayStatusOut, SettingsIn, SettingsOut
 from app.schemas.common import Page
 from app.services import audit as audit_service
+from app.services import clock
 from app.services import settings_admin as service
 from app.services.errors import DomainError
 
@@ -59,8 +60,9 @@ def audit_log(db: DbSession, _: Admin,
               date_to: Annotated[date | None, Query(description="Включно")] = None,
               page: Annotated[int, Query(ge=1)] = 1,
               page_size: Annotated[int, Query(ge=1, le=100)] = 50):
-    start = datetime.combine(date_from, time.min, timezone.utc) if date_from else None
-    end = datetime.combine(date_to + timedelta(days=1), time.min, timezone.utc) if date_to else None
+    # Kyiv days, like every other date filter (services/clock.py).
+    start = clock.day_start(date_from) if date_from else None
+    end = clock.day_start(date_to + timedelta(days=1)) if date_to else None
     items, total = audit_service.list_entries(db, user_id=user_id, entity=entity, entity_id=entity_id,
                                               action=action, date_from=start, date_to=end, page=page,
                                               page_size=page_size)

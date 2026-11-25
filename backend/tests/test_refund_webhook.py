@@ -1,7 +1,7 @@
 """Stripe refund webhooks: refund.updated finishes a pending refund, refund.failed puts the order
 back in the finance queue. Events are signed and checked by the real StripeGateway."""
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import select

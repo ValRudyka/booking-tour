@@ -12,11 +12,12 @@ from sqlalchemy import func, select
 from app.models import InsuranceType, Order, TransferType
 from app.models.enums import Currency, DiscountType, OrderStatus
 from app.services.pricing import age_on, is_child
+from app.services import clock
 from tests.factories import (make_active_tour, make_order, make_promo, make_user, set_rate,
                              years_before)
 
 URL = "/api/orders/quote"
-START = date.today() + timedelta(days=12)
+START = clock.today() + timedelta(days=12)
 
 
 @pytest.fixture()
@@ -167,9 +168,9 @@ def test_promo_minimum_amount(client, db, customer_headers, tour):
 
 
 @pytest.mark.parametrize("promo_kwargs,message", [
-    ({"valid_from": date.today() - timedelta(days=30), "valid_to": date.today() - timedelta(days=1)},
+    ({"valid_from": clock.today() - timedelta(days=30), "valid_to": clock.today() - timedelta(days=1)},
      "Термін дії промокоду минув"),
-    ({"valid_from": date.today() + timedelta(days=1)}, "Промокод діє з"),
+    ({"valid_from": clock.today() + timedelta(days=1)}, "Промокод діє з"),
     ({"is_active": False}, "Промокод неактивний"),
 ])
 def test_promo_not_valid(client, db, customer_headers, tour, promo_kwargs, message):

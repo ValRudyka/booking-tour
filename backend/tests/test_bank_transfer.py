@@ -1,5 +1,5 @@
 """Bank transfer (ТЗ 4.4 step 5) and the finance register / confirmation (form 4.6.3.1)."""
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -10,6 +10,7 @@ from app.config import settings
 from app.models import AuditLog, Order, Payment, Setting, Tour
 from app.models.enums import OrderStatus, PaymentMethod, TransactionStatus, UserRole
 from app.services.order_expiry import expire_orders
+from app.services import clock
 from tests.factories import headers_for, make_active_tour, make_order, make_user
 
 NOW = datetime.now(timezone.utc)
@@ -227,8 +228,8 @@ def test_register_filters(client, db, customer, customer_headers, finance_header
     assert ids(method="card") == [card_id]
     assert ids(type="payment", order_number=order.number) == [transfer_id]
     assert ids(type="refund") == []
-    assert ids(date_from=date.today().isoformat(), date_to=date.today().isoformat()) == [card_id, transfer_id]
-    assert ids(date_to=(date.today() - timedelta(days=1)).isoformat()) == []
+    assert ids(date_from=clock.today().isoformat(), date_to=clock.today().isoformat()) == [card_id, transfer_id]
+    assert ids(date_to=(clock.today() - timedelta(days=1)).isoformat()) == []
     page = client.get(REGISTER, params={"page_size": 1, "page": 2}, headers=finance_headers).json()
     assert (page["total"], [r["id"] for r in page["items"]]) == (2, [transfer_id])
     row = client.get(REGISTER, params={"status": "succeeded"}, headers=finance_headers).json()["items"][0]

@@ -4,8 +4,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import (CancelReason, Currency, OrderStatus, PaymentMethod, PaymentStatus,
-                              PaymentType, TransactionStatus)
+from app.models.enums import (CancelReason, Currency, OrderStatus, PaymentMethod, PaymentOrigin,
+                              PaymentStatus, PaymentType, TransactionStatus)
 
 
 class PayRequest(BaseModel):
@@ -77,6 +77,7 @@ class FinancePaymentOut(BaseModel):
     stripe_session_id: str | None
     stripe_payment_intent: str | None
     stripe_refund_id: str | None
+    origin: PaymentOrigin                   # demo_seed = demo data (scripts.seed_demo), no money moved
     created_at: datetime
 
 

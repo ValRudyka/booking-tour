@@ -1,5 +1,5 @@
 """Promo codes managed by managers (ТЗ 4.3, form 4.6.2.3)."""
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -7,10 +7,11 @@ from sqlalchemy import select
 
 from app.models import AuditLog, PromoCode
 from app.models.enums import OrderStatus, PaymentStatus, UserRole
+from app.services import clock
 from tests.factories import headers_for, make_active_tour, make_order, make_paid_order, make_user
 
 URL = "/api/manager/promo-codes"
-TODAY = date.today()
+TODAY = clock.today()
 
 
 def body(**overrides):

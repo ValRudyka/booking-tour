@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useCities, useCountries, useResorts } from '../../api/reference'
 import { useDebouncedCallback } from '../../hooks/useDebouncedCallback'
 import {
-  NIGHTS_MAX, NIGHTS_MIN, STAR_OPTIONS, TRANSPORT_TYPES, type CatalogFilters as Filters,
+  MEAL_PLANS, NIGHTS_MAX, NIGHTS_MIN, STAR_OPTIONS, TRANSPORT_TYPES, type CatalogFilters as Filters,
 } from './catalogParams'
 
 const DATE_FORMAT = 'DD.MM.YYYY'
@@ -52,7 +52,7 @@ interface Props {
 }
 
 /** Catalog filters (spec §4 "Фільтри"): every field has a visible label and works from the
- * keyboard. Meal plan is not here: the API has no such field yet (feature/catalog-improvements). */
+ * keyboard. */
 export function CatalogFilters({ value, onChange, debounceMs, idPrefix }: Props) {
   const { t } = useTranslation()
   const countries = useCountries()
@@ -152,6 +152,14 @@ export function CatalogFilters({ value, onChange, debounceMs, idPrefix }: Props)
           <Checkbox.Group value={value.stars}
             options={STAR_OPTIONS.map((stars) => ({ value: stars, label: t('filters.starsOption', { count: stars }) }))}
             onChange={(next) => onChange({ stars: [...next].sort() })} />
+        </div>
+      </Form.Item>
+
+      <Form.Item label={<span id={id('meal-label')}>{t('filters.meal')}</span>}>
+        <div role="group" aria-labelledby={id('meal-label')}>
+          <Checkbox.Group value={value.meal_plan} className="catalog-filters-column"
+            options={MEAL_PLANS.map((plan) => ({ value: plan, label: t(`meal.${plan}`) }))}
+            onChange={(next) => onChange({ meal_plan: MEAL_PLANS.filter((p) => next.includes(p)) })} />
         </div>
       </Form.Item>
 

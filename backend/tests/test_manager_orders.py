@@ -1,5 +1,5 @@
 """Manager's processing of orders (ТЗ 4.5.4, 4.5.9, form 4.6.2.2) and who may do what."""
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -8,11 +8,12 @@ from sqlalchemy import select
 from app.models import AuditLog, Notification, Order, Tour
 from app.models.enums import OrderStatus, PaymentMethod, PaymentStatus, UserRole
 from app.services.order_status import change_status
+from app.services import clock
 from tests.factories import (add_payment, headers_for, make_active_tour, make_order,
                              make_paid_order, make_user)
 
 URL = "/api/manager/orders"
-DEADLINE = (date.today() + timedelta(days=10)).isoformat()
+DEADLINE = (clock.today() + timedelta(days=10)).isoformat()
 
 
 @pytest.fixture()
@@ -75,8 +76,8 @@ def test_list_filters_and_archived_hidden(client, db, manager, manager_headers, 
 
 
 def test_overdue_filter(client, db, manager_headers, customer, tour, order):
-    past = make_paid_order(db, customer, tour, start_date=date.today() - timedelta(days=1),
-                           end_date=date.today() + timedelta(days=6))
+    past = make_paid_order(db, customer, tour, start_date=clock.today() - timedelta(days=1),
+                           end_date=clock.today() + timedelta(days=6))
     body = client.get(URL, params={"overdue": True}, headers=manager_headers).json()
     assert [i["id"] for i in body["items"]] == [past.id]
 
@@ -112,7 +113,7 @@ def test_confirm_needs_pnr_and_deadline(client, db, customer, manager_headers, o
     take(client, manager_headers, order.id)
     assert confirm(client, manager_headers, order.id, pnr="a-1").status_code == 422
     assert confirm(client, manager_headers, order.id,
-                   deadline=(date.today() - timedelta(days=1)).isoformat()).status_code == 422
+                   deadline=(clock.today() - timedelta(days=1)).isoformat()).status_code == 422
     assert confirm(client, manager_headers, order.id,
                    deadline=(order.start_date + timedelta(days=1)).isoformat()).status_code == 422
     assert client.post(f"{URL}/{order.id}/confirm", json={"pnr": "ABC123"},

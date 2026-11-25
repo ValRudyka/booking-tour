@@ -9,25 +9,27 @@ describe('parseCatalogParams', () => {
   it('reads every filter, the sort and the page', () => {
     const state = parse('q=Coral&country_id=1&resort_id=10&departure_city_id=100&transport_type=air'
       + '&date_from=2026-12-01&date_to=2026-12-31&nights_min=7&nights_max=10&price_min=20000'
-      + '&price_max=50000&stars=5&stars=4&has_seats=true&sort=price_asc&page=2')
+      + '&price_max=50000&stars=5&stars=4&meal_plan=uai&meal_plan=bb&has_seats=true&sort=title_asc&page=2')
     expect(state).toEqual({
       filters: {
         q: 'Coral', country_id: 1, resort_id: 10, departure_city_id: 100, transport_type: 'air',
         date_from: '2026-12-01', date_to: '2026-12-31', nights_min: 7, nights_max: 10,
-        price_min: 20000, price_max: 50000, stars: [4, 5], has_seats: true,
+        price_min: 20000, price_max: 50000, stars: [4, 5], meal_plan: ['bb', 'uai'], has_seats: true,
       },
-      sort: 'price_asc',
+      sort: 'title_asc',
       page: 2,
     })
   })
 
   it('drops values the API would reject instead of sending them', () => {
     const state = parse('country_id=abc&nights_min=0&nights_max=31&date_from=2026-02-30'
-      + '&stars=9&stars=4&stars=4&transport_type=ship&sort=name&page=-1&price_min=1.5&has_seats=false')
+      + '&stars=9&stars=4&stars=4&transport_type=ship&sort=name&page=-1&price_min=1.5&has_seats=false'
+      + '&meal_plan=all&meal_plan=AI&meal_plan=hb')
     expect(state.filters).toEqual({
       q: undefined, country_id: undefined, resort_id: undefined, departure_city_id: undefined,
       transport_type: undefined, date_from: undefined, date_to: undefined, nights_min: undefined,
-      nights_max: undefined, price_min: undefined, price_max: undefined, stars: [4], has_seats: undefined,
+      nights_max: undefined, price_min: undefined, price_max: undefined, stars: [4],
+      meal_plan: ['hb'], has_seats: undefined,
     })
     expect(state.sort).toBe('date_asc')
     expect(state.page).toBe(1)
@@ -41,24 +43,27 @@ describe('parseCatalogParams', () => {
 
 describe('toSearchParams', () => {
   it('leaves defaults and empty filters out of the URL and repeats stars', () => {
-    const params = toSearchParams({ filters: { stars: [5, 4], country_id: 1, q: undefined }, sort: 'date_asc', page: 1 })
-    expect(params.toString()).toBe('country_id=1&stars=4&stars=5')
+    const params = toSearchParams({
+      filters: { stars: [5, 4], meal_plan: ['uai', 'ai'], country_id: 1, q: undefined },
+      sort: 'date_asc', page: 1,
+    })
+    expect(params.toString()).toBe('country_id=1&stars=4&stars=5&meal_plan=ai&meal_plan=uai')
   })
 
   it('round-trips through the parser', () => {
-    const query = 'country_id=2&nights_min=3&stars=3&sort=rating_desc&page=4'
+    const query = 'country_id=2&nights_min=3&stars=3&meal_plan=hb&sort=title_asc&page=4'
     expect(toSearchParams(parse(query)).toString()).toBe(query)
   })
 })
 
 describe('toApiParams', () => {
   it('maps the state to GET /api/tours parameters with 12 per page', () => {
-    expect(toApiParams(parse('country_id=1&stars=4&stars=5&page=3&sort=price_desc'))).toEqual({
-      country_id: 1, stars: [4, 5], page: 3, page_size: 12, sort: 'price_desc',
+    expect(toApiParams(parse('country_id=1&stars=4&stars=5&meal_plan=ai&page=3&sort=price_desc'))).toEqual({
+      country_id: 1, stars: [4, 5], meal_plan: ['ai'], page: 3, page_size: 12, sort: 'price_desc',
     })
   })
 
-  it('sends no empty star list', () => {
+  it('sends no empty star or meal lists', () => {
     expect(toApiParams(parse(''))).toEqual({ sort: 'date_asc', page: 1, page_size: 12 })
   })
 })

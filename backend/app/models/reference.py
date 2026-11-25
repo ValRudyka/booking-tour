@@ -1,11 +1,11 @@
 """Reference data (довідники) and global settings — managed by the system administrator."""
-from datetime import datetime
+from datetime import datetime, time
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (CheckConstraint, ForeignKey, Index, Numeric, SmallInteger, String, Text, func,
                         text)
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, str_enum
@@ -51,7 +51,12 @@ class Resort(Base):
 
 class Hotel(Base):
     __tablename__ = "hotels"
-    __table_args__ = (CheckConstraint("stars BETWEEN 1 AND 5", name="stars_range"),)
+    __table_args__ = (
+        CheckConstraint("stars BETWEEN 1 AND 5", name="stars_range"),
+        CheckConstraint("beach_line BETWEEN 1 AND 5", name="beach_line_range"),
+        CheckConstraint("distance_to_beach_m >= 0", name="distance_to_beach_non_negative"),
+        CheckConstraint("distance_to_airport_km >= 0", name="distance_to_airport_non_negative"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     resort_id: Mapped[int] = mapped_column(ForeignKey("resorts.id"), index=True)
@@ -59,6 +64,15 @@ class Hotel(Base):
     stars: Mapped[int | None] = mapped_column(SmallInteger)
     description: Mapped[str | None] = mapped_column(Text)
     rating_avg: Mapped[Decimal | None] = mapped_column(Numeric(3, 2))  # recalculated from reviews
+    # Hotel facts for the tour page (hotel reference form 4.6.4.2, feature/catalog-improvements).
+    # All optional: NULL / empty = not stated, and the page simply leaves the row out.
+    beach_line: Mapped[int | None] = mapped_column(SmallInteger)            # 1 = first line
+    distance_to_beach_m: Mapped[int | None]                                 # 0 = on the beach
+    distance_to_airport_km: Mapped[int | None]
+    check_in: Mapped[time | None]                                           # «Заїзд з»
+    check_out: Mapped[time | None]                                          # «Виїзд до»
+    amenities: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
+    room_types: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
     is_archived: Mapped[bool] = mapped_column(default=False, server_default="false")
 
     resort: Mapped[Resort] = relationship(back_populates="hotels")

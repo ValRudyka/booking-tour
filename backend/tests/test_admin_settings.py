@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.config import settings as app_config
 from app.models import AuditLog, CurrencyRate, Order, Setting
 from app.models.enums import Currency, OrderStatus, UserRole
+from app.services import clock
 from tests.factories import headers_for, make_active_tour, make_order, make_paid_order, make_user
 
 URL = "/api/admin/settings"
@@ -124,7 +125,7 @@ def test_audit_log_filters(client, db, admin, admin_headers):
     assert get(action="blocked")["items"][0]["entity_id"] == str(manager.id)
     assert {e["user_id"] for e in get(entity="settings")["items"]} == {admin.id, other_admin.id}
     assert get(entity="settings", user_id=other_admin.id)["total"] == 1
-    today = datetime.now(timezone.utc).date()
+    today = clock.today()   # Kyiv days (services/clock.py)
     assert get(date_from=today.isoformat(), date_to=today.isoformat())["total"] == everything["total"]
     assert get(date_to=(today - timedelta(days=1)).isoformat(), entity="settings")["total"] == 0
     assert len(get(page_size=1)["items"]) == 1

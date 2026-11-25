@@ -3,10 +3,11 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import CheckConstraint, ForeignKey, SmallInteger, String, Text, func
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, str_enum
-from app.models.enums import Currency, TourStatus, TransportType
+from app.models.enums import Currency, MealPlan, TourStatus, TransportType
 from app.models.reference import City, Hotel
 
 
@@ -42,6 +43,12 @@ class Tour(TimestampMixin, Base):
     currency: Mapped[Currency] = mapped_column(str_enum(Currency, "currency"))
     # Content and publication
     description: Mapped[str | None] = mapped_column(Text)
+    # NULL = not stated (tours created before the field existed); a meal filter skips them.
+    meal_plan: Mapped[MealPlan | None] = mapped_column(str_enum(MealPlan, "meal_plan"))
+    # «Що включено» / «Що не включено»: short lines for the tour page. Insurance and transfer are
+    # chosen and paid at checkout (form 4.6.1.2), so they never belong to `included`.
+    included: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
+    excluded: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
     is_featured: Mapped[bool] = mapped_column(default=False, server_default="false")
     status: Mapped[TourStatus] = mapped_column(str_enum(TourStatus, "tour_status"),
                                                default=TourStatus.DRAFT,

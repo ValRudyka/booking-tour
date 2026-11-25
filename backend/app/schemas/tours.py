@@ -9,8 +9,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from app.models.enums import Currency, TourStatus, TransportType
-from app.schemas.reference import CityOut, CountryOut, HotelOut, ResortOut
+from app.models.enums import Currency, MealPlan, TourStatus, TransportType
+from app.schemas.reference import CityOut, CountryOut, HotelDetailOut, HotelOut, ResortOut
 
 
 # ---------- manager input
@@ -36,6 +36,9 @@ class TourCreate(BaseModel):
     currency: Currency
     description: str | None = None
     is_featured: bool = False
+    meal_plan: MealPlan | None = None
+    included: list[str] = Field(default=[], description="«Що включено», до 20 пунктів")
+    excluded: list[str] = Field(default=[], description="«Що не включено», до 20 пунктів")
     program_days: list[ProgramDayIn] = []
 
 
@@ -57,6 +60,9 @@ class TourUpdate(BaseModel):
     currency: Currency | None = None
     description: str | None = None
     is_featured: bool | None = None
+    meal_plan: MealPlan | None = None
+    included: list[str] | None = None
+    excluded: list[str] | None = None
     program_days: list[ProgramDayIn] | None = None
 
 
@@ -108,6 +114,9 @@ class ManagerTourOut(BaseModel):
     currency: Currency
     description: str | None
     is_featured: bool
+    meal_plan: MealPlan | None
+    included: list[str]
+    excluded: list[str]
     created_by: int
     created_at: datetime
     updated_at: datetime
@@ -151,15 +160,19 @@ class TourCardOut(BaseModel):
     price_from_uah: Decimal = Field(description="Ціна «від» за 1 дорослого в гривнях")
     free_seats: int
     is_featured: bool
+    meal_plan: MealPlan | None
     image_url: str | None
 
 
 class TourDetailOut(TourCardOut):
+    hotel: HotelDetailOut               # the card's hotel + its facts
     child_price: Decimal | None
     child_price_uah: Decimal
     flight_out: str | None
     flight_back: str | None
     description: str | None
+    included: list[str]
+    excluded: list[str]
     hotel_description: str | None
     program_days: list[ProgramDayOut]
     images: list[TourImageOut]
