@@ -86,6 +86,8 @@ class AuditLogOut(BaseModel):
     old_value: dict[str, Any] | None
     new_value: dict[str, Any] | None
     created_at: datetime
+    user_name: str | None = None        # "Прізвище Ім'я"; None with user_id None = the System
+    user_role: UserRole | None = None
 
 
 # ---------- reference data (patch schemas forbid unknown fields, e.g. hotels.rating_avg)
@@ -266,16 +268,35 @@ class SettingsValues(BaseModel):
     maintenance_mode: bool              # field 7
     support_phone: str                  # field 8, "" = not set
     support_email: str                  # field 9, "" = not set
+    support_address: str                # contacts page and footer, "" = not set (spec 13 §3)
+    maintenance_message: str            # shown to visitors during maintenance, "" = default text
 
 
 class SettingChange(BaseModel):
     updated_at: datetime
     updated_by: int | None
+    updated_by_name: str | None = None  # "Прізвище Ім'я" of updated_by
+
+
+class SettingRule(BaseModel):
+    """Limits of a value, from services/settings_admin.py (the form shows them, never mirrors)."""
+    min: Decimal | None = None
+    max: Decimal | None = None
+    places: int | None = None           # decimal places (rates 4, percent 2)
+    max_length: int | None = None       # text fields
+
+
+class SettingsLimits(BaseModel):
+    """Values from backend/.env: shown read-only, changed only there."""
+    max_review_photos: int
+    max_review_photo_mb: int
 
 
 class SettingsOut(SettingsValues):
     uah_rate: Decimal = Decimal("1")    # fixed
     changes: dict[str, SettingChange]   # when / by whom each value was last changed
+    rules: dict[str, SettingRule]
+    limits: SettingsLimits
 
 
 class SettingsIn(_Strict):
@@ -290,6 +311,8 @@ class SettingsIn(_Strict):
     maintenance_mode: bool | None = None
     support_phone: str | None = Field(default=None, description="Порожній рядок прибирає телефон")
     support_email: str | None = Field(default=None, description="Порожній рядок прибирає e-mail")
+    support_address: str | None = Field(default=None, description="Порожній рядок прибирає адресу")
+    maintenance_message: str | None = Field(default=None, description="Порожній рядок — типовий текст")
 
 
 class GatewayStatusOut(BaseModel):
