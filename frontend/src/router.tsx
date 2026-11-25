@@ -24,7 +24,7 @@ import { PrivacyPage, TermsPage } from './pages/info/LegalPages'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { COMING_SOON } from './features/office/menu'
 import {
-  OfficeLayout, OfficeOrderPage, OfficeOrdersPage, OfficeReferencesPage, OfficeUsersPage,
+  OfficeLayout, OfficeOrderPage, OfficeOrdersPage, OfficeReferencesPage, OfficeSettingsPage, OfficeUsersPage,
 } from './pages/office/lazyPages'
 import { OfficeComingSoon, OfficeHome, RequireOfficeRole } from './pages/office/OfficeHome'
 import { PayPage } from './pages/payment/PayPage'
@@ -106,6 +106,10 @@ export const routes: RouteObject[] = [
           {
             path: 'references',
             element: <RequireOfficeRole role="admin">{suspended(<OfficeReferencesPage />)}</RequireOfficeRole>,
+          },
+          {
+            path: 'settings',
+            element: <RequireOfficeRole role="admin">{suspended(<OfficeSettingsPage />)}</RequireOfficeRole>,
           },
           ...COMING_SOON.map((section) => ({
             path: section.path,

@@ -9,7 +9,7 @@ import { FAQ_KEYS } from './infoContent'
 
 const CONTACTS = { phone: '+380441234567', email: 'help@tour.local' }
 
-function withContacts(contacts: { phone: string | null; email: string | null }) {
+function withContacts(contacts: { phone: string | null; email: string | null; address?: string | null }) {
   return mockApi(() => page([]), { '/site/contacts': () => contacts })
 }
 
@@ -70,6 +70,14 @@ describe('contacts page', () => {
     const main = document.getElementById('main') as HTMLElement
     expect(await within(main).findByRole('link', { name: 'help@tour.local' })).toBeInTheDocument()
     expect(within(main).queryByText(/Телефон/)).not.toBeInTheDocument()
+  })
+
+  it('shows the office address in the page and the footer (spec 13 §3)', async () => {
+    withContacts({ phone: null, email: null, address: 'Київ, вул. Морська, 1' })
+    renderRoute('/contacts')
+    const main = document.getElementById('main') as HTMLElement
+    expect(await within(main).findByText(/Київ, вул\. Морська, 1/)).toBeInTheDocument()
+    expect(within(screen.getByRole('contentinfo')).getByText(/Київ, вул\. Морська, 1/)).toBeInTheDocument()
   })
 
   it('says so when no contacts are set', async () => {

@@ -72,3 +72,32 @@
   margin-bottom: 0;
   border: 0;
 }
+
+.admin-card-title {
+  font-size: 16px;
+  margin: 0;
+}
+
+.admin-changed {
+  font-size: 12px;
+}
+
+.admin-alert {
+  margin: 12px 0;
+}
+
+.admin-setting-number {
+  width: 220px;
+  max-width: 100%;
+}
+
+.admin-switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.admin-align-start {
+  align-self: flex-start;
+}
