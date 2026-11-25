@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next'
-import type { OrderStatus, PaymentStatus, ReviewStatus, TransactionStatus } from '../api/types'
+import type { OrderStatus, PaymentStatus, ReviewStatus, TourStatus, TransactionStatus } from '../api/types'
 
 // The one status dictionary of the frontend (spec 06): the client cabinet and the back office
 // both use it. Each status has a tone, and its Ukrainian label lives in uk.json under the same
@@ -49,13 +49,21 @@ export const TRANSACTION_STATUS_TONES: Record<TransactionStatus, StatusTone> = {
   failed: 'error',                 // Не вдалося
 }
 
-export type StatusKind = 'order' | 'payment' | 'review' | 'transaction'
+export type StatusKind = 'order' | 'payment' | 'review' | 'transaction' | 'tour'
+
+/** Tour statuses, ТЗ 4.4.1 (backend TourStatus). Unpublishing returns a tour to «Чернетка». */
+export const TOUR_STATUS_TONES: Record<TourStatus, StatusTone> = {
+  draft: 'neutral',                // Чернетка
+  active: 'success',               // Опублікований
+  archived: 'warning',             // Архів
+}
 
 export const STATUS_TONES = {
   order: ORDER_STATUS_TONES,
   payment: PAYMENT_STATUS_TONES,
   review: REVIEW_STATUS_TONES,
   transaction: TRANSACTION_STATUS_TONES,
+  tour: TOUR_STATUS_TONES,
 } as const
 
 export interface StatusByKind {
@@ -63,6 +71,7 @@ export interface StatusByKind {
   payment: PaymentStatus
   review: ReviewStatus
   transaction: TransactionStatus
+  tour: TourStatus
 }
 
 /** The uk.json section of each kind. */
@@ -71,6 +80,7 @@ export const STATUS_SECTIONS = {
   payment: 'paymentStatus',
   review: 'reviewStatus',
   transaction: 'transactionStatus',
+  tour: 'tourStatus',
 } as const
 
 export function statusLabel<K extends StatusKind>(t: TFunction, kind: K, status: StatusByKind[K]): string {

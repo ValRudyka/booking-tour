@@ -9,7 +9,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from app.models.enums import Currency, MealPlan, TourStatus, TransportType
+from app.models.enums import Currency, MealPlan, TourAction, TourStatus, TransportType
+from app.schemas.orders import UploadLimitsOut
 from app.schemas.reference import CityOut, CountryOut, HotelDetailOut, HotelOut, ResortOut
 
 
@@ -70,6 +71,12 @@ class ImageOrder(BaseModel):
     image_ids: list[int]
 
 
+class TourCopyIn(BaseModel):
+    """The copy gets new dates (spec 10: the old ones are never copied)."""
+    departure_from: date
+    departure_to: date
+
+
 # ---------- output
 class ProgramDayOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -91,7 +98,42 @@ class TourImageOut(BaseModel):
         return f"/uploads/{self.file_path}"
 
 
-class ManagerTourOut(BaseModel):
+class TourActionOut(BaseModel):
+    """One action of services/tour_actions.py: allowed, or refused with the server's reason."""
+    action: TourAction
+    allowed: bool
+    reason: str | None
+
+
+class LockedFieldOut(BaseModel):
+    """A form field that cannot change now (services/tours.py LOCKED_FIELDS) and why."""
+    field: str
+    reason: str
+
+
+class TourStateOut(BaseModel):
+    """Actions, locks and the booking numbers the confirmation dialogs show."""
+    tour_actions: list[TourActionOut]
+    locked_fields: list[LockedFieldOut]
+    active_bookings: int = Field(description="Бронювання з чинним утриманням або частково оплачені")
+    archive_cancels: int = Field(description="Скільки неоплачених бронювань скасує архівування")
+    for_sale: bool = Field(description="Видно в каталозі (той самий критерій, що й у каталозі)")
+
+
+class ManagerTourHotelOut(BaseModel):
+    """The tour's hotel with its resort and country, so the editor shows it even when it was
+    archived since (the reference lists hide archived rows)."""
+    id: int
+    name: str
+    stars: int | None
+    resort_id: int
+    resort_name: str
+    country_id: int
+    country_name: str
+    is_archived: bool = Field(description="Готель, курорт або країна в архіві")
+
+
+class ManagerTourOut(TourStateOut):
     """Full tour for the back-office form."""
     model_config = ConfigDict(from_attributes=True)
 
@@ -100,6 +142,7 @@ class ManagerTourOut(BaseModel):
     title_uk: str
     title_en: str
     hotel_id: int
+    hotel: ManagerTourHotelOut
     transport_type: TransportType
     departure_city_id: int | None
     flight_out: str | None
@@ -109,6 +152,7 @@ class ManagerTourOut(BaseModel):
     nights: int
     seats_total: int
     seats_sold: int
+    seats_held: int = Field(description="Місця в бронюваннях з чинним утриманням")
     base_price: Decimal
     child_price: Decimal | None
     currency: Currency
@@ -124,22 +168,41 @@ class ManagerTourOut(BaseModel):
     images: list[TourImageOut]
 
 
-class ManagerTourListItem(BaseModel):
+class ManagerTourListItem(TourStateOut):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     status: TourStatus
     title_uk: str
     hotel_id: int
+    hotel_name: str
+    resort_name: str
+    country_name: str
+    image_url: str | None
     departure_from: date
     departure_to: date
+    nearest_start: date | None = Field(description="Найближча дата заїзду від завтра; null — дати минули")
     nights: int
     seats_total: int
     seats_sold: int
+    free_seats: int
     base_price: Decimal
     currency: Currency
     is_featured: bool
     updated_at: datetime
+
+
+class TourRulesOut(BaseModel):
+    """Limits of the tour form from the backend (the editor checks before sending; the server
+    checks again)."""
+    photos: UploadLimitsOut
+    max_title: int
+    max_description: int
+    max_day_text: int
+    min_nights: int
+    max_nights: int
+    max_list_items: int
+    max_list_item_length: int
 
 
 class TourCardOut(BaseModel):

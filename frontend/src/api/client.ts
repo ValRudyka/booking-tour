@@ -69,7 +69,8 @@ export function toApiError(error: unknown): ApiError {
   if (status === 429) return new ApiError('rate_limited', status, i18n.t('errors.rateLimited'), text)
   // 422 details are technical (field paths, pydantic texts): pages map them per field
   // (features/auth/authErrors.ts); the message itself stays generic. Other 4xx keep their issues
-  // too: a rule about one field may answer 409 with a loc (an e-mail in use, PATCH /auth/me).
+  // too: a rule about one field may answer 409 with a loc (an e-mail in use, PATCH /auth/me; a
+  // locked tour field, PATCH /manager/tours/{id}).
   if (status === 422) return new ApiError('validation', status, i18n.t('errors.validation'), text, issues)
   if (status >= 500) return new ApiError('server', status, i18n.t('errors.server'), text)
   return new ApiError('client', status, text ?? i18n.t('errors.client'), text, issues)

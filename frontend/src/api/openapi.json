@@ -2848,6 +2848,85 @@
             }
           },
           {
+            "name": "country_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Country Id"
+            }
+          },
+          {
+            "name": "resort_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Resort Id"
+            }
+          },
+          {
+            "name": "departure_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Період виїзду: від",
+              "title": "Departure From"
+            },
+            "description": "Період виїзду: від"
+          },
+          {
+            "name": "departure_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Період виїзду: до",
+              "title": "Departure To"
+            },
+            "description": "Період виїзду: до"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ManagerTourSort",
+              "default": "updated_desc"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -2937,6 +3016,32 @@
             }
           }
         }
+      }
+    },
+    "/api/manager/tours/rules": {
+      "get": {
+        "tags": [
+          "manager: tours"
+        ],
+        "summary": "Обмеження форми туру (фото, тексти)",
+        "operationId": "rules_api_manager_tours_rules_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TourRulesOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/manager/tours/{tour_id}": {
@@ -3046,7 +3151,7 @@
         "tags": [
           "manager: tours"
         ],
-        "summary": "Копіювати тур у нову чернетку",
+        "summary": "Копіювати тур у нову чернетку з новими датами",
         "operationId": "copy_tour_api_manager_tours__tour_id__copy_post",
         "security": [
           {
@@ -3064,6 +3169,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TourCopyIn"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "Successful Response",
@@ -3140,7 +3255,7 @@
         "tags": [
           "manager: tours"
         ],
-        "summary": "Зняти з публікації (повернути в чернетку)",
+        "summary": "Зняти з публікації (повернути в чернетку; бронювання лишаються)",
         "operationId": "unpublish_api_manager_tours__tour_id__unpublish_post",
         "security": [
           {
@@ -3187,8 +3302,55 @@
         "tags": [
           "manager: tours"
         ],
-        "summary": "Архівувати",
+        "summary": "Архівувати (неоплачені бронювання скасовуються)",
         "operationId": "archive_api_manager_tours__tour_id__archive_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerTourOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manager/tours/{tour_id}/restore": {
+      "post": {
+        "tags": [
+          "manager: tours"
+        ],
+        "summary": "Відновити з архіву (у чернетку)",
+        "operationId": "restore_api_manager_tours__tour_id__restore_post",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -3344,7 +3506,7 @@
         "tags": [
           "manager: tours"
         ],
-        "summary": "Змінити порядок фото",
+        "summary": "Змінити порядок фото (перше — головне)",
         "operationId": "reorder_images_api_manager_tours__tour_id__images_order_put",
         "security": [
           {
@@ -9764,6 +9926,25 @@
         "type": "object",
         "title": "LanguagePatch"
       },
+      "LockedFieldOut": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "reason"
+        ],
+        "title": "LockedFieldOut",
+        "description": "A form field that cannot change now (services/tours.py LOCKED_FIELDS) and why."
+      },
       "ManagerOrderDetailOut": {
         "properties": {
           "id": {
@@ -10340,8 +10521,94 @@
         ],
         "title": "ManagerShortOut"
       },
+      "ManagerTourHotelOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "stars": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stars"
+          },
+          "resort_id": {
+            "type": "integer",
+            "title": "Resort Id"
+          },
+          "resort_name": {
+            "type": "string",
+            "title": "Resort Name"
+          },
+          "country_id": {
+            "type": "integer",
+            "title": "Country Id"
+          },
+          "country_name": {
+            "type": "string",
+            "title": "Country Name"
+          },
+          "is_archived": {
+            "type": "boolean",
+            "title": "Is Archived",
+            "description": "Готель, курорт або країна в архіві"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "stars",
+          "resort_id",
+          "resort_name",
+          "country_id",
+          "country_name",
+          "is_archived"
+        ],
+        "title": "ManagerTourHotelOut",
+        "description": "The tour's hotel with its resort and country, so the editor shows it even when it was\narchived since (the reference lists hide archived rows)."
+      },
       "ManagerTourListItem": {
         "properties": {
+          "tour_actions": {
+            "items": {
+              "$ref": "#/components/schemas/TourActionOut"
+            },
+            "type": "array",
+            "title": "Tour Actions"
+          },
+          "locked_fields": {
+            "items": {
+              "$ref": "#/components/schemas/LockedFieldOut"
+            },
+            "type": "array",
+            "title": "Locked Fields"
+          },
+          "active_bookings": {
+            "type": "integer",
+            "title": "Active Bookings",
+            "description": "Бронювання з чинним утриманням або частково оплачені"
+          },
+          "archive_cancels": {
+            "type": "integer",
+            "title": "Archive Cancels",
+            "description": "Скільки неоплачених бронювань скасує архівування"
+          },
+          "for_sale": {
+            "type": "boolean",
+            "title": "For Sale",
+            "description": "Видно в каталозі (той самий критерій, що й у каталозі)"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -10357,6 +10624,29 @@
             "type": "integer",
             "title": "Hotel Id"
           },
+          "hotel_name": {
+            "type": "string",
+            "title": "Hotel Name"
+          },
+          "resort_name": {
+            "type": "string",
+            "title": "Resort Name"
+          },
+          "country_name": {
+            "type": "string",
+            "title": "Country Name"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "departure_from": {
             "type": "string",
             "format": "date",
@@ -10366,6 +10656,19 @@
             "type": "string",
             "format": "date",
             "title": "Departure To"
+          },
+          "nearest_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nearest Start",
+            "description": "Найближча дата заїзду від завтра; null — дати минули"
           },
           "nights": {
             "type": "integer",
@@ -10378,6 +10681,10 @@
           "seats_sold": {
             "type": "integer",
             "title": "Seats Sold"
+          },
+          "free_seats": {
+            "type": "integer",
+            "title": "Free Seats"
           },
           "base_price": {
             "type": "string",
@@ -10398,15 +10705,26 @@
         },
         "type": "object",
         "required": [
+          "tour_actions",
+          "locked_fields",
+          "active_bookings",
+          "archive_cancels",
+          "for_sale",
           "id",
           "status",
           "title_uk",
           "hotel_id",
+          "hotel_name",
+          "resort_name",
+          "country_name",
+          "image_url",
           "departure_from",
           "departure_to",
+          "nearest_start",
           "nights",
           "seats_total",
           "seats_sold",
+          "free_seats",
           "base_price",
           "currency",
           "is_featured",
@@ -10416,6 +10734,35 @@
       },
       "ManagerTourOut": {
         "properties": {
+          "tour_actions": {
+            "items": {
+              "$ref": "#/components/schemas/TourActionOut"
+            },
+            "type": "array",
+            "title": "Tour Actions"
+          },
+          "locked_fields": {
+            "items": {
+              "$ref": "#/components/schemas/LockedFieldOut"
+            },
+            "type": "array",
+            "title": "Locked Fields"
+          },
+          "active_bookings": {
+            "type": "integer",
+            "title": "Active Bookings",
+            "description": "Бронювання з чинним утриманням або частково оплачені"
+          },
+          "archive_cancels": {
+            "type": "integer",
+            "title": "Archive Cancels",
+            "description": "Скільки неоплачених бронювань скасує архівування"
+          },
+          "for_sale": {
+            "type": "boolean",
+            "title": "For Sale",
+            "description": "Видно в каталозі (той самий критерій, що й у каталозі)"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -10434,6 +10781,9 @@
           "hotel_id": {
             "type": "integer",
             "title": "Hotel Id"
+          },
+          "hotel": {
+            "$ref": "#/components/schemas/ManagerTourHotelOut"
           },
           "transport_type": {
             "$ref": "#/components/schemas/TransportType"
@@ -10492,6 +10842,11 @@
           "seats_sold": {
             "type": "integer",
             "title": "Seats Sold"
+          },
+          "seats_held": {
+            "type": "integer",
+            "title": "Seats Held",
+            "description": "Місця в бронюваннях з чинним утриманням"
           },
           "base_price": {
             "type": "string",
@@ -10581,11 +10936,17 @@
         },
         "type": "object",
         "required": [
+          "tour_actions",
+          "locked_fields",
+          "active_bookings",
+          "archive_cancels",
+          "for_sale",
           "id",
           "status",
           "title_uk",
           "title_en",
           "hotel_id",
+          "hotel",
           "transport_type",
           "departure_city_id",
           "flight_out",
@@ -10595,6 +10956,7 @@
           "nights",
           "seats_total",
           "seats_sold",
+          "seats_held",
           "base_price",
           "child_price",
           "currency",
@@ -10611,6 +10973,16 @@
         ],
         "title": "ManagerTourOut",
         "description": "Full tour for the back-office form."
+      },
+      "ManagerTourSort": {
+        "type": "string",
+        "enum": [
+          "updated_desc",
+          "departure_asc",
+          "title_asc"
+        ],
+        "title": "ManagerTourSort",
+        "description": "Sort of the back-office tour list."
       },
       "MealPlan": {
         "type": "string",
@@ -15244,6 +15616,49 @@
         ],
         "title": "TokenOut"
       },
+      "TourAction": {
+        "type": "string",
+        "enum": [
+          "edit",
+          "publish",
+          "unpublish",
+          "archive",
+          "restore",
+          "copy"
+        ],
+        "title": "TourAction",
+        "description": "What a manager may do with a tour (ManagerTourOut.tour_actions, spec 10).\nComputed by services/tour_actions.py from the refusals the endpoints enforce. Not stored."
+      },
+      "TourActionOut": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/TourAction"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "allowed",
+          "reason"
+        ],
+        "title": "TourActionOut",
+        "description": "One action of services/tour_actions.py: allowed, or refused with the server's reason."
+      },
       "TourCardOut": {
         "properties": {
           "id": {
@@ -15359,6 +15774,27 @@
         ],
         "title": "TourCardOut",
         "description": "One tour in the public catalog."
+      },
+      "TourCopyIn": {
+        "properties": {
+          "departure_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Departure From"
+          },
+          "departure_to": {
+            "type": "string",
+            "format": "date",
+            "title": "Departure To"
+          }
+        },
+        "type": "object",
+        "required": [
+          "departure_from",
+          "departure_to"
+        ],
+        "title": "TourCopyIn",
+        "description": "The copy gets new dates (spec 10: the old ones are never copied)."
       },
       "TourCreate": {
         "properties": {
@@ -15783,6 +16219,54 @@
           "url"
         ],
         "title": "TourImageOut"
+      },
+      "TourRulesOut": {
+        "properties": {
+          "photos": {
+            "$ref": "#/components/schemas/UploadLimitsOut"
+          },
+          "max_title": {
+            "type": "integer",
+            "title": "Max Title"
+          },
+          "max_description": {
+            "type": "integer",
+            "title": "Max Description"
+          },
+          "max_day_text": {
+            "type": "integer",
+            "title": "Max Day Text"
+          },
+          "min_nights": {
+            "type": "integer",
+            "title": "Min Nights"
+          },
+          "max_nights": {
+            "type": "integer",
+            "title": "Max Nights"
+          },
+          "max_list_items": {
+            "type": "integer",
+            "title": "Max List Items"
+          },
+          "max_list_item_length": {
+            "type": "integer",
+            "title": "Max List Item Length"
+          }
+        },
+        "type": "object",
+        "required": [
+          "photos",
+          "max_title",
+          "max_description",
+          "max_day_text",
+          "min_nights",
+          "max_nights",
+          "max_list_items",
+          "max_list_item_length"
+        ],
+        "title": "TourRulesOut",
+        "description": "Limits of the tour form from the backend (the editor checks before sending; the server\nchecks again)."
       },
       "TourStatus": {
         "type": "string",
