@@ -2841,6 +2841,13 @@ export interface components {
             created_at: string;
             /** Client Actions */
             client_actions: components["schemas"]["ClientAction"][];
+            /** Country Name */
+            country_name: string;
+            /** Resort Name */
+            resort_name: string;
+            review_status: components["schemas"]["ReviewStatus"] | null;
+            /** Review Can Resubmit */
+            review_can_resubmit: boolean;
             /** Tourists */
             tourists: components["schemas"]["TouristOut"][];
             /** History */
@@ -2852,10 +2859,6 @@ export interface components {
             payments: components["schemas"]["PaymentShortOut"][];
             /** Tour For Sale */
             tour_for_sale: boolean;
-            /** Country Name */
-            country_name: string;
-            /** Resort Name */
-            resort_name: string;
             /** Departure City Name */
             departure_city_name: string | null;
             transport_type: components["schemas"]["TransportType"];
@@ -2930,6 +2933,13 @@ export interface components {
             created_at: string;
             /** Client Actions */
             client_actions: components["schemas"]["ClientAction"][];
+            /** Country Name */
+            country_name: string;
+            /** Resort Name */
+            resort_name: string;
+            review_status: components["schemas"]["ReviewStatus"] | null;
+            /** Review Can Resubmit */
+            review_can_resubmit: boolean;
             /** Tourists */
             tourists: components["schemas"]["TouristOut"][];
             /** History */
@@ -2941,10 +2951,6 @@ export interface components {
             payments: components["schemas"]["PaymentShortOut"][];
             /** Tour For Sale */
             tour_for_sale: boolean;
-            /** Country Name */
-            country_name: string;
-            /** Resort Name */
-            resort_name: string;
             /** Departure City Name */
             departure_city_name: string | null;
             transport_type: components["schemas"]["TransportType"];
@@ -3026,6 +3032,13 @@ export interface components {
             created_at: string;
             /** Client Actions */
             client_actions: components["schemas"]["ClientAction"][];
+            /** Country Name */
+            country_name: string;
+            /** Resort Name */
+            resort_name: string;
+            review_status: components["schemas"]["ReviewStatus"] | null;
+            /** Review Can Resubmit */
+            review_can_resubmit: boolean;
         };
         /**
          * OrderReviewOut
@@ -3133,6 +3146,13 @@ export interface components {
             created_at: string;
             /** Client Actions */
             client_actions: components["schemas"]["ClientAction"][];
+            /** Country Name */
+            country_name: string;
+            /** Resort Name */
+            resort_name: string;
+            review_status: components["schemas"]["ReviewStatus"] | null;
+            /** Review Can Resubmit */
+            review_can_resubmit: boolean;
             /** Tourists */
             tourists: components["schemas"]["TouristOut"][];
             /** History */
@@ -3144,10 +3164,6 @@ export interface components {
             payments: components["schemas"]["PaymentShortOut"][];
             /** Tour For Sale */
             tour_for_sale: boolean;
-            /** Country Name */
-            country_name: string;
-            /** Resort Name */
-            resort_name: string;
             /** Departure City Name */
             departure_city_name: string | null;
             transport_type: components["schemas"]["TransportType"];

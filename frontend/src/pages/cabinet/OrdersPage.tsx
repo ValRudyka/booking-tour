@@ -10,6 +10,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { formatDate, formatKyivDate, formatMoney } from '../../utils/format'
 import { checkoutPath, has, orderPath, payPath } from './cabinetPaths'
 import { ORDER_GROUPS, readOrdersParams, toOrdersSearch, type OrdersParams } from './ordersParams'
+import { ReviewState } from './ReviewState'
 import './CabinetPages.css'
 
 /** «Мої замовлення» (spec 06, §2): server-side tabs and pages, a table or cards under 768 px. */
@@ -39,7 +40,7 @@ export function OrdersPage() {
       ) : !data ? (
         <Skeleton active={false} paragraph={{ rows: 6 }} />
       ) : empty ? (
-        <EmptyOrders all={params.group === 'all'} onShowAll={() => update({ group: 'all', page: 1 })} />
+        <EmptyOrders group={params.group} onShowAll={() => update({ group: 'all', page: 1 })} />
       ) : (
         <>
           {isDesktop ? <OrdersTable orders={data.items} /> : <OrderCards orders={data.items} />}
@@ -53,10 +54,18 @@ export function OrdersPage() {
   )
 }
 
-function EmptyOrders({ all, onShowAll }: { all: boolean; onShowAll: () => void }) {
+function EmptyOrders({ group, onShowAll }: { group: OrdersParams['group']; onShowAll: () => void }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  if (!all) {
+  // «Історія подорожей» (spec 08 §4) is the «Завершені» tab: its own empty text and the catalog.
+  if (group === 'completed') {
+    return (
+      <Empty description={t('cabinet.history.empty')}>
+        <Button type="primary" onClick={() => navigate('/tours')}>{t('app.toCatalog')}</Button>
+      </Empty>
+    )
+  }
+  if (group !== 'all') {
     return (
       <Empty description={t('cabinet.orders.emptyGroup')}>
         <Button onClick={onShowAll}>{t('cabinet.orders.showAll')}</Button>
@@ -75,18 +84,23 @@ function EmptyOrders({ all, onShowAll }: { all: boolean; onShowAll: () => void }
   )
 }
 
+/** «Туреччина, Анталія»: from the tour row, like the order page (no snapshot yet). */
+const place = (order: OrderSummary) => `${order.country_name}, ${order.resort_name}`
+
 function useTourists() {
   const { t } = useTranslation()
   return (order: OrderSummary) => [t('checkout.summary.adults', { count: order.adults }),
     order.children > 0 ? t('checkout.summary.children', { count: order.children }) : null].filter(Boolean).join(', ')
 }
 
-/** The buttons the API allows for this order (client_actions), plus «Деталі». */
+/** The buttons the API allows for this order (client_actions), plus «Деталі» (the order page
+ * also has the trip documents) and the review state of a past trip. */
 function RowActions({ order }: { order: OrderSummary }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   return (
-    <Flex gap={8} wrap>
+    <Flex gap={8} wrap align="center">
+      <ReviewState order={order} />
       {has(order, 'pay') && (
         <Button type="primary" size="small" onClick={() => navigate(payPath(order.id))}>{t('cabinet.orders.pay')}</Button>
       )}
@@ -113,7 +127,12 @@ function OrdersTable({ orders }: { orders: OrderSummary[] }) {
     },
     {
       key: 'tour', title: t('cabinet.orders.tour'), width: '30%',
-      render: (_, order) => order.tour_title_uk,   // the hotel is on the order page
+      render: (_, order) => (   // the hotel is on the order page
+        <>
+          <div>{order.tour_title_uk}</div>
+          <Typography.Text type="secondary">{place(order)}</Typography.Text>
+        </>
+      ),
     },
     {
       key: 'dates', title: t('cabinet.orders.dates'),
@@ -147,6 +166,8 @@ function OrderCards({ orders }: { orders: OrderSummary[] }) {
           extra={<StatusTag kind="order" status={order.status} />}>
           <Typography.Text strong>{order.tour_title_uk}</Typography.Text>
           <dl className="order-card-facts">
+            <dt>{t('cabinet.history.place')}</dt>
+            <dd>{place(order)}</dd>
             <dt>{t('cabinet.orders.dates')}</dt>
             <dd>{t('checkout.summary.dates', { from: formatDate(order.start_date), to: formatDate(order.end_date) })}</dd>
             <dt>{t('cabinet.orders.tourists')}</dt>

@@ -10510,6 +10510,28 @@
             "type": "array",
             "title": "Client Actions"
           },
+          "country_name": {
+            "type": "string",
+            "title": "Country Name"
+          },
+          "resort_name": {
+            "type": "string",
+            "title": "Resort Name"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review_can_resubmit": {
+            "type": "boolean",
+            "title": "Review Can Resubmit"
+          },
           "tourists": {
             "items": {
               "$ref": "#/components/schemas/TouristOut"
@@ -10535,14 +10557,6 @@
           "tour_for_sale": {
             "type": "boolean",
             "title": "Tour For Sale"
-          },
-          "country_name": {
-            "type": "string",
-            "title": "Country Name"
-          },
-          "resort_name": {
-            "type": "string",
-            "title": "Resort Name"
           },
           "departure_city_name": {
             "anyOf": [
@@ -10608,11 +10622,13 @@
           "fpv_uah",
           "created_at",
           "client_actions",
+          "country_name",
+          "resort_name",
+          "review_status",
+          "review_can_resubmit",
           "tourists",
           "history",
           "tour_for_sale",
-          "country_name",
-          "resort_name",
           "departure_city_name",
           "transport_type",
           "meal_plan"
@@ -10811,6 +10827,28 @@
             "type": "array",
             "title": "Client Actions"
           },
+          "country_name": {
+            "type": "string",
+            "title": "Country Name"
+          },
+          "resort_name": {
+            "type": "string",
+            "title": "Resort Name"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review_can_resubmit": {
+            "type": "boolean",
+            "title": "Review Can Resubmit"
+          },
           "tourists": {
             "items": {
               "$ref": "#/components/schemas/TouristOut"
@@ -10836,14 +10874,6 @@
           "tour_for_sale": {
             "type": "boolean",
             "title": "Tour For Sale"
-          },
-          "country_name": {
-            "type": "string",
-            "title": "Country Name"
-          },
-          "resort_name": {
-            "type": "string",
-            "title": "Resort Name"
           },
           "departure_city_name": {
             "anyOf": [
@@ -10919,11 +10949,13 @@
           "fpv_uah",
           "created_at",
           "client_actions",
+          "country_name",
+          "resort_name",
+          "review_status",
+          "review_can_resubmit",
           "tourists",
           "history",
           "tour_for_sale",
-          "country_name",
-          "resort_name",
           "departure_city_name",
           "transport_type",
           "meal_plan",
@@ -11145,6 +11177,28 @@
             },
             "type": "array",
             "title": "Client Actions"
+          },
+          "country_name": {
+            "type": "string",
+            "title": "Country Name"
+          },
+          "resort_name": {
+            "type": "string",
+            "title": "Resort Name"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review_can_resubmit": {
+            "type": "boolean",
+            "title": "Review Can Resubmit"
           }
         },
         "type": "object",
@@ -11175,7 +11229,11 @@
           "cancel_reason",
           "fpv_uah",
           "created_at",
-          "client_actions"
+          "client_actions",
+          "country_name",
+          "resort_name",
+          "review_status",
+          "review_can_resubmit"
         ],
         "title": "OrderOut"
       },
@@ -11514,6 +11572,28 @@
             "type": "array",
             "title": "Client Actions"
           },
+          "country_name": {
+            "type": "string",
+            "title": "Country Name"
+          },
+          "resort_name": {
+            "type": "string",
+            "title": "Resort Name"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review_can_resubmit": {
+            "type": "boolean",
+            "title": "Review Can Resubmit"
+          },
           "tourists": {
             "items": {
               "$ref": "#/components/schemas/TouristOut"
@@ -11539,14 +11619,6 @@
           "tour_for_sale": {
             "type": "boolean",
             "title": "Tour For Sale"
-          },
-          "country_name": {
-            "type": "string",
-            "title": "Country Name"
-          },
-          "resort_name": {
-            "type": "string",
-            "title": "Resort Name"
           },
           "departure_city_name": {
             "anyOf": [
@@ -11615,11 +11687,13 @@
           "fpv_uah",
           "created_at",
           "client_actions",
+          "country_name",
+          "resort_name",
+          "review_status",
+          "review_can_resubmit",
           "tourists",
           "history",
           "tour_for_sale",
-          "country_name",
-          "resort_name",
           "departure_city_name",
           "transport_type",
           "meal_plan",

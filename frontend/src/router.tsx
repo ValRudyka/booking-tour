@@ -52,6 +52,9 @@ export const routes: RouteObject[] = [
             children: [
               { index: true, element: <Navigate to="orders" replace /> },
               { path: 'orders', element: <OrdersPage /> },
+              // «Історія подорожей» (spec 08 §4) is the «Завершені» tab of the orders: the same list,
+              // with the place and the review state on every card.
+              { path: 'history', element: <Navigate to="/cabinet/orders?group=completed" replace /> },
               { path: 'orders/:id', element: <OrderDetailsPage /> },
               { path: 'orders/:id/review', element: <ReviewPage /> },
               // Profile and password (spec 08 §2): GET/PATCH /auth/me, POST /auth/me/password.

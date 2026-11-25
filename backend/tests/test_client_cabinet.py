@@ -234,3 +234,29 @@ def test_form_rules_of_someone_elses_order_are_404(client, db, customer, tour):
 
 def test_premoderation_helper_is_the_setting(db):
     assert app_settings.review_premoderation(db) is True
+
+
+# ---------- «Історія подорожей» (spec 08): the list cards carry the place and the review state
+def test_list_rows_have_the_place_and_the_review_state(client, db, customer, customer_headers, tour):
+    from datetime import datetime as dt
+
+    written = order_in(db, customer, tour, S.COMPLETED)
+    rejected = order_in(db, customer, tour, S.COMPLETED)
+    corrected = order_in(db, customer, tour, S.COMPLETED)
+    without = order_in(db, customer, tour, S.COMPLETED)
+    make_review(db, written, status=ReviewStatus.PUBLISHED)
+    make_review(db, rejected, status=ReviewStatus.REJECTED, reject_reason="Лайка")
+    make_review(db, corrected, status=ReviewStatus.REJECTED, reject_reason="Лайка").resubmitted_at = dt.now(timezone.utc)
+    db.flush()
+
+    rows = {o["id"]: o for o in client.get("/api/orders", params={"group": "completed"},
+                                           headers=customer_headers).json()["items"]}
+    resort = tour.hotel.resort
+    assert {(r["country_name"], r["resort_name"]) for r in rows.values()} == {(resort.country.name_uk, resort.name_uk)}
+    states = {order.id: (rows[order.id]["review_status"], rows[order.id]["review_can_resubmit"])
+              for order in (written, rejected, corrected, without)}
+    assert states == {written.id: ("published", False), rejected.id: ("rejected", True),
+                      corrected.id: ("rejected", False), without.id: (None, False)}
+    detail = client.get(f"/api/orders/{rejected.id}", headers=customer_headers).json()
+    assert (detail["review_status"], detail["review_can_resubmit"], detail["country_name"]) == (
+        "rejected", True, resort.country.name_uk)
