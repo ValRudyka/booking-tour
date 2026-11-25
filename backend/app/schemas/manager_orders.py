@@ -4,7 +4,9 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import CancelReason, OrderDocumentType, OrderStatus, PaymentStatus
+from app.models.enums import (CancelReason, MealPlan, OrderDocumentType, OrderStatus, PaymentStatus,
+                              StaffAction, TransportType)
+from app.schemas.common import Page
 from app.schemas.orders import StatusHistoryOut, TouristOut
 from app.schemas.payments import PaymentShortOut
 
@@ -19,6 +21,22 @@ class DocumentOut(BaseModel):
 
 class StaffDocumentOut(DocumentOut):
     uploaded_by: int
+
+
+class StaffOrderDocumentOut(StaffDocumentOut):
+    can_delete: bool                     # the delete endpoint would accept it from this user
+
+
+class StaffHistoryOut(StatusHistoryOut):
+    changed_by_name: str | None          # NULL with changed_by NULL = the System
+
+
+class StaffActionOut(BaseModel):
+    """One action of services/staff_actions.py: allowed, or refused with the server's reason
+    (shown next to a disabled button)."""
+    action: StaffAction
+    allowed: bool
+    reason: str | None
 
 
 class StaffPaymentOut(PaymentShortOut):
@@ -50,17 +68,50 @@ class ManagerOrderOut(BaseModel):
     children: int
     total_uah: Decimal
     client_name: str
+    client_phone: str
     manager_id: int | None               # field 8 «Відповідальний»
     manager_name: str | None
     pnr: str | None
+    overdue: bool                        # the trip date came, documents never got ready
     created_at: datetime
+
+
+class QueueCountsOut(BaseModel):
+    new: int
+    mine: int
+    all: int
+
+
+class ManagerOrderPage(Page[ManagerOrderOut]):
+    queue_counts: QueueCountsOut         # tabs «Нові / Мої / Усі», independent of the filters
+
+
+class ManagerShortOut(BaseModel):
+    id: int
+    name: str
+
+
+class DocumentRulesOut(BaseModel):
+    """The manager's upload form: trip document types and file limits (the server checks again,
+    including the file contents)."""
+    doc_types: list[OrderDocumentType]
+    max_documents: int                   # per order, the client's cancellation files included
+    max_file_mb: int
+    file_types: list[str]                # extensions: "pdf", "jpg", "png"
 
 
 class ManagerOrderDetailOut(ManagerOrderOut):
     client: PersonOut
     wishes: str | None
     insurance_type_id: int | None
+    insurance_name: str | None
     transfer_type_id: int | None
+    transfer_name: str | None
+    country_name: str
+    resort_name: str
+    departure_city_name: str | None
+    transport_type: TransportType
+    meal_plan: MealPlan | None
     promo_code: str | None
     discount_uah: Decimal
     operator_deadline: date | None       # field 4
@@ -71,8 +122,9 @@ class ManagerOrderDetailOut(ManagerOrderOut):
     fpv_uah: Decimal | None
     tourists: list[TouristOut]           # passport data: staff and the order's own client only
     payments: list[StaffPaymentOut]
-    documents: list[StaffDocumentOut]    # field 5, plus the client's cancellation evidence
-    history: list[StatusHistoryOut]
+    documents: list[StaffOrderDocumentOut]   # field 5, plus the client's cancellation evidence
+    history: list[StaffHistoryOut]
+    staff_actions: list[StaffActionOut]  # for the viewer; empty for roles other than manager
 
 
 class ClientMessage(BaseModel):

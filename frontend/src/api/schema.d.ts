@@ -809,6 +809,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/manager/orders/document-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Правила завантаження документів (типи, кількість, розмір) */
+        get: operations["document_rules_api_manager_orders_document_rules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/manager/orders/{order_id}": {
         parameters: {
             query?: never;
@@ -972,6 +989,23 @@ export interface paths {
         };
         /** Завантажити файл документа */
         get: operations["download_document_api_manager_orders__order_id__documents__doc_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/manager/managers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Активні менеджери (кому передати замовлення) */
+        get: operations["list_managers_api_manager_managers_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2173,6 +2207,21 @@ export interface components {
             uploaded_at: string;
         };
         /**
+         * DocumentRulesOut
+         * @description The manager's upload form: trip document types and file limits (the server checks again,
+         *     including the file contents).
+         */
+        DocumentRulesOut: {
+            /** Doc Types */
+            doc_types: components["schemas"]["OrderDocumentType"][];
+            /** Max Documents */
+            max_documents: number;
+            /** Max File Mb */
+            max_file_mb: number;
+            /** File Types */
+            file_types: string[];
+        };
+        /**
          * FinancePaymentOut
          * @description One row of the register «Фінанси / Транзакції» (form 4.6.3.1).
          */
@@ -2449,12 +2498,16 @@ export interface components {
             total_uah: string;
             /** Client Name */
             client_name: string;
+            /** Client Phone */
+            client_phone: string;
             /** Manager Id */
             manager_id: number | null;
             /** Manager Name */
             manager_name: string | null;
             /** Pnr */
             pnr: string | null;
+            /** Overdue */
+            overdue: boolean;
             /**
              * Created At
              * Format: date-time
@@ -2465,8 +2518,20 @@ export interface components {
             wishes: string | null;
             /** Insurance Type Id */
             insurance_type_id: number | null;
+            /** Insurance Name */
+            insurance_name: string | null;
             /** Transfer Type Id */
             transfer_type_id: number | null;
+            /** Transfer Name */
+            transfer_name: string | null;
+            /** Country Name */
+            country_name: string;
+            /** Resort Name */
+            resort_name: string;
+            /** Departure City Name */
+            departure_city_name: string | null;
+            transport_type: components["schemas"]["TransportType"];
+            meal_plan: components["schemas"]["MealPlan"] | null;
             /** Promo Code */
             promo_code: string | null;
             /** Discount Uah */
@@ -2487,9 +2552,11 @@ export interface components {
             /** Payments */
             payments: components["schemas"]["StaffPaymentOut"][];
             /** Documents */
-            documents: components["schemas"]["StaffDocumentOut"][];
+            documents: components["schemas"]["StaffOrderDocumentOut"][];
             /** History */
-            history: components["schemas"]["StatusHistoryOut"][];
+            history: components["schemas"]["StaffHistoryOut"][];
+            /** Staff Actions */
+            staff_actions: components["schemas"]["StaffActionOut"][];
         };
         /**
          * ManagerOrderOut
@@ -2526,17 +2593,33 @@ export interface components {
             total_uah: string;
             /** Client Name */
             client_name: string;
+            /** Client Phone */
+            client_phone: string;
             /** Manager Id */
             manager_id: number | null;
             /** Manager Name */
             manager_name: string | null;
             /** Pnr */
             pnr: string | null;
+            /** Overdue */
+            overdue: boolean;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+        };
+        /** ManagerOrderPage */
+        ManagerOrderPage: {
+            /** Items */
+            items: components["schemas"]["ManagerOrderOut"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            queue_counts: components["schemas"]["QueueCountsOut"];
         };
         /**
          * ManagerOrderPatch
@@ -2545,6 +2628,24 @@ export interface components {
         ManagerOrderPatch: {
             /** Internal Comment */
             internal_comment: string | null;
+        };
+        /**
+         * ManagerOrderSort
+         * @enum {string}
+         */
+        ManagerOrderSort: "created_desc" | "created_asc" | "start_asc" | "start_desc";
+        /**
+         * ManagerQueue
+         * @description Tabs of «Вхідні заявки»: new (paid, nobody responsible), mine, all (not archived).
+         * @enum {string}
+         */
+        ManagerQueue: "new" | "mine" | "all";
+        /** ManagerShortOut */
+        ManagerShortOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
         };
         /** ManagerTourListItem */
         ManagerTourListItem: {
@@ -3184,17 +3285,6 @@ export interface components {
             /** Page Size */
             page_size: number;
         };
-        /** Page[ManagerOrderOut] */
-        Page_ManagerOrderOut_: {
-            /** Items */
-            items: components["schemas"]["ManagerOrderOut"][];
-            /** Total */
-            total: number;
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-        };
         /** Page[ManagerTourListItem] */
         Page_ManagerTourListItem_: {
             /** Items */
@@ -3600,6 +3690,15 @@ export interface components {
             /** Published At */
             published_at: string | null;
         };
+        /** QueueCountsOut */
+        QueueCountsOut: {
+            /** New */
+            new: number;
+            /** Mine */
+            mine: number;
+            /** All */
+            all: number;
+        };
         /** QuoteRequest */
         QuoteRequest: {
             /** Tour Id */
@@ -3937,6 +4036,25 @@ export interface components {
             /** Email */
             email: string | null;
         };
+        /**
+         * StaffAction
+         * @description What a manager may do with an order (ManagerOrderDetailOut.staff_actions, spec 09).
+         *     Computed by services/staff_actions.py from the refusals the action endpoints enforce.
+         * @enum {string}
+         */
+        StaffAction: "take" | "assign" | "confirm" | "reject" | "upload_documents" | "documents_ready" | "archive" | "edit_comment";
+        /**
+         * StaffActionOut
+         * @description One action of services/staff_actions.py: allowed, or refused with the server's reason
+         *     (shown next to a disabled button).
+         */
+        StaffActionOut: {
+            action: components["schemas"]["StaffAction"];
+            /** Allowed */
+            allowed: boolean;
+            /** Reason */
+            reason: string | null;
+        };
         /** StaffCreate */
         StaffCreate: {
             role: components["schemas"]["UserRole"];
@@ -3969,6 +4087,37 @@ export interface components {
             uploaded_at: string;
             /** Uploaded By */
             uploaded_by: number;
+        };
+        /** StaffHistoryOut */
+        StaffHistoryOut: {
+            old_status: components["schemas"]["OrderStatus"] | null;
+            new_status: components["schemas"]["OrderStatus"];
+            /** Changed By */
+            changed_by: number | null;
+            /** Comment */
+            comment: string | null;
+            /**
+             * Changed At
+             * Format: date-time
+             */
+            changed_at: string;
+            /** Changed By Name */
+            changed_by_name: string | null;
+        };
+        /** StaffOrderDocumentOut */
+        StaffOrderDocumentOut: {
+            /** Id */
+            id: number;
+            doc_type: components["schemas"]["OrderDocumentType"];
+            /**
+             * Uploaded At
+             * Format: date-time
+             */
+            uploaded_at: string;
+            /** Uploaded By */
+            uploaded_by: number;
+            /** Can Delete */
+            can_delete: boolean;
         };
         /** StaffPaymentOut */
         StaffPaymentOut: {
@@ -6514,15 +6663,24 @@ export interface operations {
     list_orders_api_manager_orders_get: {
         parameters: {
             query?: {
+                /** @description Вкладка: нові, мої, усі */
+                queue?: components["schemas"]["ManagerQueue"];
                 status?: components["schemas"]["OrderStatus"][] | null;
                 tour_id?: number | null;
                 start_from?: string | null;
                 start_to?: string | null;
+                /** @description Створено з (київська дата) */
+                created_from?: string | null;
+                /** @description Створено по (київська дата) */
+                created_to?: string | null;
                 number?: string | null;
+                /** @description ПІБ, телефон або e-mail клієнта */
+                client?: string | null;
                 /** @description Лише мої (я відповідальний) */
                 mine?: boolean;
                 /** @description Дата туру настала, документів немає */
                 overdue?: boolean;
+                sort?: components["schemas"]["ManagerOrderSort"];
                 page?: number;
                 page_size?: number;
             };
@@ -6538,7 +6696,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_ManagerOrderOut_"];
+                    "application/json": components["schemas"]["ManagerOrderPage"];
                 };
             };
             /** @description Validation Error */
@@ -6548,6 +6706,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    document_rules_api_manager_orders_document_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentRulesOut"];
                 };
             };
         };
@@ -6913,6 +7091,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_managers_api_manager_managers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagerShortOut"][];
                 };
             };
         };

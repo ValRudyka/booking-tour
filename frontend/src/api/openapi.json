@@ -3413,6 +3413,17 @@
         ],
         "parameters": [
           {
+            "name": "queue",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ManagerQueue",
+              "description": "Вкладка: нові, мої, усі",
+              "default": "all"
+            },
+            "description": "Вкладка: нові, мої, усі"
+          },
+          {
             "name": "status",
             "in": "query",
             "required": false,
@@ -3482,6 +3493,44 @@
             }
           },
           {
+            "name": "created_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Створено з (київська дата)",
+              "title": "Created From"
+            },
+            "description": "Створено з (київська дата)"
+          },
+          {
+            "name": "created_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Створено по (київська дата)",
+              "title": "Created To"
+            },
+            "description": "Створено по (київська дата)"
+          },
+          {
             "name": "number",
             "in": "query",
             "required": false,
@@ -3497,6 +3546,25 @@
               ],
               "title": "Number"
             }
+          },
+          {
+            "name": "client",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ПІБ, телефон або e-mail клієнта",
+              "title": "Client"
+            },
+            "description": "ПІБ, телефон або e-mail клієнта"
           },
           {
             "name": "mine",
@@ -3521,6 +3589,15 @@
               "title": "Overdue"
             },
             "description": "Дата туру настала, документів немає"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ManagerOrderSort",
+              "default": "created_desc"
+            }
           },
           {
             "name": "page",
@@ -3552,7 +3629,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page_ManagerOrderOut_"
+                  "$ref": "#/components/schemas/ManagerOrderPage"
                 }
               }
             }
@@ -3568,6 +3645,32 @@
             }
           }
         }
+      }
+    },
+    "/api/manager/orders/document-rules": {
+      "get": {
+        "tags": [
+          "manager: orders"
+        ],
+        "summary": "Правила завантаження документів (типи, кількість, розмір)",
+        "operationId": "document_rules_api_manager_orders_document_rules_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRulesOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/manager/orders/{order_id}": {
@@ -4163,6 +4266,36 @@
             }
           }
         }
+      }
+    },
+    "/api/manager/managers": {
+      "get": {
+        "tags": [
+          "manager: orders"
+        ],
+        "summary": "Активні менеджери (кому передати замовлення)",
+        "operationId": "list_managers_api_manager_managers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ManagerShortOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Managers Api Manager Managers Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/manager/promo-codes": {
@@ -8356,6 +8489,41 @@
         ],
         "title": "DocumentOut"
       },
+      "DocumentRulesOut": {
+        "properties": {
+          "doc_types": {
+            "items": {
+              "$ref": "#/components/schemas/OrderDocumentType"
+            },
+            "type": "array",
+            "title": "Doc Types"
+          },
+          "max_documents": {
+            "type": "integer",
+            "title": "Max Documents"
+          },
+          "max_file_mb": {
+            "type": "integer",
+            "title": "Max File Mb"
+          },
+          "file_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "File Types"
+          }
+        },
+        "type": "object",
+        "required": [
+          "doc_types",
+          "max_documents",
+          "max_file_mb",
+          "file_types"
+        ],
+        "title": "DocumentRulesOut",
+        "description": "The manager's upload form: trip document types and file limits (the server checks again,\nincluding the file contents)."
+      },
       "FinancePaymentOut": {
         "properties": {
           "id": {
@@ -9297,6 +9465,10 @@
             "type": "string",
             "title": "Client Name"
           },
+          "client_phone": {
+            "type": "string",
+            "title": "Client Phone"
+          },
           "manager_id": {
             "anyOf": [
               {
@@ -9330,6 +9502,10 @@
             ],
             "title": "Pnr"
           },
+          "overdue": {
+            "type": "boolean",
+            "title": "Overdue"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -9360,6 +9536,17 @@
             ],
             "title": "Insurance Type Id"
           },
+          "insurance_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insurance Name"
+          },
           "transfer_type_id": {
             "anyOf": [
               {
@@ -9370,6 +9557,49 @@
               }
             ],
             "title": "Transfer Type Id"
+          },
+          "transfer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transfer Name"
+          },
+          "country_name": {
+            "type": "string",
+            "title": "Country Name"
+          },
+          "resort_name": {
+            "type": "string",
+            "title": "Resort Name"
+          },
+          "departure_city_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Departure City Name"
+          },
+          "transport_type": {
+            "$ref": "#/components/schemas/TransportType"
+          },
+          "meal_plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MealPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "promo_code": {
             "anyOf": [
@@ -9468,17 +9698,24 @@
           },
           "documents": {
             "items": {
-              "$ref": "#/components/schemas/StaffDocumentOut"
+              "$ref": "#/components/schemas/StaffOrderDocumentOut"
             },
             "type": "array",
             "title": "Documents"
           },
           "history": {
             "items": {
-              "$ref": "#/components/schemas/StatusHistoryOut"
+              "$ref": "#/components/schemas/StaffHistoryOut"
             },
             "type": "array",
             "title": "History"
+          },
+          "staff_actions": {
+            "items": {
+              "$ref": "#/components/schemas/StaffActionOut"
+            },
+            "type": "array",
+            "title": "Staff Actions"
           }
         },
         "type": "object",
@@ -9496,14 +9733,23 @@
           "children",
           "total_uah",
           "client_name",
+          "client_phone",
           "manager_id",
           "manager_name",
           "pnr",
+          "overdue",
           "created_at",
           "client",
           "wishes",
           "insurance_type_id",
+          "insurance_name",
           "transfer_type_id",
+          "transfer_name",
+          "country_name",
+          "resort_name",
+          "departure_city_name",
+          "transport_type",
+          "meal_plan",
           "promo_code",
           "discount_uah",
           "operator_deadline",
@@ -9515,7 +9761,8 @@
           "tourists",
           "payments",
           "documents",
-          "history"
+          "history",
+          "staff_actions"
         ],
         "title": "ManagerOrderDetailOut"
       },
@@ -9573,6 +9820,10 @@
             "type": "string",
             "title": "Client Name"
           },
+          "client_phone": {
+            "type": "string",
+            "title": "Client Phone"
+          },
           "manager_id": {
             "anyOf": [
               {
@@ -9606,6 +9857,10 @@
             ],
             "title": "Pnr"
           },
+          "overdue": {
+            "type": "boolean",
+            "title": "Overdue"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -9627,13 +9882,50 @@
           "children",
           "total_uah",
           "client_name",
+          "client_phone",
           "manager_id",
           "manager_name",
           "pnr",
+          "overdue",
           "created_at"
         ],
         "title": "ManagerOrderOut",
         "description": "A row of «Вхідні заявки»."
+      },
+      "ManagerOrderPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ManagerOrderOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "queue_counts": {
+            "$ref": "#/components/schemas/QueueCountsOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "queue_counts"
+        ],
+        "title": "ManagerOrderPage"
       },
       "ManagerOrderPatch": {
         "properties": {
@@ -9656,6 +9948,44 @@
         ],
         "title": "ManagerOrderPatch",
         "description": "Only the internal comment is edited here; everything else has its own action."
+      },
+      "ManagerOrderSort": {
+        "type": "string",
+        "enum": [
+          "created_desc",
+          "created_asc",
+          "start_asc",
+          "start_desc"
+        ],
+        "title": "ManagerOrderSort"
+      },
+      "ManagerQueue": {
+        "type": "string",
+        "enum": [
+          "new",
+          "mine",
+          "all"
+        ],
+        "title": "ManagerQueue",
+        "description": "Tabs of «Вхідні заявки»: new (paid, nobody responsible), mine, all (not archived)."
+      },
+      "ManagerShortOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ManagerShortOut"
       },
       "ManagerTourListItem": {
         "properties": {
@@ -11665,37 +11995,6 @@
         ],
         "title": "Page[FinancePaymentOut]"
       },
-      "Page_ManagerOrderOut_": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ManagerOrderOut"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          },
-          "page": {
-            "type": "integer",
-            "title": "Page"
-          },
-          "page_size": {
-            "type": "integer",
-            "title": "Page Size"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "total",
-          "page",
-          "page_size"
-        ],
-        "title": "Page[ManagerOrderOut]"
-      },
       "Page_ManagerTourListItem_": {
         "properties": {
           "items": {
@@ -12899,6 +13198,29 @@
         ],
         "title": "PublicReviewOut"
       },
+      "QueueCountsOut": {
+        "properties": {
+          "new": {
+            "type": "integer",
+            "title": "New"
+          },
+          "mine": {
+            "type": "integer",
+            "title": "Mine"
+          },
+          "all": {
+            "type": "integer",
+            "title": "All"
+          }
+        },
+        "type": "object",
+        "required": [
+          "new",
+          "mine",
+          "all"
+        ],
+        "title": "QueueCountsOut"
+      },
       "QuoteRequest": {
         "properties": {
           "tour_id": {
@@ -13881,6 +14203,51 @@
         "title": "SiteContactsOut",
         "description": "Support contacts from the global settings (form 4.6.4.1, fields 8–9); null = not set."
       },
+      "StaffAction": {
+        "type": "string",
+        "enum": [
+          "take",
+          "assign",
+          "confirm",
+          "reject",
+          "upload_documents",
+          "documents_ready",
+          "archive",
+          "edit_comment"
+        ],
+        "title": "StaffAction",
+        "description": "What a manager may do with an order (ManagerOrderDetailOut.staff_actions, spec 09).\nComputed by services/staff_actions.py from the refusals the action endpoints enforce."
+      },
+      "StaffActionOut": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/StaffAction"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "allowed",
+          "reason"
+        ],
+        "title": "StaffActionOut",
+        "description": "One action of services/staff_actions.py: allowed, or refused with the server's reason\n(shown next to a disabled button)."
+      },
       "StaffCreate": {
         "properties": {
           "role": {
@@ -13953,6 +14320,104 @@
           "uploaded_by"
         ],
         "title": "StaffDocumentOut"
+      },
+      "StaffHistoryOut": {
+        "properties": {
+          "old_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrderStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "new_status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          },
+          "changed_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changed By"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "changed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Changed At"
+          },
+          "changed_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changed By Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "old_status",
+          "new_status",
+          "changed_by",
+          "comment",
+          "changed_at",
+          "changed_by_name"
+        ],
+        "title": "StaffHistoryOut"
+      },
+      "StaffOrderDocumentOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "doc_type": {
+            "$ref": "#/components/schemas/OrderDocumentType"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Uploaded At"
+          },
+          "uploaded_by": {
+            "type": "integer",
+            "title": "Uploaded By"
+          },
+          "can_delete": {
+            "type": "boolean",
+            "title": "Can Delete"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "doc_type",
+          "uploaded_at",
+          "uploaded_by",
+          "can_delete"
+        ],
+        "title": "StaffOrderDocumentOut"
       },
       "StaffPaymentOut": {
         "properties": {
