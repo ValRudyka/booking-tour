@@ -26,7 +26,7 @@ export const OFFICE_SECTIONS: readonly OfficeSection[] = [
   { key: 'transactions', path: 'transactions', role: 'finance', built: false }, // spec 12
   { key: 'refunds', path: 'refunds', role: 'finance', built: false },           // spec 12
   { key: 'users', path: 'users', role: 'admin', built: true },                  // spec 13
-  { key: 'references', path: 'references', role: 'admin', built: false },       // spec 13
+  { key: 'references', path: 'references', role: 'admin', built: true },        // spec 13
   { key: 'settings', path: 'settings', role: 'admin', built: false },           // spec 13
   { key: 'audit', path: 'audit-log', role: 'admin', built: false },             // spec 13
 ]
