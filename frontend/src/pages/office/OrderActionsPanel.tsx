@@ -111,7 +111,7 @@ function ClientMessageField() {
   const { t } = useTranslation()
   return (
     <Form.Item name="client_message" label={t('office.order.clientMessage')} extra={t('office.order.clientMessageHint')}>
-      <Input.TextArea rows={3} maxLength={MAX_TEXT} showCount />
+      <Input.TextArea className="office-textarea" rows={3} maxLength={MAX_TEXT} showCount />
     </Form.Item>
   )
 }
@@ -170,7 +170,7 @@ function RejectDialog({ order, action, error, onClose }: DialogProps) {
       }}>
       <Form.Item name="reject_reason" label={t('office.order.reject.reason')}
         rules={[{ required: true, whitespace: true, message: t('office.order.reject.reasonRequired') }]}>
-        <Input.TextArea rows={3} maxLength={MAX_TEXT} showCount />
+        <Input.TextArea className="office-textarea" rows={3} maxLength={MAX_TEXT} showCount />
       </Form.Item>
       <ClientMessageField />
     </FormModal>
@@ -239,7 +239,7 @@ export function CommentCard({ order }: { order: ManagerOrder }) {
       <Typography.Paragraph type="secondary">{t('office.order.commentHint')}</Typography.Paragraph>
       {edit?.allowed ? (
         <>
-          <Input.TextArea rows={4} maxLength={MAX_COMMENT} showCount value={text} aria-label={t('office.order.commentTitle')}
+          <Input.TextArea className="office-textarea" rows={4} maxLength={MAX_COMMENT} showCount value={text} aria-label={t('office.order.commentTitle')}
             onChange={(event) => setText(event.target.value)} />
           <Button className="office-comment-save" disabled={!changed || action.busy !== null}
             loading={action.busy === 'comment'} onClick={() => void save()}>

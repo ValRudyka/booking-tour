@@ -183,3 +183,9 @@
     top: 88px;
   }
 }
+
+/* antd places the character counter of a TextArea with showCount just below the field; leave
+   room for it, otherwise it covers the field's hint (Form.Item extra). */
+.office-textarea.ant-input-textarea-show-count {
+  margin-bottom: 22px;
+}
