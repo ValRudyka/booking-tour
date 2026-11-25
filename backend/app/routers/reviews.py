@@ -10,10 +10,12 @@ from app.models import User
 from app.models.enums import NameDisplay, UserRole
 from app.routers.order_views import my_review, public_review
 from app.schemas.common import Page
-from app.schemas.reviews import MyReviewOut, PublicReviewOut
+from app.schemas.orders import UploadLimitsOut
+from app.schemas.reviews import MyReviewOut, OrderReviewOut, PublicReviewOut
 from app.services import orders as order_service
 from app.services import private_files
 from app.services import reviews as review_service
+from app.services.app_settings import review_premoderation
 from app.services.errors import DomainError
 
 router = APIRouter(tags=["reviews"])
@@ -28,6 +30,21 @@ def _raise(error: DomainError) -> NoReturn:
 
 def _files(photos: list[UploadFile] | None):
     return [(f.file, f.filename) for f in photos or []]
+
+
+@router.get("/orders/{order_id}/review", response_model=OrderReviewOut,
+            summary="Відгук до замовлення (якщо є) і правила форми 4.6.1.4")
+def order_review(order_id: int, db: DbSession, client: Client):
+    try:
+        order = order_service.get_own_order(db, client, order_id)
+    except DomainError as error:
+        _raise(error)
+    review = review_service.review_of_order(db, order)
+    return OrderReviewOut(
+        can_write=review_service.review_refusal(db, order) is None,
+        premoderation=review_premoderation(db),
+        photos=UploadLimitsOut(**review_service.photo_limits()),
+        review=my_review(review) if review else None)
 
 
 @router.post("/orders/{order_id}/review", response_model=MyReviewOut, status_code=status.HTTP_201_CREATED,

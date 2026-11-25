@@ -7,10 +7,11 @@ becomes «Скасовано» and the seats return to the quota.
 """
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models import AuditLog, Order, User
 from app.models.enums import CancelReason
 from app.models.enums import OrderStatus as S
-from app.services import notifications, order_documents
+from app.services import notifications, order_documents, private_files
 from app.services.errors import DomainError
 from app.services.order_documents import FileUpload
 from app.services.order_status import STATUS_LABELS, change_status
@@ -26,15 +27,30 @@ REASON_LABELS = {
 MAX_DETAILS = 2000
 
 
+def evidence_limits() -> dict:
+    """Upload rules of field 4, for the client's form (GET /orders/{id}/cancel-request)."""
+    return dict(max_files=settings.max_cancel_evidence_files, max_file_mb=settings.max_document_mb,
+                file_types=sorted(set(private_files.PDF_JPG.values())))
+
+
+def request_refusal(order: Order) -> str | None:
+    """Why no cancellation request can be filed now, or None if it can. Also decides the
+    «cancel_request» client action (services/order_actions.py)."""
+    if order.status in HOLDING_STATUSES:
+        return "Неоплачене замовлення скасовується одразу, без клопотання"
+    if order.status not in REQUEST_STATUSES:
+        return (f"Клопотання про скасування не можна подати для замовлення в статусі "
+                f"«{STATUS_LABELS[order.status]}»")
+    return None
+
+
 def request_cancellation(db: Session, client: User, order: Order, *, reason: CancelReason,
                          details: str | None, accept_penalty_policy: bool,
                          files: list[FileUpload]) -> Order:
     order = lock_order(db, order.id)
-    if order.status in HOLDING_STATUSES:
-        raise DomainError("Неоплачене замовлення скасовується одразу, без клопотання", 409)
-    if order.status not in REQUEST_STATUSES:
-        raise DomainError(f"Клопотання про скасування не можна подати для замовлення в статусі "
-                          f"«{STATUS_LABELS[order.status]}»", 409)
+    refusal = request_refusal(order)
+    if refusal is not None:
+        raise DomainError(refusal, 409)
     if not accept_penalty_policy:
         raise DomainError("Підтвердіть згоду з умовами утримання фактично понесених витрат (ФПВ)", 422)
     details = (details or "").strip() or None

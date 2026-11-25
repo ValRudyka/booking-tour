@@ -8,8 +8,9 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import CancelReason, Currency, OrderStatus, PaymentStatus
-from app.schemas.payments import PaymentShortOut
+from app.models.enums import (CancelReason, ClientAction, Currency, MealPlan, OrderStatus, PaymentStatus,
+                              TransportType)
+from app.schemas.payments import BankDetailsOut, PaymentShortOut
 
 
 # ---------- input
@@ -140,12 +141,24 @@ class OrderOut(BaseModel):
     cancel_reason: str | None
     fpv_uah: Decimal | None               # ФПВ kept after a refund
     created_at: datetime
+    # What the client may do now (services/order_actions.py): the cabinet shows only these.
+    client_actions: list[ClientAction]
 
 
 class OrderDetailOut(OrderOut):
     tourists: list[TouristOut]
     history: list[StatusHistoryOut]
     payments: list[PaymentShortOut] = []
+    # Tour facts for the order page. Read from the tour row (not a snapshot of the order):
+    # tours are never deleted, and /tours/{id} is linked only while tour_for_sale is true.
+    tour_for_sale: bool
+    country_name: str
+    resort_name: str
+    departure_city_name: str | None
+    transport_type: TransportType
+    meal_plan: MealPlan | None
+    # A bank transfer the client chose and has not paid yet: the same details as POST /pay.
+    pending_transfer: BankDetailsOut | None = None
 
 
 class OrderWithPriceOut(OrderDetailOut):
@@ -159,3 +172,16 @@ class OrderDetailPriceOut(OrderDetailOut):
     rate with the lines rebuilt from them. `price` is null when the lines cannot be rebuilt exactly
     (a tour or service price changed after confirm): `total_uah` is still the frozen amount."""
     price: PriceOut | None
+
+
+class UploadLimitsOut(BaseModel):
+    """File rules of a client form, from the backend settings (the client checks before sending,
+    the server checks again, including the file contents)."""
+    max_files: int
+    max_file_mb: int
+    file_types: list[str]      # extensions: "pdf", "jpg", "png"
+
+
+class CancelRequestFormOut(BaseModel):
+    """GET /orders/{id}/cancel-request: what form 4.6.1.3 needs from the server."""
+    evidence: UploadLimitsOut
