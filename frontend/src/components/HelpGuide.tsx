@@ -8,8 +8,9 @@ import './HelpGuide.css'
 export interface HelpGuideContent {
   title: string
   steps: string[]
-  /** A link to the related page, e.g. from «Як увійти» to the registration. */
-  link?: { to: string; label: string }
+  /** A link to the related page, e.g. from «Як увійти» to the registration. `newTab` keeps a
+   * page with unsaved work open (the booking wizard links to the FAQ). */
+  link?: { to: string; label: string; newTab?: boolean }
 }
 
 /**
@@ -29,7 +30,10 @@ export function HelpGuide({ content }: { content: HelpGuideContent }) {
         focusable={{ focusTriggerAfterClose: true }}
         footer={[
           content.link && (
-            <Link key="link" to={content.link.to} className="help-guide-link">{content.link.label}</Link>
+            <Link key="link" to={content.link.to} className="help-guide-link"
+              {...(content.link.newTab ? { target: '_blank', rel: 'noopener' } : {})}>
+              {content.link.label}
+            </Link>
           ),
           <Button key="ok" type="primary" onClick={() => setOpen(false)}>{t('help.close')}</Button>,
         ]}>

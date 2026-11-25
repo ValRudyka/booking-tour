@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { useSiteContacts } from '../../api/site'
+import { AppLink } from '../../components/AppLink'
 import { HelpGuide } from '../../components/HelpGuide'
 import type { LoginLocationState } from '../../features/auth/authContext'
 import { loginErrorText } from '../../features/auth/authErrors'
@@ -107,10 +108,11 @@ function ForgotPassword() {
   return (
     <Alert id="forgot-panel" type="info" className="forgot-panel"
       title={phone || email ? t('auth.forgotText') : t('auth.forgotNoContacts')}
-      description={(phone || email) && (
+      description={(
         <>
           {phone && <div>{t('footer.phone')}: <a href={`tel:${phone}`}>{phone}</a></div>}
           {email && <div>{t('footer.email')}: <a href={`mailto:${email}`}>{email}</a></div>}
+          <div><AppLink to="/faq#password">{t('auth.forgotMore')}</AppLink></div>
         </>
       )} />
   )
