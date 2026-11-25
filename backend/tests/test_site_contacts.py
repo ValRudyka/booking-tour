@@ -16,7 +16,7 @@ def admin_headers(db):
 
 
 def test_nothing_is_shown_until_the_admin_sets_it(client):
-    assert client.get(PUBLIC).json() == {"phone": None, "email": None}
+    assert client.get(PUBLIC).json() == {"phone": None, "email": None, "address": None}
 
 
 def test_admin_sets_contacts_and_guests_see_them(client, db, admin_headers):
@@ -24,7 +24,7 @@ def test_admin_sets_contacts_and_guests_see_them(client, db, admin_headers):
                           json={"support_phone": "+380 44 123 45 67", "support_email": " Help@Tour.Local "})
     assert response.status_code == 200, response.text
     assert (response.json()["support_phone"], response.json()["support_email"]) == ("+380441234567", "help@tour.local")
-    assert client.get(PUBLIC).json() == {"phone": "+380441234567", "email": "help@tour.local"}
+    assert client.get(PUBLIC).json() == {"phone": "+380441234567", "email": "help@tour.local", "address": None}
 
     entry = db.scalars(select(AuditLog).where(AuditLog.entity == "settings").order_by(AuditLog.id.desc())).first()
     assert entry.new_value == {"support_phone": "+380441234567", "support_email": "help@tour.local"}
@@ -33,7 +33,7 @@ def test_admin_sets_contacts_and_guests_see_them(client, db, admin_headers):
 def test_empty_values_remove_a_contact(client, admin_headers):
     client.put(SETTINGS, headers=admin_headers, json={"support_phone": "+380441234567", "support_email": "a@b.ua"})
     client.put(SETTINGS, headers=admin_headers, json={"support_phone": "", "support_email": ""})
-    assert client.get(PUBLIC).json() == {"phone": None, "email": None}
+    assert client.get(PUBLIC).json() == {"phone": None, "email": None, "address": None}
 
 
 @pytest.mark.parametrize("field, value, message", [

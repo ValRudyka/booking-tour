@@ -2,7 +2,7 @@
 
 An app-wide FastAPI dependency (app/main.py), so it uses the same database session as the
 endpoints. When settings.maintenance_mode is on, every request gets 503 with a Ukrainian message
-and Retry-After, except:
+(the admin's maintenance_message, or MESSAGE when it is empty) and Retry-After, except:
 - GET /health, /docs, /redoc, /openapi.json — monitoring and API docs, no data;
 - POST /api/auth/login — passwords are checked as usual (a wrong one is still 401), but anyone
   except an admin gets 503 instead of a token (routers/auth.py), so only admins can log in;
@@ -30,9 +30,11 @@ def is_on(db) -> bool:
     return bool(get_setting(db, "maintenance_mode", False))
 
 
-def unavailable() -> HTTPException:
-    return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=MESSAGE,
-                         headers={"Retry-After": RETRY_AFTER_SEC})
+def unavailable(db) -> HTTPException:
+    from app.services.settings_admin import maintenance_message
+
+    return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                         detail=maintenance_message(db) or MESSAGE, headers={"Retry-After": RETRY_AFTER_SEC})
 
 
 def _bearer(request: Request) -> str | None:
@@ -52,4 +54,4 @@ def guard(request: Request, db: DbSession) -> None:
         user = user_from_token(db, _bearer(request))
         if user is not None and user.role == UserRole.ADMIN:
             return
-    raise unavailable()
+    raise unavailable(db)

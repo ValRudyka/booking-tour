@@ -35,10 +35,14 @@ SETTING_FIELDS: dict[str, tuple[str, str, Any, Any]] = {
     # Public through GET /api/site/contacts; empty = not shown.
     "support_phone": ("Телефон підтримки", "phone_or_empty", None, None),
     "support_email": ("E-mail підтримки", "email_or_empty", None, None),
+    # Spec 13 §3: the contacts page and the footer show the address; the maintenance 503 shows
+    # the message (empty = the default text, maintenance.MESSAGE). max = text length.
+    "support_address": ("Адреса офісу", "text_or_empty", None, 300),
+    "maintenance_message": ("Повідомлення для відвідувачів", "text_or_empty", None, 500),
 }
 DEFAULTS = {"acquiring_percent": Decimal("2.5"), "booking_timeout_min": 20, "bank_transfer_hold_hours": 48,
             "review_premoderation": True, "system_email": "", "maintenance_mode": False,
-            "support_phone": "", "support_email": ""}
+            "support_phone": "", "support_email": "", "support_address": "", "maintenance_message": ""}
 
 
 def _read(db: Session, key: str) -> Any:
@@ -55,14 +59,41 @@ def current(db: Session) -> dict[str, Any]:
 
 
 def changes_info(db: Session) -> dict[str, dict[str, Any]]:
-    """When and by whom each value was last changed."""
+    """When and by whom each value was last changed (the name for the settings page)."""
     info = {name: {"updated_at": r.updated_at, "updated_by": r.updated_by}
             for name, cur in RATE_FIELDS.items() if (r := db.get(CurrencyRate, cur))}
     for key in SETTING_FIELDS:
         row = db.get(Setting, key)
         if row is not None:
             info[key] = {"updated_at": row.updated_at, "updated_by": row.updated_by}
+    for change in info.values():
+        author = db.get(User, change["updated_by"]) if change["updated_by"] is not None else None
+        change["updated_by_name"] = f"{author.last_name} {author.first_name}" if author else None
     return info
+
+
+RATE_RULE = {"min": Decimal("0.0001"), "max": Decimal("10000"), "places": 4}
+
+
+def rules() -> dict[str, dict[str, Any]]:
+    """Limits the settings form shows (the same values _validate() checks)."""
+    out: dict[str, dict[str, Any]] = {name: dict(RATE_RULE) for name in RATE_FIELDS}
+    for key, (_label, kind, low, high) in SETTING_FIELDS.items():
+        if kind == "decimal2":
+            out[key] = {"min": low, "max": high, "places": 2}
+        elif kind == "int":
+            out[key] = {"min": low, "max": high, "places": 0}
+        elif kind == "text_or_empty":
+            out[key] = {"max_length": high}
+        elif kind in ("email", "email_or_empty"):
+            out[key] = {"max_length": 255}
+    return out
+
+
+def limits() -> dict[str, int]:
+    """Values kept in backend/.env, shown read-only on the settings page."""
+    return {"max_review_photos": app_config.max_review_photos,
+            "max_review_photo_mb": app_config.max_review_photo_mb}
 
 
 def _decimal(value: Any, label: str, places: int, low: Decimal, high: Decimal) -> Decimal:
@@ -81,7 +112,7 @@ def _validate(changes: dict[str, Any]) -> dict[str, Any]:
     clean: dict[str, Any] = {}
     for name in RATE_FIELDS:
         if name in changes:
-            clean[name] = _decimal(changes[name], f"Курс {name[:3].upper()}", 4, Decimal("0.0001"), Decimal("10000"))
+            clean[name] = _decimal(changes[name], f"Курс {name[:3].upper()}", 4, RATE_RULE["min"], RATE_RULE["max"])
     for key, (label, kind, low, high) in SETTING_FIELDS.items():
         if key not in changes:
             continue
@@ -96,6 +127,11 @@ def _validate(changes: dict[str, Any]) -> dict[str, Any]:
             if not isinstance(value, bool):
                 raise DomainError(f"«{label}»: так або ні", 422)
             clean[key] = value
+        elif kind == "text_or_empty":
+            text = " ".join(str(value or "").split())          # one line, no double spaces
+            if len(text) > high:
+                raise DomainError(f"«{label}»: не довше {high} символів", 422)
+            clean[key] = text
         elif kind == "phone_or_empty":
             phone = str(value or "").strip()
             if phone:
@@ -116,8 +152,13 @@ def _validate(changes: dict[str, Any]) -> dict[str, Any]:
 
 
 def support_contacts(db: Session) -> dict[str, str | None]:
-    """Public: the support phone and e-mail (None when the admin has not set them)."""
-    return {"phone": _read(db, "support_phone") or None, "email": _read(db, "support_email") or None}
+    """Public: the support phone, e-mail and office address (None when the admin has not set them)."""
+    return {"phone": _read(db, "support_phone") or None, "email": _read(db, "support_email") or None,
+            "address": _read(db, "support_address") or None}
+
+
+def maintenance_message(db: Session) -> str | None:
+    return _read(db, "maintenance_message") or None
 
 
 def update(db: Session, admin: User, changes: dict[str, Any]) -> dict[str, Any]:

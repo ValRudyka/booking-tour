@@ -5,20 +5,41 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.models.enums import UserRole
+from app.models.enums import ReferenceAction, UserAdminAction, UserRole
 from app.schemas.auth import UserOut, normalize_phone
 
 
 # ---------- users
+class UserActionOut(BaseModel):
+    """One action of services/admin_actions.py: allowed, or refused with the server's reason
+    (shown next to a disabled button)."""
+    action: UserAdminAction
+    allowed: bool
+    reason: str | None
+
+
+class ReferenceActionOut(BaseModel):
+    action: ReferenceAction
+    allowed: bool
+    reason: str | None
+
+
 class AdminUserOut(UserOut):
     updated_at: datetime
+    user_actions: list[UserActionOut] = []
+
+
+class StaffCreatedOut(AdminUserOut):
+    temporary_password: str | None = Field(
+        None, description="Згенерований тимчасовий пароль: показується один раз, ніде не зберігається")
 
 
 class StaffCreate(BaseModel):
     role: UserRole
     phone: str
     email: EmailStr
-    password: str = Field(min_length=8, max_length=128, description="Початковий пароль")
+    password: str | None = Field(None, min_length=8, max_length=128,
+                                 description="Початковий пароль; без нього сервер згенерує тимчасовий")
     last_name: str = Field(min_length=1, max_length=100)
     first_name: str = Field(min_length=1, max_length=100)
 
@@ -65,6 +86,8 @@ class AuditLogOut(BaseModel):
     old_value: dict[str, Any] | None
     new_value: dict[str, Any] | None
     created_at: datetime
+    user_name: str | None = None        # "Прізвище Ім'я"; None with user_id None = the System
+    user_role: UserRole | None = None
 
 
 # ---------- reference data (patch schemas forbid unknown fields, e.g. hotels.rating_avg)
@@ -91,6 +114,7 @@ class CountryAdminOut(BaseModel):
     name_uk: str
     name_en: str | None
     is_archived: bool
+    admin_actions: list[ReferenceActionOut] = []
 
 
 class CityIn(_Strict):
@@ -115,6 +139,7 @@ class CityAdminOut(BaseModel):
     name_en: str | None
     iata_code: str | None
     is_archived: bool
+    admin_actions: list[ReferenceActionOut] = []
 
 
 class ResortIn(_Strict):
@@ -136,6 +161,7 @@ class ResortAdminOut(BaseModel):
     name_uk: str
     name_en: str | None
     is_archived: bool
+    admin_actions: list[ReferenceActionOut] = []
 
 
 class HotelFacts(_Strict):
@@ -186,6 +212,7 @@ class HotelAdminOut(BaseModel):
     room_types: list[str]
     rating_avg: Decimal | None          # read-only: from published reviews
     is_archived: bool
+    admin_actions: list[ReferenceActionOut] = []
 
 
 class ServiceTypeIn(_Strict):
@@ -207,6 +234,7 @@ class ServiceTypeAdminOut(BaseModel):
     price_uah: Decimal
     is_default: bool
     is_archived: bool
+    admin_actions: list[ReferenceActionOut] = []
 
 
 class LanguageIn(_Strict):
@@ -225,6 +253,7 @@ class LanguageOut(BaseModel):
     code: str
     name: str
     is_enabled: bool
+    admin_actions: list[ReferenceActionOut] = []
 
 
 # ---------- global settings (form 4.6.4.1)
@@ -239,16 +268,35 @@ class SettingsValues(BaseModel):
     maintenance_mode: bool              # field 7
     support_phone: str                  # field 8, "" = not set
     support_email: str                  # field 9, "" = not set
+    support_address: str                # contacts page and footer, "" = not set (spec 13 §3)
+    maintenance_message: str            # shown to visitors during maintenance, "" = default text
 
 
 class SettingChange(BaseModel):
     updated_at: datetime
     updated_by: int | None
+    updated_by_name: str | None = None  # "Прізвище Ім'я" of updated_by
+
+
+class SettingRule(BaseModel):
+    """Limits of a value, from services/settings_admin.py (the form shows them, never mirrors)."""
+    min: Decimal | None = None
+    max: Decimal | None = None
+    places: int | None = None           # decimal places (rates 4, percent 2)
+    max_length: int | None = None       # text fields
+
+
+class SettingsLimits(BaseModel):
+    """Values from backend/.env: shown read-only, changed only there."""
+    max_review_photos: int
+    max_review_photo_mb: int
 
 
 class SettingsOut(SettingsValues):
     uah_rate: Decimal = Decimal("1")    # fixed
     changes: dict[str, SettingChange]   # when / by whom each value was last changed
+    rules: dict[str, SettingRule]
+    limits: SettingsLimits
 
 
 class SettingsIn(_Strict):
@@ -263,6 +311,8 @@ class SettingsIn(_Strict):
     maintenance_mode: bool | None = None
     support_phone: str | None = Field(default=None, description="Порожній рядок прибирає телефон")
     support_email: str | None = Field(default=None, description="Порожній рядок прибирає e-mail")
+    support_address: str | None = Field(default=None, description="Порожній рядок прибирає адресу")
+    maintenance_message: str | None = Field(default=None, description="Порожній рядок — типовий текст")
 
 
 class GatewayStatusOut(BaseModel):

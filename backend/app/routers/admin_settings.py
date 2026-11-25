@@ -25,7 +25,8 @@ def _raise(error: DomainError) -> NoReturn:
 
 
 def _out(db) -> SettingsOut:
-    return SettingsOut(**service.current(db), changes=service.changes_info(db))
+    return SettingsOut(**service.current(db), changes=service.changes_info(db), rules=service.rules(),
+                       limits=service.limits())
 
 
 @router.get("/settings", response_model=SettingsOut, summary="Глобальні налаштування (форма 4.6.4.1)")
@@ -66,5 +67,7 @@ def audit_log(db: DbSession, _: Admin,
     items, total = audit_service.list_entries(db, user_id=user_id, entity=entity, entity_id=entity_id,
                                               action=action, date_from=start, date_to=end, page=page,
                                               page_size=page_size)
-    return Page(items=[AuditLogOut.model_validate(e) for e in items], total=total, page=page,
-                page_size=page_size)
+    return Page(items=[AuditLogOut.model_validate(entry).model_copy(update=dict(
+                                   user_name=f"{author.last_name} {author.first_name}" if author else None,
+                                   user_role=author.role if author else None))
+                       for entry, author in items], total=total, page=page, page_size=page_size)

@@ -54,7 +54,7 @@ def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession):
     # checked first, so a wrong one is still 401; a manager or finance token would be refused by
     # every other endpoint anyway, so they get the 503 here, on the login page.
     if user.role != UserRole.ADMIN and maintenance.is_on(db):
-        raise maintenance.unavailable()
+        raise maintenance.unavailable(db)
     token = create_access_token(user.id, user.role.value)
     return TokenOut(access_token=token, user=UserOut.model_validate(user))
 

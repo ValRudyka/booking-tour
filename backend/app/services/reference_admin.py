@@ -4,6 +4,13 @@
 - Archive / restore instead of deleting: an archived item disappears from the public lists and
   cannot be chosen for new tours or orders, but stays on the existing ones. Archiving a country
   also hides its resorts, hotels and cities from the public lists.
+- Archiving is refused while a published tour (status active) uses the item: its hotel, the
+  hotel's resort or country, or its departure city (spec 13 §2). The catalog does not look at
+  is_archived, so the tour would stay for sale; unpublish it first. Drafts do not block it
+  (publishing re-checks the hotel and city, services/tours.py).
+- Every refusal is a function (archive_refusal, restore_refusal, default_refusal,
+  delete_refusal, language_*_refusal): the endpoints raise it, services/admin_actions.py returns
+  it as the reason of a disabled button.
 - DELETE removes only items nothing refers to (no tour, order, review, user, child item); the
   references are found from the foreign keys in the models, so a new table is covered too.
 - Exactly one default insurance type and one default transfer type: making an item the default
@@ -20,7 +27,8 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import Base, City, Country, Hotel, InsuranceType, Language, Resort, TransferType, User
+from app.models import Base, City, Country, Hotel, InsuranceType, Language, Resort, Tour, TransferType, User
+from app.models.enums import TourStatus
 from app.services.audit import audit, changed, snapshot
 from app.services.errors import DomainError
 from app.services.text_lists import clean_text_list
@@ -217,8 +225,8 @@ def update_item(db: Session, admin: User, kind: str, item_id: int, data: dict[st
     values = _clean(db, kind, data, item)
     if kind in DEFAULT_KINDS and "is_default" in data and data["is_default"] is not None:
         if data["is_default"] and not item.is_default:
-            if item.is_archived:
-                raise DomainError("Архівний запис не може бути типовим", 409)
+            if reason := default_refusal(item):
+                raise DomainError(reason, 409)
             _make_default(db, kind, item)
         elif not data["is_default"] and item.is_default:
             raise DomainError("Має бути один тип за замовчуванням — призначте типовим інший запис", 409)
@@ -236,13 +244,11 @@ def set_archived(db: Session, admin: User, kind: str, item_id: int, archived: bo
     item = get_item(db, kind, item_id, lock=True)
     if item.is_archived == archived:
         return item
-    if archived and getattr(item, "is_default", False):
-        raise DomainError("Типовий запис не архівується — спершу призначте типовим інший", 409)
-    if not archived:                          # a child cannot come back under an archived parent
-        if kind in ("cities", "resorts"):
-            _parent(db, Country, item.country_id)
-        if kind == "hotels":
-            _parent(db, Resort, item.resort_id)
+    context = refusal_context(db, kind, [item])
+    reason = (archive_refusal(kind, item, context) if archived
+              else restore_refusal(kind, item, context))
+    if reason:
+        raise DomainError(reason, 409)
     item.is_archived = archived
     db.flush()
     audit(db, admin, spec.entity, item.id, "archived" if archived else "restored",
@@ -250,27 +256,120 @@ def set_archived(db: Session, admin: User, kind: str, item_id: int, archived: bo
     return item
 
 
-def references(db: Session, table: str, item_id: Any) -> dict[str, int]:
-    """{"tours.hotel_id": 3, ...}: rows of other tables that point at this item."""
-    found: dict[str, int] = {}
+# ---------- refusals
+# Rows that refer to an item, by "table.column", in Ukrainian for the delete refusal.
+REFERENCE_LABELS = {
+    "cities.country_id": "міста вильоту", "resorts.country_id": "курорти",
+    "users.citizenship_id": "користувачі (громадянство)", "tours.departure_city_id": "тури",
+    "hotels.resort_id": "готелі", "tours.hotel_id": "тури", "reviews.hotel_id": "відгуки",
+    "orders.insurance_type_id": "замовлення", "orders.transfer_type_id": "замовлення",
+}
+PARENT_COLUMN = {"cities": "country_id", "resorts": "country_id", "hotels": "resort_id"}
+
+
+def _published_tours(db: Session, kind: str, ids: list[int]) -> dict[int, int]:
+    """{item id: published tours that use it} for hotels, resorts, countries and cities."""
+    active = Tour.status == TourStatus.ACTIVE
+    queries = []
+    if kind == "hotels":
+        queries.append(select(Tour.hotel_id, Tour.id).where(active, Tour.hotel_id.in_(ids)))
+    elif kind == "resorts":
+        queries.append(select(Hotel.resort_id, Tour.id).join(Hotel, Tour.hotel_id == Hotel.id)
+                       .where(active, Hotel.resort_id.in_(ids)))
+    elif kind == "countries":
+        queries.append(select(Resort.country_id, Tour.id).join(Hotel, Tour.hotel_id == Hotel.id)
+                       .join(Resort, Hotel.resort_id == Resort.id).where(active, Resort.country_id.in_(ids)))
+        queries.append(select(City.country_id, Tour.id).join(City, Tour.departure_city_id == City.id)
+                       .where(active, City.country_id.in_(ids)))
+    elif kind == "cities":
+        queries.append(select(Tour.departure_city_id, Tour.id).where(active, Tour.departure_city_id.in_(ids)))
+    tours: dict[int, set[int]] = {}
+    for query in queries:
+        for item_id, tour_id in db.execute(query):
+            tours.setdefault(item_id, set()).add(tour_id)
+    return {item_id: len(found) for item_id, found in tours.items()}
+
+
+def _references(db: Session, table: str, ids: list[Any]) -> dict[Any, dict[str, int]]:
+    """{item id: {"tours.hotel_id": 3, ...}}: rows of other tables that point at each item, one
+    grouped count per foreign key (found from the models, so a new table is covered too)."""
+    found: dict[Any, dict[str, int]] = {}
     for other in Base.metadata.sorted_tables:
         for fk in other.foreign_keys:
             if fk.column.table.name == table:
-                count = db.scalar(select(func.count()).select_from(other).where(fk.parent == item_id))
-                if count:
-                    found[f"{other.name}.{fk.parent.name}"] = count
+                query = (select(fk.parent, func.count()).select_from(other)
+                         .where(fk.parent.in_(ids)).group_by(fk.parent))
+                for item_id, count in db.execute(query):
+                    found.setdefault(item_id, {})[f"{other.name}.{fk.parent.name}"] = count
     return found
+
+
+def references(db: Session, table: str, item_id: Any) -> dict[str, int]:
+    """{"tours.hotel_id": 3, ...} for one item."""
+    return _references(db, table, [item_id]).get(item_id, {})
+
+
+def refusal_context(db: Session, kind: str, items: list[Any]) -> dict[str, Any]:
+    """What the refusals of a list need, read in a few grouped queries (no query per row)."""
+    ids = [item.id for item in items]
+    context: dict[str, Any] = {"published": {}, "references": {}, "archived_parents": set()}
+    if not ids:
+        return context
+    context["published"] = _published_tours(db, kind, ids)
+    context["references"] = _references(db, _kind(kind).model.__tablename__, ids)
+    column = PARENT_COLUMN.get(kind)
+    if column:
+        parent = Resort if kind == "hotels" else Country
+        parent_ids = {getattr(item, column) for item in items}
+        context["archived_parents"] = set(db.scalars(select(parent.id).where(
+            parent.id.in_(parent_ids), parent.is_archived.is_(True))))
+    return context
+
+
+def archive_refusal(kind: str, item, context: dict[str, Any]) -> str | None:
+    if getattr(item, "is_default", False):
+        return "Типовий запис не архівується — спершу призначте типовим інший"
+    count = context["published"].get(item.id, 0)
+    if count == 1:
+        return "Використовується в 1 опублікованому турі — спершу зніміть його з продажу"
+    if count:
+        return f"Використовується в опублікованих турах ({count}) — спершу зніміть їх з продажу"
+    return None
+
+
+def restore_refusal(kind: str, item, context: dict[str, Any]) -> str | None:
+    """A child cannot come back under an archived parent."""
+    column = PARENT_COLUMN.get(kind)
+    if column and getattr(item, column) in context["archived_parents"]:
+        return PARENT_TEXT[Resort if kind == "hotels" else Country][1]
+    return None
+
+
+def default_refusal(item) -> str | None:
+    if item.is_archived:
+        return "Архівний запис не може бути типовим"
+    return None
+
+
+def delete_refusal(kind: str, item, context: dict[str, Any]) -> str | None:
+    if getattr(item, "is_default", False):
+        return "Типовий запис не видаляється — спершу призначте типовим інший"
+    used = context["references"].get(item.id)
+    if not used:
+        return None
+    totals: dict[str, int] = {}
+    for name, count in used.items():
+        label = REFERENCE_LABELS.get(name, name)
+        totals[label] = totals.get(label, 0) + count
+    where = ", ".join(f"{label}: {count}" for label, count in totals.items())
+    return f"{_kind(kind).label} використовується ({where}) — архівуйте замість видалення"
 
 
 def delete_item(db: Session, admin: User, kind: str, item_id: int) -> None:
     spec = _kind(kind)
     item = get_item(db, kind, item_id, lock=True)
-    if getattr(item, "is_default", False):
-        raise DomainError("Типовий запис не видаляється — спершу призначте типовим інший", 409)
-    used = references(db, spec.model.__tablename__, item.id)
-    if used:
-        where = ", ".join(f"{name} ({count})" for name, count in used.items())
-        raise DomainError(f"{spec.label} використовується ({where}) — архівуйте замість видалення", 409)
+    if reason := delete_refusal(kind, item, refusal_context(db, kind, [item])):
+        raise DomainError(reason, 409)
     old = snapshot(item, spec.fields)
     db.delete(item)
     db.flush()
@@ -279,6 +378,18 @@ def delete_item(db: Session, admin: User, kind: str, item_id: int) -> None:
 
 # ---------- languages (form 4.6.4.1, field 5): code is the key; no archive, only is_enabled
 BASE_LANGUAGE = "uk"
+
+
+def language_disable_refusal(language: Language) -> str | None:
+    if language.code == BASE_LANGUAGE:
+        return "Українська — основна мова сайту, її не можна вимкнути"
+    return None
+
+
+def language_delete_refusal(language: Language) -> str | None:
+    if language.code == BASE_LANGUAGE:
+        return "Українська — основна мова сайту, її не можна видалити"
+    return None
 
 
 def list_languages(db: Session) -> list[Language]:
@@ -311,8 +422,8 @@ def update_language(db: Session, admin: User, code: str, changes: dict[str, Any]
     if changes.get("name") is not None:
         language.name = _text(changes["name"], "Назва", True, 50)
     if changes.get("is_enabled") is not None:
-        if language.code == BASE_LANGUAGE and not changes["is_enabled"]:
-            raise DomainError("Українська — основна мова сайту, її не можна вимкнути", 409)
+        if not changes["is_enabled"] and (reason := language_disable_refusal(language)):
+            raise DomainError(reason, 409)
         language.is_enabled = changes["is_enabled"]
     db.flush()
     old, new = changed(before, snapshot(language, ("name", "is_enabled")))
@@ -323,8 +434,8 @@ def update_language(db: Session, admin: User, code: str, changes: dict[str, Any]
 
 def delete_language(db: Session, admin: User, code: str) -> None:
     language = get_language(db, code)
-    if language.code == BASE_LANGUAGE:
-        raise DomainError("Українська — основна мова сайту, її не можна видалити", 409)
+    if reason := language_delete_refusal(language):
+        raise DomainError(reason, 409)
     old = snapshot(language, ("name", "is_enabled"))
     db.delete(language)
     db.flush()

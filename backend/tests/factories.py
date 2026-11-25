@@ -181,3 +181,17 @@ def make_review(db, order: Order, status=None, hotel_rating=5, service_rating=5,
     db.add(review)
     db.flush()
     return review
+
+
+def error_text(response) -> str:
+    """The Ukrainian message of an error answer: plain {"detail": "text"}, or the msg of a rule
+    tied to a field ({"detail": [{"loc", "msg", "type"}]}, tours and orders routers)."""
+    detail = response.json()["detail"]
+    return detail if isinstance(detail, str) else detail[0]["msg"]
+
+
+def copy_dates(days_ahead: int = 40, length: int = 10) -> dict[str, str]:
+    """Body of POST /manager/tours/{id}/copy: the new date range (from tomorrow on)."""
+    start = clock.today() + timedelta(days=days_ahead)
+    return {"departure_from": start.isoformat(),
+            "departure_to": (start + timedelta(days=length)).isoformat()}

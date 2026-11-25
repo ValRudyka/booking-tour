@@ -1,9 +1,13 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { configure, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { AppNotification } from '../api/types'
 import { NOTIFICATIONS_REFRESH_MS } from '../api/cabinet'
 import { makeUser, mockServer, page, signIn, type FakeRequest } from '../test/fixtures'
 import { renderRoute } from '../test/render'
+
+// The first test renders the catalog page cold; on a loaded machine (the whole suite in
+// parallel) that takes longer than findBy's 1 s default, like the office tests.
+configure({ asyncUtilTimeout: 4000 })
 
 const USER = makeUser()
 

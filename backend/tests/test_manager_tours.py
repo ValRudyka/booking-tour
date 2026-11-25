@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.models import AuditLog, Hotel, Tour
 from app.models.enums import TourStatus, UserRole
 from app.services import clock
-from tests.factories import city, headers_for, make_hotel, make_tour, make_user
+from tests.factories import copy_dates, error_text, city, headers_for, make_hotel, make_tour, make_user
 
 URL = "/api/manager/tours"
 
@@ -95,7 +95,7 @@ def test_flight_numbers_normalized_for_air(client, db, manager_headers, hotel):
 def test_create_validation(client, manager_headers, hotel, overrides, message):
     response = client.post(URL, json=payload(hotel.id, **overrides), headers=manager_headers)
     assert response.status_code == 422, response.text
-    assert message in response.json()["detail"]
+    assert message in error_text(response)
 
 
 def test_wrong_flight_format(client, db, manager_headers, hotel):
@@ -103,7 +103,7 @@ def test_wrong_flight_format(client, db, manager_headers, hotel):
                                              departure_city_id=city(db, "Warsaw").id,
                                              flight_out="рейс 1"), headers=manager_headers)
     assert response.status_code == 422
-    assert "QU 4433" in response.json()["detail"]
+    assert "QU 4433" in error_text(response)
 
 
 def test_unknown_or_archived_hotel_and_city(client, db, manager_headers, hotel):
@@ -117,7 +117,7 @@ def test_unknown_or_archived_hotel_and_city(client, db, manager_headers, hotel):
     response = client.post(URL, json=payload(hotel.id, transport_type="bus", departure_city_id=kyiv.id),
                            headers=manager_headers)
     assert response.status_code == 422
-    assert response.json()["detail"] == "Місто відправлення не знайдено"
+    assert error_text(response) == "Місто відправлення або його країна в архіві — оберіть інше місто"
 
 
 # ---------- edit
@@ -156,7 +156,7 @@ def test_update_cannot_lower_quota_below_sold(client, db, manager_headers, hotel
     db.flush()
     response = client.patch(f"{URL}/{tour['id']}", json={"seats_total": 4}, headers=manager_headers)
     assert response.status_code == 422
-    assert "(5)" in response.json()["detail"]
+    assert "(5)" in error_text(response)
 
 
 @pytest.mark.parametrize("tour_status", [TourStatus.ACTIVE, TourStatus.ARCHIVED])
@@ -205,7 +205,7 @@ def test_forbidden_transitions(client, db, manager, manager_headers, start, acti
     tour = make_tour(db, manager, status=start)
     response = client.post(f"{URL}/{tour.id}/{action}", headers=manager_headers)
     assert response.status_code == 409
-    assert "Неможливо змінити статус" in response.json()["detail"]
+    assert "Неможливо змінити статус" in error_text(response)
     assert audit_rows(db, tour.id) == []
 
 
@@ -214,7 +214,7 @@ def test_publish_rejects_past_dates(client, db, manager, manager_headers):
                      departure_to=clock.today() - timedelta(days=1))
     response = client.post(f"{URL}/{tour.id}/publish", headers=manager_headers)
     assert response.status_code == 422
-    assert "минули" in response.json()["detail"]
+    assert "минули" in error_text(response)
 
 
 def test_publish_rejects_archived_hotel(client, db, manager, manager_headers):
@@ -232,28 +232,55 @@ def make_active_ready_tour(db, manager):
 
 
 # ---------- copy
-def test_copy_creates_new_draft(client, db, manager, manager_headers, hotel):
-    source = create(client, manager_headers, hotel)
+def test_copy_creates_new_draft_with_new_dates(client, db, manager, manager_headers, hotel):
+    source = create(client, manager_headers, hotel, is_featured=True)
     client.post(f"{URL}/{source['id']}/publish", headers=manager_headers)
     db.get(Tour, source["id"]).seats_sold = 3
     db.flush()
     other_manager = make_user(db, role=UserRole.MANAGER)
-    response = client.post(f"{URL}/{source['id']}/copy", headers=headers_for(other_manager))
+    dates = copy_dates(days_ahead=90)
+    response = client.post(f"{URL}/{source['id']}/copy", json=dates, headers=headers_for(other_manager))
     assert response.status_code == 201, response.text
     copy = response.json()
     assert copy["id"] != source["id"]
     assert copy["status"] == "draft"
     assert copy["seats_sold"] == 0
     assert copy["created_by"] == other_manager.id
-    assert copy["title_uk"] == "Анталія, все включено (копія)"
-    assert copy["title_en"] == "Antalya all inclusive (copy)"
+    assert copy["title_uk"] == "Копія — Анталія, все включено"
+    assert copy["title_en"] == "Copy — Antalya all inclusive"
     assert copy["program_days"] == source["program_days"]
+    # the dates come from the dialog, never from the source
+    assert (copy["departure_from"], copy["departure_to"]) == (dates["departure_from"], dates["departure_to"])
+    assert copy["departure_from"] != source["departure_from"]
+    assert copy["is_featured"] is False
+    assert (copy["base_price"], copy["seats_total"]) == (source["base_price"], source["seats_total"])
     assert db.get(Tour, source["id"]).status == TourStatus.ACTIVE  # source untouched
+
+
+def test_copy_title_is_cut_to_the_limit(client, db, manager, manager_headers):
+    tour = make_tour(db, manager, title_uk="Т" * 200, title_en="T" * 200)
+    copy = client.post(f"{URL}/{tour.id}/copy", json=copy_dates(), headers=manager_headers).json()
+    assert len(copy["title_uk"]) == len(copy["title_en"]) == 200
+    assert copy["title_uk"].startswith("Копія — ")
+
+
+@pytest.mark.parametrize("body,field", [
+    ({"departure_from": 0, "departure_to": 5}, "departure_from"),   # today: not bookable
+    ({"departure_from": 10, "departure_to": 5}, "departure_to"),
+])
+def test_copy_checks_new_dates(client, db, manager, manager_headers, body, field):
+    tour = make_tour(db, manager)
+    dates = {key: (clock.today() + timedelta(days=value)).isoformat() for key, value in body.items()}
+    response = client.post(f"{URL}/{tour.id}/copy", json=dates, headers=manager_headers)
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", field]
+    assert client.post(f"{URL}/{tour.id}/copy", headers=manager_headers).status_code == 422  # no body
 
 
 def test_archived_tour_can_be_copied(client, db, manager, manager_headers):
     tour = make_tour(db, manager, status=TourStatus.ARCHIVED)
-    assert client.post(f"{URL}/{tour.id}/copy", headers=manager_headers).status_code == 201
+    response = client.post(f"{URL}/{tour.id}/copy", json=copy_dates(), headers=manager_headers)
+    assert response.status_code == 201
 
 
 # ---------- list

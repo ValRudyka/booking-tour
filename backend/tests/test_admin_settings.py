@@ -141,3 +141,36 @@ def test_settings_only_for_admins(client, db, role):
         assert call(headers).status_code == 403
         assert call({}).status_code == 401
     assert db.get(Setting, "booking_timeout_min").value == 20
+
+
+# ---------- spec 13: rules, limits, author names, address and maintenance message
+def test_settings_carry_rules_limits_and_author_names(client, db, admin, admin_headers):
+    assert put(client, admin_headers, booking_timeout_min=25).status_code == 200
+    body = client.get(URL, headers=admin_headers).json()
+    assert body["rules"]["booking_timeout_min"] == {"min": "5", "max": "120", "places": 0, "max_length": None}
+    assert body["rules"]["eur_rate"]["places"] == 4 and body["rules"]["acquiring_percent"]["places"] == 2
+    assert body["rules"]["support_address"]["max_length"] == 300
+    assert body["limits"] == {"max_review_photos": app_config.max_review_photos,
+                              "max_review_photo_mb": app_config.max_review_photo_mb}
+    assert body["changes"]["booking_timeout_min"]["updated_by_name"] == f"{admin.last_name} {admin.first_name}"
+
+
+def test_address_and_maintenance_message(client, db, admin_headers):
+    response = put(client, admin_headers, support_address="  Київ,   вул. Морська, 1 ",
+                   maintenance_message="Оновлюємо сайт до 14:00.")
+    assert response.status_code == 200, response.text
+    assert response.json()["support_address"] == "Київ, вул. Морська, 1"
+    assert client.get("/api/site/contacts").json()["address"] == "Київ, вул. Морська, 1"
+    assert put(client, admin_headers, support_address="x" * 301).status_code == 422
+    assert put(client, admin_headers, maintenance_mode=True).status_code == 200
+    closed = client.get("/api/tours")
+    assert closed.status_code == 503 and closed.json()["detail"] == "Оновлюємо сайт до 14:00."
+    # An empty message brings the default text back.
+    assert put(client, admin_headers, maintenance_message="").status_code == 200
+    assert client.get("/api/tours").json()["detail"] == "Тривають технічні роботи. Спробуйте пізніше."
+
+
+def test_audit_log_names_the_author(client, db, admin, admin_headers):
+    assert put(client, admin_headers, booking_timeout_min=30).status_code == 200
+    [entry] = client.get("/api/admin/audit-log", params={"entity": "settings"}, headers=admin_headers).json()["items"]
+    assert (entry["user_name"], entry["user_role"]) == (f"{admin.last_name} {admin.first_name}", "admin")

@@ -229,6 +229,24 @@
             }
           },
           {
+            "name": "staff",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "true — персонал, false — клієнти",
+              "title": "Staff"
+            },
+            "description": "true — персонал, false — клієнти"
+          },
+          {
             "name": "is_active",
             "in": "query",
             "required": false,
@@ -317,6 +335,7 @@
           "admin: users"
         ],
         "summary": "Створити співробітника (менеджер, фінансист, адміністратор)",
+        "description": "Без `password` сервер генерує тимчасовий пароль і повертає його один раз у `temporary_password`; він не зберігається відкритим текстом і не пишеться в журнал.",
         "operationId": "create_staff_api_admin_users_post",
         "security": [
           {
@@ -339,7 +358,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminUserOut"
+                  "$ref": "#/components/schemas/StaffCreatedOut"
                 }
               }
             }
@@ -407,7 +426,7 @@
         "tags": [
           "admin: users"
         ],
-        "summary": "Змінити роль, заблокувати / розблокувати, редагувати дані",
+        "summary": "Змінити роль, заблокувати / розблокувати, редагувати дані співробітника",
         "operationId": "update_user_api_admin_users__user_id__patch",
         "security": [
           {
@@ -2848,6 +2867,85 @@
             }
           },
           {
+            "name": "country_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Country Id"
+            }
+          },
+          {
+            "name": "resort_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Resort Id"
+            }
+          },
+          {
+            "name": "departure_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Період виїзду: від",
+              "title": "Departure From"
+            },
+            "description": "Період виїзду: від"
+          },
+          {
+            "name": "departure_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Період виїзду: до",
+              "title": "Departure To"
+            },
+            "description": "Період виїзду: до"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ManagerTourSort",
+              "default": "updated_desc"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -2937,6 +3035,32 @@
             }
           }
         }
+      }
+    },
+    "/api/manager/tours/rules": {
+      "get": {
+        "tags": [
+          "manager: tours"
+        ],
+        "summary": "Обмеження форми туру (фото, тексти)",
+        "operationId": "rules_api_manager_tours_rules_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TourRulesOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/manager/tours/{tour_id}": {
@@ -3046,7 +3170,7 @@
         "tags": [
           "manager: tours"
         ],
-        "summary": "Копіювати тур у нову чернетку",
+        "summary": "Копіювати тур у нову чернетку з новими датами",
         "operationId": "copy_tour_api_manager_tours__tour_id__copy_post",
         "security": [
           {
@@ -3064,6 +3188,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TourCopyIn"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "Successful Response",
@@ -3140,7 +3274,7 @@
         "tags": [
           "manager: tours"
         ],
-        "summary": "Зняти з публікації (повернути в чернетку)",
+        "summary": "Зняти з публікації (повернути в чернетку; бронювання лишаються)",
         "operationId": "unpublish_api_manager_tours__tour_id__unpublish_post",
         "security": [
           {
@@ -3187,8 +3321,55 @@
         "tags": [
           "manager: tours"
         ],
-        "summary": "Архівувати",
+        "summary": "Архівувати (неоплачені бронювання скасовуються)",
         "operationId": "archive_api_manager_tours__tour_id__archive_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerTourOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manager/tours/{tour_id}/restore": {
+      "post": {
+        "tags": [
+          "manager: tours"
+        ],
+        "summary": "Відновити з архіву (у чернетку)",
+        "operationId": "restore_api_manager_tours__tour_id__restore_post",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -3344,7 +3525,7 @@
         "tags": [
           "manager: tours"
         ],
-        "summary": "Змінити порядок фото",
+        "summary": "Змінити порядок фото (перше — головне)",
         "operationId": "reorder_images_api_manager_tours__tour_id__images_order_put",
         "security": [
           {
@@ -7659,6 +7840,14 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "user_actions": {
+            "items": {
+              "$ref": "#/components/schemas/UserActionOut"
+            },
+            "type": "array",
+            "title": "User Actions",
+            "default": []
           }
         },
         "type": "object",
@@ -7748,6 +7937,27 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "user_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Name"
+          },
+          "user_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -8311,6 +8521,14 @@
           "is_archived": {
             "type": "boolean",
             "title": "Is Archived"
+          },
+          "admin_actions": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceActionOut"
+            },
+            "type": "array",
+            "title": "Admin Actions",
+            "default": []
           }
         },
         "type": "object",
@@ -8557,6 +8775,14 @@
           "is_archived": {
             "type": "boolean",
             "title": "Is Archived"
+          },
+          "admin_actions": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceActionOut"
+            },
+            "type": "array",
+            "title": "Admin Actions",
+            "default": []
           }
         },
         "type": "object",
@@ -9221,6 +9447,14 @@
           "is_archived": {
             "type": "boolean",
             "title": "Is Archived"
+          },
+          "admin_actions": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceActionOut"
+            },
+            "type": "array",
+            "title": "Admin Actions",
+            "default": []
           }
         },
         "type": "object",
@@ -9725,6 +9959,14 @@
           "is_enabled": {
             "type": "boolean",
             "title": "Is Enabled"
+          },
+          "admin_actions": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceActionOut"
+            },
+            "type": "array",
+            "title": "Admin Actions",
+            "default": []
           }
         },
         "type": "object",
@@ -9763,6 +10005,25 @@
         "additionalProperties": false,
         "type": "object",
         "title": "LanguagePatch"
+      },
+      "LockedFieldOut": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "reason"
+        ],
+        "title": "LockedFieldOut",
+        "description": "A form field that cannot change now (services/tours.py LOCKED_FIELDS) and why."
       },
       "ManagerOrderDetailOut": {
         "properties": {
@@ -10340,8 +10601,94 @@
         ],
         "title": "ManagerShortOut"
       },
+      "ManagerTourHotelOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "stars": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stars"
+          },
+          "resort_id": {
+            "type": "integer",
+            "title": "Resort Id"
+          },
+          "resort_name": {
+            "type": "string",
+            "title": "Resort Name"
+          },
+          "country_id": {
+            "type": "integer",
+            "title": "Country Id"
+          },
+          "country_name": {
+            "type": "string",
+            "title": "Country Name"
+          },
+          "is_archived": {
+            "type": "boolean",
+            "title": "Is Archived",
+            "description": "Готель, курорт або країна в архіві"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "stars",
+          "resort_id",
+          "resort_name",
+          "country_id",
+          "country_name",
+          "is_archived"
+        ],
+        "title": "ManagerTourHotelOut",
+        "description": "The tour's hotel with its resort and country, so the editor shows it even when it was\narchived since (the reference lists hide archived rows)."
+      },
       "ManagerTourListItem": {
         "properties": {
+          "tour_actions": {
+            "items": {
+              "$ref": "#/components/schemas/TourActionOut"
+            },
+            "type": "array",
+            "title": "Tour Actions"
+          },
+          "locked_fields": {
+            "items": {
+              "$ref": "#/components/schemas/LockedFieldOut"
+            },
+            "type": "array",
+            "title": "Locked Fields"
+          },
+          "active_bookings": {
+            "type": "integer",
+            "title": "Active Bookings",
+            "description": "Бронювання з чинним утриманням або частково оплачені"
+          },
+          "archive_cancels": {
+            "type": "integer",
+            "title": "Archive Cancels",
+            "description": "Скільки неоплачених бронювань скасує архівування"
+          },
+          "for_sale": {
+            "type": "boolean",
+            "title": "For Sale",
+            "description": "Видно в каталозі (той самий критерій, що й у каталозі)"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -10357,6 +10704,29 @@
             "type": "integer",
             "title": "Hotel Id"
           },
+          "hotel_name": {
+            "type": "string",
+            "title": "Hotel Name"
+          },
+          "resort_name": {
+            "type": "string",
+            "title": "Resort Name"
+          },
+          "country_name": {
+            "type": "string",
+            "title": "Country Name"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "departure_from": {
             "type": "string",
             "format": "date",
@@ -10366,6 +10736,19 @@
             "type": "string",
             "format": "date",
             "title": "Departure To"
+          },
+          "nearest_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nearest Start",
+            "description": "Найближча дата заїзду від завтра; null — дати минули"
           },
           "nights": {
             "type": "integer",
@@ -10378,6 +10761,10 @@
           "seats_sold": {
             "type": "integer",
             "title": "Seats Sold"
+          },
+          "free_seats": {
+            "type": "integer",
+            "title": "Free Seats"
           },
           "base_price": {
             "type": "string",
@@ -10398,15 +10785,26 @@
         },
         "type": "object",
         "required": [
+          "tour_actions",
+          "locked_fields",
+          "active_bookings",
+          "archive_cancels",
+          "for_sale",
           "id",
           "status",
           "title_uk",
           "hotel_id",
+          "hotel_name",
+          "resort_name",
+          "country_name",
+          "image_url",
           "departure_from",
           "departure_to",
+          "nearest_start",
           "nights",
           "seats_total",
           "seats_sold",
+          "free_seats",
           "base_price",
           "currency",
           "is_featured",
@@ -10416,6 +10814,35 @@
       },
       "ManagerTourOut": {
         "properties": {
+          "tour_actions": {
+            "items": {
+              "$ref": "#/components/schemas/TourActionOut"
+            },
+            "type": "array",
+            "title": "Tour Actions"
+          },
+          "locked_fields": {
+            "items": {
+              "$ref": "#/components/schemas/LockedFieldOut"
+            },
+            "type": "array",
+            "title": "Locked Fields"
+          },
+          "active_bookings": {
+            "type": "integer",
+            "title": "Active Bookings",
+            "description": "Бронювання з чинним утриманням або частково оплачені"
+          },
+          "archive_cancels": {
+            "type": "integer",
+            "title": "Archive Cancels",
+            "description": "Скільки неоплачених бронювань скасує архівування"
+          },
+          "for_sale": {
+            "type": "boolean",
+            "title": "For Sale",
+            "description": "Видно в каталозі (той самий критерій, що й у каталозі)"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -10434,6 +10861,9 @@
           "hotel_id": {
             "type": "integer",
             "title": "Hotel Id"
+          },
+          "hotel": {
+            "$ref": "#/components/schemas/ManagerTourHotelOut"
           },
           "transport_type": {
             "$ref": "#/components/schemas/TransportType"
@@ -10492,6 +10922,11 @@
           "seats_sold": {
             "type": "integer",
             "title": "Seats Sold"
+          },
+          "seats_held": {
+            "type": "integer",
+            "title": "Seats Held",
+            "description": "Місця в бронюваннях з чинним утриманням"
           },
           "base_price": {
             "type": "string",
@@ -10581,11 +11016,17 @@
         },
         "type": "object",
         "required": [
+          "tour_actions",
+          "locked_fields",
+          "active_bookings",
+          "archive_cancels",
+          "for_sale",
           "id",
           "status",
           "title_uk",
           "title_en",
           "hotel_id",
+          "hotel",
           "transport_type",
           "departure_city_id",
           "flight_out",
@@ -10595,6 +11036,7 @@
           "nights",
           "seats_total",
           "seats_sold",
+          "seats_held",
           "base_price",
           "child_price",
           "currency",
@@ -10611,6 +11053,16 @@
         ],
         "title": "ManagerTourOut",
         "description": "Full tour for the back-office form."
+      },
+      "ManagerTourSort": {
+        "type": "string",
+        "enum": [
+          "updated_desc",
+          "departure_asc",
+          "title_asc"
+        ],
+        "title": "ManagerTourSort",
+        "description": "Sort of the back-office tour list."
       },
       "MealPlan": {
         "type": "string",
@@ -13787,6 +14239,49 @@
         ],
         "title": "ReadAllOut"
       },
+      "ReferenceAction": {
+        "type": "string",
+        "enum": [
+          "edit",
+          "archive",
+          "restore",
+          "delete",
+          "make_default",
+          "enable",
+          "disable"
+        ],
+        "title": "ReferenceAction",
+        "description": "What the admin may do with a reference record (admin_actions on the /admin reference lists,\nspec 13). Computed by services/admin_actions.py from services/reference_admin.py refusals."
+      },
+      "ReferenceActionOut": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ReferenceAction"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "allowed",
+          "reason"
+        ],
+        "title": "ReferenceActionOut"
+      },
       "RefundOut": {
         "properties": {
           "order_id": {
@@ -14140,6 +14635,14 @@
           "is_archived": {
             "type": "boolean",
             "title": "Is Archived"
+          },
+          "admin_actions": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceActionOut"
+            },
+            "type": "array",
+            "title": "Admin Actions",
+            "default": []
           }
         },
         "type": "object",
@@ -14335,6 +14838,14 @@
           "is_archived": {
             "type": "boolean",
             "title": "Is Archived"
+          },
+          "admin_actions": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceActionOut"
+            },
+            "type": "array",
+            "title": "Admin Actions",
+            "default": []
           }
         },
         "type": "object",
@@ -14438,6 +14949,17 @@
               }
             ],
             "title": "Updated By"
+          },
+          "updated_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By Name"
           }
         },
         "type": "object",
@@ -14446,6 +14968,57 @@
           "updated_by"
         ],
         "title": "SettingChange"
+      },
+      "SettingRule": {
+        "properties": {
+          "min": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "places": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Places"
+          },
+          "max_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Length"
+          }
+        },
+        "type": "object",
+        "title": "SettingRule",
+        "description": "Limits of a value, from services/settings_admin.py (the form shows them, never mirrors)."
       },
       "SettingsIn": {
         "properties": {
@@ -14569,12 +15142,55 @@
             ],
             "title": "Support Email",
             "description": "Порожній рядок прибирає e-mail"
+          },
+          "support_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Address",
+            "description": "Порожній рядок прибирає адресу"
+          },
+          "maintenance_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maintenance Message",
+            "description": "Порожній рядок — типовий текст"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "SettingsIn",
         "description": "Only the fields that are sent change. Ranges are checked by the service."
+      },
+      "SettingsLimits": {
+        "properties": {
+          "max_review_photos": {
+            "type": "integer",
+            "title": "Max Review Photos"
+          },
+          "max_review_photo_mb": {
+            "type": "integer",
+            "title": "Max Review Photo Mb"
+          }
+        },
+        "type": "object",
+        "required": [
+          "max_review_photos",
+          "max_review_photo_mb"
+        ],
+        "title": "SettingsLimits",
+        "description": "Values from backend/.env: shown read-only, changed only there."
       },
       "SettingsOut": {
         "properties": {
@@ -14618,6 +15234,14 @@
             "type": "string",
             "title": "Support Email"
           },
+          "support_address": {
+            "type": "string",
+            "title": "Support Address"
+          },
+          "maintenance_message": {
+            "type": "string",
+            "title": "Maintenance Message"
+          },
           "uah_rate": {
             "type": "string",
             "title": "Uah Rate",
@@ -14629,6 +15253,16 @@
             },
             "type": "object",
             "title": "Changes"
+          },
+          "rules": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SettingRule"
+            },
+            "type": "object",
+            "title": "Rules"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/SettingsLimits"
           }
         },
         "type": "object",
@@ -14643,7 +15277,11 @@
           "maintenance_mode",
           "support_phone",
           "support_email",
-          "changes"
+          "support_address",
+          "maintenance_message",
+          "changes",
+          "rules",
+          "limits"
         ],
         "title": "SettingsOut"
       },
@@ -14670,6 +15308,17 @@
               }
             ],
             "title": "Email"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
           }
         },
         "type": "object",
@@ -14678,7 +15327,7 @@
           "email"
         ],
         "title": "SiteContactsOut",
-        "description": "Support contacts from the global settings (form 4.6.4.1, fields 8–9); null = not set."
+        "description": "Support contacts from the global settings (form 4.6.4.1, fields 8–9, and the office address,\nspec 13 §3); null = not set."
       },
       "StaffAction": {
         "type": "string",
@@ -14740,11 +15389,18 @@
             "title": "Email"
           },
           "password": {
-            "type": "string",
-            "maxLength": 128,
-            "minLength": 8,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 8
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Password",
-            "description": "Початковий пароль"
+            "description": "Початковий пароль; без нього сервер згенерує тимчасовий"
           },
           "last_name": {
             "type": "string",
@@ -14764,11 +15420,114 @@
           "role",
           "phone",
           "email",
-          "password",
           "last_name",
           "first_name"
         ],
         "title": "StaffCreate"
+      },
+      "StaffCreatedOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "last_name": {
+            "type": "string",
+            "title": "Last Name"
+          },
+          "first_name": {
+            "type": "string",
+            "title": "First Name"
+          },
+          "birth_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "citizenship_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Citizenship Id"
+          },
+          "loyalty_points": {
+            "type": "integer",
+            "title": "Loyalty Points"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "user_actions": {
+            "items": {
+              "$ref": "#/components/schemas/UserActionOut"
+            },
+            "type": "array",
+            "title": "User Actions",
+            "default": []
+          },
+          "temporary_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temporary Password",
+            "description": "Згенерований тимчасовий пароль: показується один раз, ніде не зберігається"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "phone",
+          "email",
+          "role",
+          "last_name",
+          "first_name",
+          "birth_date",
+          "citizenship_id",
+          "loyalty_points",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "StaffCreatedOut"
       },
       "StaffDocumentOut": {
         "properties": {
@@ -15244,6 +16003,49 @@
         ],
         "title": "TokenOut"
       },
+      "TourAction": {
+        "type": "string",
+        "enum": [
+          "edit",
+          "publish",
+          "unpublish",
+          "archive",
+          "restore",
+          "copy"
+        ],
+        "title": "TourAction",
+        "description": "What a manager may do with a tour (ManagerTourOut.tour_actions, spec 10).\nComputed by services/tour_actions.py from the refusals the endpoints enforce. Not stored."
+      },
+      "TourActionOut": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/TourAction"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "allowed",
+          "reason"
+        ],
+        "title": "TourActionOut",
+        "description": "One action of services/tour_actions.py: allowed, or refused with the server's reason."
+      },
       "TourCardOut": {
         "properties": {
           "id": {
@@ -15359,6 +16161,27 @@
         ],
         "title": "TourCardOut",
         "description": "One tour in the public catalog."
+      },
+      "TourCopyIn": {
+        "properties": {
+          "departure_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Departure From"
+          },
+          "departure_to": {
+            "type": "string",
+            "format": "date",
+            "title": "Departure To"
+          }
+        },
+        "type": "object",
+        "required": [
+          "departure_from",
+          "departure_to"
+        ],
+        "title": "TourCopyIn",
+        "description": "The copy gets new dates (spec 10: the old ones are never copied)."
       },
       "TourCreate": {
         "properties": {
@@ -15784,6 +16607,54 @@
         ],
         "title": "TourImageOut"
       },
+      "TourRulesOut": {
+        "properties": {
+          "photos": {
+            "$ref": "#/components/schemas/UploadLimitsOut"
+          },
+          "max_title": {
+            "type": "integer",
+            "title": "Max Title"
+          },
+          "max_description": {
+            "type": "integer",
+            "title": "Max Description"
+          },
+          "max_day_text": {
+            "type": "integer",
+            "title": "Max Day Text"
+          },
+          "min_nights": {
+            "type": "integer",
+            "title": "Min Nights"
+          },
+          "max_nights": {
+            "type": "integer",
+            "title": "Max Nights"
+          },
+          "max_list_items": {
+            "type": "integer",
+            "title": "Max List Items"
+          },
+          "max_list_item_length": {
+            "type": "integer",
+            "title": "Max List Item Length"
+          }
+        },
+        "type": "object",
+        "required": [
+          "photos",
+          "max_title",
+          "max_description",
+          "max_day_text",
+          "min_nights",
+          "max_nights",
+          "max_list_items",
+          "max_list_item_length"
+        ],
+        "title": "TourRulesOut",
+        "description": "Limits of the tour form from the backend (the editor checks before sending; the server\nchecks again)."
+      },
       "TourStatus": {
         "type": "string",
         "enum": [
@@ -16168,6 +17039,48 @@
         ],
         "title": "UploadLimitsOut",
         "description": "File rules of a client form, from the backend settings (the client checks before sending,\nthe server checks again, including the file contents)."
+      },
+      "UserActionOut": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/UserAdminAction"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "allowed",
+          "reason"
+        ],
+        "title": "UserActionOut",
+        "description": "One action of services/admin_actions.py: allowed, or refused with the server's reason\n(shown next to a disabled button)."
+      },
+      "UserAdminAction": {
+        "type": "string",
+        "enum": [
+          "edit",
+          "change_role",
+          "block",
+          "unblock",
+          "reset_password"
+        ],
+        "title": "UserAdminAction",
+        "description": "What the admin may do with a user (AdminUserOut.user_actions, spec 13). Computed by\nservices/admin_actions.py from the refusals services/admin_users.py enforces."
       },
       "UserOut": {
         "properties": {

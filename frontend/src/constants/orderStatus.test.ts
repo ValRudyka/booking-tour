@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import uk from '../i18n/uk.json'
 import {
-  CANCEL_REASONS, DOCUMENT_TYPES, MANAGER_QUEUES, NAME_DISPLAYS, PAYMENT_METHODS, PAYMENT_TYPES, STAFF_ACTIONS, USER_ROLES,
+  CANCEL_REASONS, DOCUMENT_TYPES, MANAGER_QUEUES, NAME_DISPLAYS, PAYMENT_METHODS, PAYMENT_TYPES, STAFF_ACTIONS, TOUR_ACTIONS,
+  USER_ROLES,
 } from './orderLabels'
 import { STATUS_SECTIONS, STATUS_TONES } from './orderStatus'
 
@@ -27,6 +28,7 @@ describe('status dictionary (src/constants/orderStatus.ts)', () => {
     ['PaymentStatus', 'payment'],
     ['ReviewStatus', 'review'],
     ['TransactionStatus', 'transaction'],
+    ['TourStatus', 'tour'],
   ] as const)('%s: every backend value has a tone and a Ukrainian label, and nothing extra', (schema, kind) => {
     const values = backendEnum(schema)
     expect(Object.keys(STATUS_TONES[kind]).sort()).toEqual(values)
@@ -44,6 +46,7 @@ describe('status dictionary (src/constants/orderStatus.ts)', () => {
     ['ManagerQueue', MANAGER_QUEUES, 'managerQueue'],
     ['UserRole', USER_ROLES, 'userRole'],
     ['PaymentType', PAYMENT_TYPES, 'paymentType'],
+    ['TourAction', TOUR_ACTIONS, 'tourAction'],
   ] as const)('%s: every backend value has a label', (schema, record, section) => {
     const values = backendEnum(schema)
     expect(Object.keys(record).sort()).toEqual(values)

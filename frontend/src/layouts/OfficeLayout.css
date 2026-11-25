@@ -189,3 +189,101 @@
 .office-textarea.ant-input-textarea-show-count {
   margin-bottom: 22px;
 }
+
+/* ---------- tours (spec 10) */
+.office-tour-thumb {
+  width: 72px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+}
+
+.office-disabled-wrap {
+  display: inline-block;
+  cursor: not-allowed;
+}
+
+.office-confirm-text {
+  display: block;
+  max-width: 360px;
+}
+
+.office-steps {
+  max-width: 960px;
+}
+
+.office-tour-form {
+  max-width: 960px;
+}
+
+.office-steps-footer {
+  max-width: 960px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 16px;
+}
+
+.office-form-row {
+  width: 100%;
+}
+
+.office-select {
+  min-width: 220px;
+}
+
+.office-select-wide {
+  min-width: 320px;
+}
+
+.office-select-narrow {
+  min-width: 110px;
+}
+
+.office-money {
+  width: 180px;
+}
+
+.office-list-row {
+  width: 100%;
+}
+
+.office-list-row .ant-space-item:first-child {
+  flex: 1;
+}
+
+.office-lock-note {
+  color: #92400e;
+}
+
+.office-plain-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.office-photo-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  max-width: 960px;
+}
+
+.office-photo {
+  height: 150px;
+  object-fit: cover;
+}
+
+@media (max-width: 767px) {
+  .office-select,
+  .office-select-wide {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+/* Maintenance mode is on (spec 13 §3): above every page of the admin's office. */
+.office-maintenance-alert {
+  margin-bottom: 16px;
+}

@@ -1,4 +1,7 @@
-import type { ManagerOrder, ManagerOrderPage, ManagerOrderRow, StaffAction, StaffActionInfo, User } from '../api/types'
+import type {
+  Hotel, ManagerOrder, ManagerOrderPage, ManagerOrderRow, ManagerTour, ManagerTourPage, ManagerTourRow, StaffAction, StaffActionInfo,
+  TourAction, TourActionInfo, TourRules, User,
+} from '../api/types'
 import { makeUser } from './fixtures'
 
 // Back-office test data (spec 09), shaped like the API's ManagerOrderOut / ManagerOrderDetailOut.
@@ -54,4 +57,57 @@ export function makeManagerOrder(overrides: Partial<ManagerOrder> = {}): Manager
 export const DOCUMENT_RULES = {
   doc_types: ['voucher', 'air_ticket', 'insurance_policy', 'info_sheet'] as const,
   max_documents: 10, max_file_mb: 10, file_types: ['jpg', 'pdf', 'png'],
+}
+
+// ---------- tours (spec 10), shaped like ManagerTourOut / ManagerTourListItem / TourRulesOut
+export const tourAllowed = (action: TourAction): TourActionInfo => ({ action, allowed: true, reason: null })
+export const tourRefused = (action: TourAction, reason: string): TourActionInfo => ({ action, allowed: false, reason })
+
+export const DRAFT_ACTIONS: TourActionInfo[] = [tourAllowed('edit'), tourAllowed('publish'), tourAllowed('archive'), tourAllowed('copy')]
+export const ACTIVE_ACTIONS: TourActionInfo[] = [
+  tourRefused('edit', 'Редагувати можна лише чернетку — спершу зніміть тур з публікації'),
+  tourAllowed('unpublish'), tourAllowed('archive'), tourAllowed('copy'),
+]
+
+export const HOTELS: Hotel[] = [
+  { id: 300, resort_id: 10, name: 'Coral Bay Resort', stars: 5, rating_avg: null },
+  { id: 301, resort_id: 10, name: 'Sunrise Garden', stars: 4, rating_avg: null },
+  { id: 400, resort_id: 20, name: 'Antalya Palace', stars: 5, rating_avg: null },
+]
+
+export const TOUR_RULES: TourRules = {
+  photos: { max_files: 20, max_file_mb: 5, file_types: ['jpg', 'png'] },
+  max_title: 200, max_description: 5000, max_day_text: 2000, min_nights: 1, max_nights: 30,
+  max_list_items: 20, max_list_item_length: 200,
+}
+
+export function makeManagerTour(overrides: Partial<ManagerTour> = {}): ManagerTour {
+  return {
+    id: 7, status: 'draft', title_uk: 'Coral Bay, Хургада', title_en: 'Coral Bay, Hurghada', hotel_id: 300,
+    hotel: { id: 300, name: 'Coral Bay Resort', stars: 5, resort_id: 10, resort_name: 'Хургада', country_id: 1, country_name: 'Єгипет', is_archived: false },
+    transport_type: 'air', departure_city_id: 100, flight_out: 'PQ 7121', flight_back: null,
+    departure_from: '2099-06-01', departure_to: '2099-06-20', nights: 7, seats_total: 20, seats_sold: 0, seats_held: 0,
+    base_price: '850.00', child_price: null, currency: 'EUR', description: 'Відпочинок на Червоному морі', is_featured: false,
+    meal_plan: 'ai', included: ['Авіапереліт'], excluded: [], created_by: 701,
+    created_at: '2099-01-01T10:00:00Z', updated_at: '2099-01-01T10:00:00Z',
+    program_days: [{ day_number: 1, description: 'Приліт' }, { day_number: 2, description: 'Пляж' }],
+    images: [],
+    tour_actions: DRAFT_ACTIONS, locked_fields: [], active_bookings: 0, archive_cancels: 0, for_sale: false,
+    ...overrides,
+  }
+}
+
+export function makeTourRow(overrides: Partial<ManagerTourRow> = {}): ManagerTourRow {
+  return {
+    id: 7, status: 'active', title_uk: 'Coral Bay, Хургада', hotel_id: 300, hotel_name: 'Coral Bay Resort',
+    resort_name: 'Хургада', country_name: 'Єгипет', image_url: null, departure_from: '2099-06-01', departure_to: '2099-06-20',
+    nearest_start: '2099-06-01', nights: 7, seats_total: 20, seats_sold: 2, free_seats: 16, base_price: '850.00', currency: 'EUR',
+    is_featured: false, updated_at: '2099-01-01T10:00:00Z',
+    tour_actions: ACTIVE_ACTIONS, locked_fields: [], active_bookings: 0, archive_cancels: 0, for_sale: true,
+    ...overrides,
+  }
+}
+
+export function tourPage(items: ManagerTourRow[], total = items.length, page = 1): ManagerTourPage {
+  return { items, total, page, page_size: 20 }
 }
