@@ -1,8 +1,10 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { OrderWithPrice, Price, ServiceOption } from '../../api/types'
+import type { OrderWithPrice, ServiceOption } from '../../api/types'
 import { draftKey, saveDraft, type BookingDraft } from '../../features/booking/bookingDraft'
-import { makeTourDetail, makeUser, mockServer, signIn, type FakeRequest } from '../../test/fixtures'
+import {
+  makeCheckoutOrder, makePrice, makeTourDetail, makeUser, mockServer, signIn, TOURISTS, type FakeRequest,
+} from '../../test/fixtures'
 import { renderRoute } from '../../test/render'
 
 // Intl uses a narrow no-break space as the uk-UA thousands separator.
@@ -15,33 +17,9 @@ const INSURANCE: ServiceOption[] = [
   { id: 1, name_uk: 'Базове', price_uah: '350.00', is_default: true },
   { id: 2, name_uk: 'Розширене', price_uah: '700.00', is_default: false },
 ]
+const makeOrder = (overrides: Partial<OrderWithPrice> = {}) =>
+  makeCheckoutOrder({ tour_title_uk: TOUR.title_uk, hotel_name: TOUR.hotel.name, ...overrides })
 const TRANSFER: ServiceOption[] = [{ id: 5, name_uk: 'Груповий', price_uah: '0.00', is_default: true }]
-
-function makePrice(overrides: Partial<Price> = {}): Price {
-  return {
-    adults: 2, children: 0, currency: 'EUR', base_price: '700.00', child_price: '350.00', rate: '45.1234',
-    tour_uah: '63172.76', insurance_id: 1, insurance_name: 'Базове', insurance_per_tourist_uah: '350.00',
-    insurance_uah: '700.00', transfer_id: 5, transfer_name: 'Груповий', transfer_uah: '0.00',
-    subtotal_uah: '63872.76', promo_code: null, discount_uah: '0.00', total_uah: '63872.76', ...overrides,
-  }
-}
-
-const TOURISTS = [
-  { id: 11, last_name_lat: 'KOVALENKO', first_name_lat: 'OLENA', birth_date: '1990-05-14', passport_number: 'FX123456', passport_expiry: '2105-01-01' },
-  { id: 12, last_name_lat: 'KOVALENKO', first_name_lat: 'IVAN', birth_date: '1988-02-01', passport_number: 'FX654321', passport_expiry: '2105-01-01' },
-]
-
-function makeOrder(overrides: Partial<OrderWithPrice> = {}): OrderWithPrice {
-  return {
-    id: 1, number: 'TU-2099-000001', status: 'checkout', payment_status: 'awaiting', tour_id: 7,
-    tour_title_uk: TOUR.title_uk, hotel_name: TOUR.hotel.name, start_date: '2099-06-10', end_date: '2099-06-17',
-    adults: 2, children: 0, insurance_type_id: 1, transfer_type_id: 5, promo_code: null, wishes: null,
-    total_uah: '63872.76', discount_uah: '0.00', rate_used: '45.1234',
-    hold_expires_at: new Date(Date.now() + 15 * 60_000).toISOString(), offer_accepted_at: null, pnr: null,
-    reject_reason: null, cancel_reason_code: null, cancel_reason: null, fpv_uah: null,
-    created_at: new Date().toISOString(), tourists: [], history: [], payments: [], price: makePrice(), ...overrides,
-  }
-}
 
 /** The backend for the wizard: the tour, references, no saved passports, no unfinished orders. */
 function backend(routes: Record<string, (request: FakeRequest) => [number, unknown]> = {}) {

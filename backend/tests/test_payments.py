@@ -137,6 +137,30 @@ def test_mock_payment_end_to_end(client, db, customer, customer_headers, order, 
     assert [(p["method"], p["status"]) for p in detail["payments"]] == [("card", "succeeded")]
 
 
+def test_mock_page_returns_to_the_frontend_like_stripe(client, db, customer_headers, order, gateway):
+    """Demo without Stripe keys: the mock page's buttons send the browser to the frontend pages."""
+    pay(client, customer_headers, order.id)
+    session_id = gateway.created[0]
+    base = "http://localhost:5173"                       # FRONTEND_URL empty, APP_ENV=test
+    page = client.get(f"/api/payments/mock/{session_id}").text
+    assert f'href="{base}/payment/cancel?order_id={order.id}"' in page
+    response = client.post(f"/api/payments/mock/{session_id}/succeed",
+                           params={"return_to_site": 1}, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        f"{base}/payment/success?order_id={order.id}&session_id={session_id}")
+    db.expire_all()
+    assert db.get(Order, order.id).status == OrderStatus.PAID     # paid by the event, not the URL
+
+
+def test_mock_expire_returns_to_the_cancel_page(client, customer_headers, order, gateway):
+    pay(client, customer_headers, order.id)
+    response = client.post(f"/api/payments/mock/{gateway.created[0]}/expire",
+                           params={"return_to_site": 1}, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"].endswith(f"/payment/cancel?order_id={order.id}")
+
+
 def test_result_page(client, customer_headers, order, gateway):
     assert client.get("/api/payments/result", params={"session_id": "cs_nope"}).status_code == 404
     pay(client, customer_headers, order.id)

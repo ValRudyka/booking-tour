@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { mockApi, page, signIn } from './test/fixtures'
+import { mockApi, page } from './test/fixtures'
 import { renderRoute } from './test/render'
 
 describe('routes', () => {
@@ -24,11 +24,5 @@ describe('routes', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Сторінку не знайдено' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'До каталогу' }))
     expect(router.state.location.pathname).toBe('/tours')
-  })
-
-  it('has a placeholder payment page for a signed-in client until spec 05', async () => {
-    mockApi(() => page([]), signIn())
-    renderRoute('/orders/42/pay')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Оплата замовлення' })).toBeInTheDocument()
   })
 })

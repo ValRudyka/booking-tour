@@ -7,7 +7,10 @@ import { AppProviders } from '../App'
 import { routes } from '../router'
 
 /** Renders the real routes at `url` with the app's providers; retries are off in tests. */
-export function renderRoute(url: string) {
+type Entry = NonNullable<NonNullable<Parameters<typeof createMemoryRouter>[1]>['initialEntries']>[number]
+
+/** `url` may be an entry with router state, e.g. {pathname, search, state}. */
+export function renderRoute(url: Entry) {
   const queryClient = createQueryClient()
   queryClient.setDefaultOptions({ queries: { ...queryClient.getDefaultOptions().queries, retry: false } })
   const router = createMemoryRouter(routes, { initialEntries: [url] })
