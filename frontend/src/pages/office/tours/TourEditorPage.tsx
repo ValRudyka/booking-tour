@@ -11,8 +11,8 @@ import { StatusTag } from '../../../components/StatusTag'
 import { canEdit, findTourAction, lockReason, type TourStateLike } from '../../../features/office/tourActions'
 import { actionErrorText, useTourAction } from '../../../features/office/useOfficeAction'
 import { readEnum } from '../../../features/office/urlState'
-import { useUnsavedChanges } from '../../../features/office/useUnsavedChanges'
 import { useDocumentTitle } from '../../../hooks/useDocumentTitle'
+import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges'
 import { OfficeForbidden } from '../OfficeHome'
 import { CopyTourModal } from './CopyTourModal'
 import { TourActionButtons } from './TourActionButtons'
@@ -79,7 +79,10 @@ function TourEditor({ tourId }: { tourId: number | undefined }) {
   const [changes, setChanges] = useState<{ version: string | null; dirty: boolean }>({ version: null, dirty: false })
   const dirty = changes.version === loaded && changes.dirty
   const setDirty = (value: boolean) => setChanges({ version: loaded, dirty: value })
-  const unsaved = useUnsavedChanges(dirty)
+  const unsaved = useUnsavedChanges(dirty, {
+    title: t('office.tours.unsaved.title'), content: t('office.tours.unsaved.text'),
+    leave: t('office.tours.unsaved.leave'), stay: t('office.tours.unsaved.stay'),
+  })
   useDocumentTitle(isNew ? t('office.tours.newTitle') : saved ? saved.title_uk : t('office.tours.title'))
 
   // Load the saved tour into the form, again after each save (the server's normalised values:
