@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from './client'
+import { PASSPORTS_KEY } from './passports'
 import type {
   OrderCreate, OrderDetail, OrderDetailWithPrice, OrderSummaryPage, OrderUpdate, OrderWithPrice, Price,
   QuoteRequest, SavedPassport, ServiceOption,
@@ -64,7 +65,7 @@ export function useTransferTypes() {
 /** Saved foreign passports for autofill (ТЗ form 4.6.1.1, field 8). */
 export function useSavedPassports() {
   return useQuery({
-    queryKey: ['me', 'passports'],
+    queryKey: PASSPORTS_KEY,
     queryFn: async () => (await api.get<SavedPassport[]>('/me/passports')).data,
   })
 }

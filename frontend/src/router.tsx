@@ -10,6 +10,7 @@ import { BookingPage } from './pages/booking/BookingPage'
 import { OrderDetailsPage } from './pages/cabinet/OrderDetailsPage'
 import { OrdersPage } from './pages/cabinet/OrdersPage'
 import { ProfilePage } from './pages/cabinet/ProfilePage'
+import { TouristsPage } from './pages/cabinet/TouristsPage'
 import { ReviewPage } from './pages/cabinet/ReviewPage'
 import { CatalogPage } from './pages/catalog/CatalogPage'
 import { HomePage } from './pages/home/HomePage'
@@ -55,6 +56,8 @@ export const routes: RouteObject[] = [
               { path: 'orders/:id/review', element: <ReviewPage /> },
               // Profile and password (spec 08 §2): GET/PATCH /auth/me, POST /auth/me/password.
               { path: 'profile', element: <ProfilePage /> },
+              // Saved tourists for the booking autofill (spec 08 §3): /api/me/passports.
+              { path: 'tourists', element: <TouristsPage /> },
             ],
           },
           // The back office comes in feature/frontend-backoffice.

@@ -42,6 +42,7 @@ export type OrderCreate = Schemas['OrderCreate']
 export type OrderUpdate = Schemas['OrderUpdate']
 export type ServiceOption = Schemas['ServiceOptionOut']
 export type SavedPassport = Schemas['PassportOut']
+export type SavedPassportIn = Schemas['PassportIn']
 
 // Payment (ТЗ 4.5.3 steps 7.2–9, spec 05)
 export type PaymentMethod = Schemas['PaymentMethod']

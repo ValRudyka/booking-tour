@@ -1,4 +1,4 @@
-import { MenuOutlined, ShoppingOutlined, UserOutlined } from '@ant-design/icons'
+import { MenuOutlined, ShoppingOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
 import { Button, Drawer, Grid, Layout, Menu } from 'antd'
 import type { MenuProps } from 'antd'
 import { useState } from 'react'
@@ -22,6 +22,7 @@ export function CabinetLayout() {
 
   const items: MenuProps['items'] = [
     { key: '/cabinet/orders', icon: <ShoppingOutlined aria-hidden />, label: t('cabinet.orders.title') },
+    { key: '/cabinet/tourists', icon: <TeamOutlined aria-hidden />, label: t('cabinet.tourists.title') },
     { key: '/cabinet/profile', icon: <UserOutlined aria-hidden />, label: t('nav.profile') },
   ]
   const selected = items.map((item) => String(item?.key)).filter((key) => pathname.startsWith(key))

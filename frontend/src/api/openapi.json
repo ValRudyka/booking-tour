@@ -6045,6 +6045,61 @@
       }
     },
     "/api/me/passports/{passport_id}": {
+      "put": {
+        "tags": [
+          "me: passports"
+        ],
+        "summary": "Змінити збережений паспорт",
+        "operationId": "update_passport_api_me_passports__passport_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "passport_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Passport Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PassportIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "me: passports"
@@ -11974,6 +12029,11 @@
             "type": "string",
             "format": "date",
             "title": "Expiry Date"
+          },
+          "birth_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Birth Date"
           }
         },
         "type": "object",
@@ -11981,7 +12041,8 @@
           "last_name_lat",
           "first_name_lat",
           "passport_number",
-          "expiry_date"
+          "expiry_date",
+          "birth_date"
         ],
         "title": "PassportIn"
       },
@@ -12018,6 +12079,18 @@
             "type": "string",
             "format": "date",
             "title": "Expiry Date"
+          },
+          "birth_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
           }
         },
         "type": "object",
@@ -12027,7 +12100,8 @@
           "first_name_lat",
           "passport_number",
           "issuing_authority",
-          "expiry_date"
+          "expiry_date",
+          "birth_date"
         ],
         "title": "PassportOut"
       },

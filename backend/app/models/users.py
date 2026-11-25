@@ -48,6 +48,9 @@ class SavedPassport(Base):
     passport_number: Mapped[str] = mapped_column(String(20))
     issuing_authority: Mapped[str | None] = mapped_column(String(4))  # 4-digit code
     expiry_date: Mapped[date]
+    # For the full checkout autofill (form 4.6.1.2, field 3.6). Required by the API; NULL only in
+    # rows saved before it existed (the checkout then asks for it).
+    birth_date: Mapped[date | None]
 
     user: Mapped[User] = relationship(back_populates="passports")
 

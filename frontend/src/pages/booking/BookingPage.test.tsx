@@ -114,6 +114,35 @@ describe('booking wizard /booking/:tourId', () => {
       'Паспорт має діяти щонайменше 6 місяців після повернення — до 17.12.2099')).toBeInTheDocument()
   })
 
+  it('a saved tourist fills every field, the birth date too (spec 08)', async () => {
+    backend({
+      'GET /orders/1': () => [200, makeOrder()],
+      'GET /me/passports': () => [200, [
+        { id: 3, last_name_lat: 'KOVALENKO', first_name_lat: 'OLENA', passport_number: 'FX123456',
+          issuing_authority: null, expiry_date: '2101-01-01', birth_date: '1988-03-09' },
+        { id: 4, last_name_lat: 'OLD', first_name_lat: 'ROW', passport_number: 'AA111111',
+          issuing_authority: null, expiry_date: '2101-01-01', birth_date: null },
+      ]],
+    })
+    inProgress(1, makeOrder())
+    const { user } = renderRoute(URL)
+    await user.click(await screen.findByRole('button', { name: 'Далі' }))
+    const first = within(card('Дорослий 1'))
+    await user.click(await first.findByLabelText('Збережений паспорт'))
+    await user.click(await screen.findByTitle('KOVALENKO OLENA, FX123456'))
+    expect(first.getByLabelText('Прізвище латиницею')).toHaveValue('KOVALENKO')
+    expect(first.getByLabelText('Серія та номер закордонного паспорта')).toHaveValue('FX123456')
+    expect(first.getByLabelText('Паспорт дійсний до')).toHaveValue('01.01.2101')
+    expect(first.getByLabelText('Дата народження')).toHaveValue('09.03.1988')
+
+    // Saved before birth dates were kept: the birth date stays for the client to enter.
+    const second = within(card('Дорослий 2'))
+    await user.click(second.getByLabelText('Збережений паспорт'))
+    await user.click((await screen.findAllByTitle('OLD ROW, AA111111')).at(-1)!)
+    expect(second.getByLabelText('Прізвище латиницею')).toHaveValue('OLD')
+    expect(second.getByLabelText('Дата народження')).toHaveValue('')
+  })
+
   it('puts a 422 about tourist 2 under that tourist\'s field', async () => {
     const message = 'Паспорт туриста KOVALENKO IVAN має діяти щонайменше 6 місяців після повернення — до 17.12.2099'
     backend({

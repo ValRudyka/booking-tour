@@ -1409,7 +1409,8 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /** Змінити збережений паспорт */
+        put: operations["update_passport_api_me_passports__passport_id__put"];
         post?: never;
         /** Видалити паспорт */
         delete: operations["delete_passport_api_me_passports__passport_id__delete"];
@@ -3301,6 +3302,11 @@ export interface components {
              * Format: date
              */
             expiry_date: string;
+            /**
+             * Birth Date
+             * Format: date
+             */
+            birth_date: string;
         };
         /** PassportOut */
         PassportOut: {
@@ -3319,6 +3325,8 @@ export interface components {
              * Format: date
              */
             expiry_date: string;
+            /** Birth Date */
+            birth_date: string | null;
         };
         /** PasswordChange */
         PasswordChange: {
@@ -7877,6 +7885,41 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PassportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_passport_api_me_passports__passport_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                passport_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PassportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
