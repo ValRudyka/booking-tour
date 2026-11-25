@@ -31,8 +31,15 @@ function Departure({ tour }: { tour: TourCardData }) {
     : <span><SendOutlined aria-hidden /> {t('tour.departureAir', { city })}</span>
 }
 
+interface Props {
+  tour: TourCardData
+  /** h2 in the catalog; h3 on the home page, where the cards sit under a block's h2. */
+  headingLevel?: 2 | 3
+}
+
 /** One tour in the catalog grid (spec §4 "Картка туру"). The whole card is one link. */
-export function TourCard({ tour }: { tour: TourCardData }) {
+export function TourCard({ tour, headingLevel = 2 }: Props) {
+  const Heading = headingLevel === 3 ? 'h3' : 'h2'
   const { t } = useTranslation()
   // The catalog's filters travel with the link, so the tour page's «Каталог» crumb returns to them.
   const { search } = useLocation()
@@ -50,7 +57,7 @@ export function TourCard({ tour }: { tour: TourCardData }) {
       className="tour-card-link">
       <Card hoverable cover={cover} className="tour-card" styles={{ body: { padding: 16 } }}>
         <Flex vertical gap={6}>
-          <h2 className="tour-card-title">{tour.title_uk}</h2>
+          <Heading className="tour-card-title">{tour.title_uk}</Heading>
 
           <Typography.Text type="secondary">
             <EnvironmentOutlined aria-hidden /> {tour.country.name_uk}, {tour.resort.name_uk}

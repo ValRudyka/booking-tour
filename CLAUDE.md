@@ -434,8 +434,20 @@ viewer with an append-only trigger, promo codes for managers; migration `admin`)
 - Note: e-mail-validator refuses special-use domains (`.local`, `.test`) at registration;
   staff created by `create_user` may still use them.
 
+`feature/frontend-home` (PR to `develop`): the home page `/` (`docs/frontend/07-home-page.md`).
+- Replaces the `/` → `/tours` redirect; the site name in the header links to `/`.
+- Search banner (country, dates, departure city) builds the URL with the catalog's own
+  `toSearchParams()` (`pages/home/homeSearch.ts`), so it gives exactly the catalog's results.
+- «Гарячі пропозиції» (`featured=true`, hidden when empty) and «Найближчі виїзди» (`date_asc`):
+  4 cards each, with free seats; `TourCard headingLevel={3}` under the block's h2.
+- «Популярні напрямки»: one `page_size=1` catalog request per country for its `total`; countries
+  with no tours hidden, most tours first. «Як забронювати»: four static steps.
+- Every block has its own query, skeleton and error; in maintenance only «Найближчі виїзди» shows
+  the maintenance screen, the optional blocks hide themselves.
+- No reviews block (no public list of recent reviews). Frontend only, no backend changes.
+
 Next: checkout, personal account.
-Backend test suite: 672 tests. Frontend: 163 tests.
+Backend test suite: 672 tests. Frontend: 178 tests.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
@@ -445,8 +457,15 @@ Backlog, in order (one branch each):
 5. `feature/reviews` — **done** (PR #9)
 6. `feature/admin` — **done** (PR #10)
 7. `feature/frontend-public` — catalog (**done**, PR #12), tour page (**done**, PR #14), auth
-   (**done**, `feature/frontend-auth`), checkout, personal account; plain antd (also set up
-   `frontend/`).
+   (**done**, `feature/frontend-auth`), home page (**done**, `feature/frontend-home`), checkout,
+   personal account; plain antd (also set up `frontend/`).
+   - Home page follow-ups (not done in `feature/frontend-home`; the first two need backend work):
+     - `GET /reference/countries?with_tours=true` with `tours_count`, to replace the per-country
+       catalog requests in `pages/home/useDestinations.ts`;
+     - `GET /api/reviews` (public, published only, newest first, with tour id and title), then a
+       «Відгуки туристів» block on the home page (3 latest: rating, excerpt, tour link);
+     - the catalog reading `featured=true` from the URL (`catalogParams.ts`), so «Гарячі
+       пропозиції» can link to "all".
    - Note for `docs/frontend/06-client-orders-pages.md`: finished tours return 404, so the
      client's order details page shows the tour data stored with the order (title, dates, hotel,
      price) and links to `/tours/:id` only while the tour is still for sale.

@@ -4,11 +4,17 @@ import { mockApi, page, signIn } from './test/fixtures'
 import { renderRoute } from './test/render'
 
 describe('routes', () => {
-  it('sends / to the catalog', async () => {
+  it('opens the home page at /', async () => {
     mockApi(() => page([]))
     const { router } = renderRoute('/')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Знайдіть свій тур на море' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/')
+  })
+
+  it('opens the catalog at /tours', async () => {
+    mockApi(() => page([]))
+    renderRoute('/tours')
     expect(await screen.findByRole('heading', { level: 1, name: 'Каталог турів' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/tours')
     expect(document.title).toMatch(/^Каталог турів — /)
   })
 
