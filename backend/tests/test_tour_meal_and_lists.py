@@ -121,6 +121,7 @@ def test_migration_stops_without_the_icu_collation(monkeypatch):
     bind = SimpleNamespace(scalar=lambda *args, **kwargs: 0)
     monkeypatch.setattr(migration, "op", SimpleNamespace(get_bind=lambda: bind,
                                                          add_column=lambda *a, **k: added.append(a)))
+    monkeypatch.setattr(migration, "context", SimpleNamespace(is_offline_mode=lambda: False))
     with pytest.raises(RuntimeError, match='collation "uk-x-icu" not found'):
         migration.upgrade()
     assert added == []          # nothing changed before the check

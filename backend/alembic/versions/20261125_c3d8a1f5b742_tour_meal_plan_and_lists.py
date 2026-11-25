@@ -18,7 +18,7 @@ Written by hand: autogenerate does not compare CHECK constraints of enums.
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
+from alembic import context, op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "c3d8a1f5b742"
@@ -29,15 +29,28 @@ depends_on: str | Sequence[str] | None = None
 UKRAINIAN_COLLATION = "uk-x-icu"
 
 
-def upgrade() -> None:
+MISSING_COLLATION = (
+    f'PostgreSQL collation "{UKRAINIAN_COLLATION}" not found: the catalog sorts tour titles in '
+    f"Ukrainian alphabetical order with it. Use a PostgreSQL build with ICU support (the Windows "
+    f"installer and the official postgres Docker images have it); check with "
+    f"SELECT collname FROM pg_collation WHERE collname = '{UKRAINIAN_COLLATION}';")
+
+
+def _require_collation() -> None:
+    if context.is_offline_mode():
+        # `alembic upgrade --sql` (the SQL files for pgAdmin): the same check, run by the server.
+        message = MISSING_COLLATION.replace("'", "''")
+        op.execute(f"DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_collation WHERE collname = "
+                   f"'{UKRAINIAN_COLLATION}') THEN RAISE EXCEPTION '{message}'; END IF; END $$")
+        return
     found = op.get_bind().scalar(sa.text("SELECT count(*) FROM pg_collation WHERE collname = :name"),
                                  {"name": UKRAINIAN_COLLATION})
     if not found:
-        raise RuntimeError(
-            f'PostgreSQL collation "{UKRAINIAN_COLLATION}" not found: the catalog sorts tour titles '
-            f"in Ukrainian alphabetical order with it. Use a PostgreSQL build with ICU support "
-            f"(the Windows installer and the official postgres Docker images have it); check with "
-            f"SELECT collname FROM pg_collation WHERE collname = '{UKRAINIAN_COLLATION}';")
+        raise RuntimeError(MISSING_COLLATION)
+
+
+def upgrade() -> None:
+    _require_collation()
 
     op.add_column("tours", sa.Column("meal_plan", sa.String(32), nullable=True))
     op.create_check_constraint(op.f("ck_tours_meal_plan"), "tours",

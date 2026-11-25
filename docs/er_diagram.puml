@@ -104,6 +104,13 @@ entity hotels {
    stars : smallint
    description : text
    rating_avg : numeric(3,2)
+   beach_line : smallint
+   distance_to_beach_m : int
+   distance_to_airport_km : int
+   check_in : time
+   check_out : time
+ * amenities : array
+ * room_types : array
  * is_archived : bool
 }
 entity insurance_types {
@@ -178,6 +185,9 @@ entity tours {
    child_price : numeric(12,2)
  * currency : enum
    description : text
+   meal_plan : enum
+ * included : array
+ * excluded : array
  * is_featured : bool
  * status : enum
  * created_by : int <<FK>>
@@ -293,6 +303,7 @@ entity payments {
    stripe_payment_intent : varchar(255)
    stripe_refund_id : varchar(255) <<UQ>>
    confirmed_by : int <<FK>>
+ * origin : enum
  * created_at : timestamptz
 }
 entity review_photos {
