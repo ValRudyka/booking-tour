@@ -65,7 +65,7 @@ npm run dev          # http://localhost:5173 (strictPort: the backend's CORS_ORI
 npm test             # Vitest + Testing Library, API mocked
 npm run build        # tsc -b && vite build
 npm run lint         # oxlint
-npm run gen:api      # src/api/schema.d.ts from http://127.0.0.1:8000/openapi.json (backend running)
+npm run gen:api      # saves src/api/openapi.json from http://127.0.0.1:8000, then src/api/schema.d.ts from it (backend running)
 ```
 
 `backend/.env` (never committed; template in `.env.example`): `DATABASE_URL`,
@@ -216,6 +216,22 @@ Conventions:
     calculation in `checkout`; after confirm the lines are rebuilt from the frozen total, discount
     and rate, and `price` is null if a tour or service price changed since (a full price
     snapshot would need a migration). `total_uah` is always the stored amount.
+- Client cabinet API (feature/frontend-client-orders, no migration):
+  - Every order (list and detail) carries `client_actions` (`ClientAction`: pay, continue_checkout,
+    cancel, cancel_request, review, view_review, download_documents), computed in
+    `services/order_actions.py` by the same predicates the action endpoints enforce
+    (`orders.hold_ran_out` / `is_editable` / `cancel_refusal`, `payments.service.is_payable`,
+    `cancellation.request_refusal`, `reviews.review_refusal`, `order_documents.documents_visible`).
+    The frontend shows only these actions and never mirrors status rules.
+  - `GET /api/orders?group=all|active|completed|cancelled` (`OrderGroup`): archived goes by
+    whether history has `completed`; every group hides abandoned bookings (cancelled/archived with
+    `offer_accepted_at IS NULL`). Without `group` the old behaviour (the booking wizard).
+  - `GET /api/orders/{id}` adds `tour_for_sale` (`catalog.is_for_sale()`, same rule as the
+    catalog query), country, resort, departure city, transport, meal plan (live from the tour row,
+    no snapshot) and `pending_transfer` (the same details as `POST /pay`).
+  - Form rules come from the server: `GET /orders/{id}/cancel-request` (evidence count / MB /
+    types, `max_details`) and `GET /orders/{id}/review` (`can_write`, `premoderation`, photo
+    limits, `max_text`, the order's review).
 - `alembic/env.py` uses `fileConfig(..., disable_existing_loggers=False)`: tests run Alembic
   in-process, and the default switched off the app's loggers.
 - Every new feature ships with tests; `pytest` must be green before a PR.
@@ -320,6 +336,22 @@ Lives in `frontend/` in this repository (same Git Flow branches as the backend).
       pay button; the test card hint only under `import.meta.env.DEV`.
     - `/payment/success` polls `GET /orders/{id}` (`POLLING`: 2 s, 30 s) and never shows an error
       for a slow webhook. `useOrder` has `staleTime: 0` (live status).
+  - **Client cabinet (feature/frontend-client-orders, `pages/cabinet/`, spec 06):**
+    - `src/constants/orderStatus.ts` is the one status dictionary (order, payment, review,
+      transaction: tone + `uk.json` label), `StatusTag` shows it; the back office reuses it.
+      `orderStatus.test.ts` compares it with the enums in `src/api/openapi.json` (saved by
+      `gen:api`), so a new backend status without a label fails the tests.
+    - `CabinetLayout` (antd Layout + Menu, Drawer under 768 px) inside `PublicLayout`; only sections
+      with an API: «Мої замовлення», «Профіль» (placeholder). Tabs and page in the URL
+      (`ordersParams.ts`).
+    - Buttons only from `client_actions` (`cabinetPaths.ts: has()`); status is read only for
+      informational texts. Upload limits and text lengths come from the API (`utils/fileRules.ts`).
+    - Private files (order documents, unpublished review photos) are fetched through `api` with
+      `responseType: 'blob'` (the token is attached): `utils/download.ts: saveBlob()` with the
+      `Content-Disposition` name, `hooks/usePrivateImage.ts` for images.
+    - Refund rows with `failed` are not shown to the client (finance repeats them as new rows).
+    - `NotificationBell` (clients only): `GET /me/notifications?page_size=10` every minute and on
+      focus; a new notification about an order invalidates `['order', id]` and the list.
 - **UI library:** `antd` 6 + `@ant-design/icons` 6 — keep their major versions in step.
   No Tailwind.
   - `feature/frontend-public` (catalog, tour page, auth, checkout, personal account): plain antd.
@@ -464,7 +496,7 @@ viewer with an append-only trigger, promo codes for managers; migration `admin`)
   the maintenance screen, the optional blocks hide themselves.
 - No reviews block (no public list of recent reviews). Frontend only, no backend changes.
 
-`feature/frontend-checkout`: booking (spec 04, merged in PR #17) and payment (spec 05, PR to `develop`).
+`feature/frontend-checkout`: booking (spec 04, merged in PR #17) and payment (spec 05, merged in PR #18).
 - Booking wizard `/booking/:tourId` (4 steps, order created at step 1, hold timer, server prices,
   draft without passport numbers, resume of the same tour's order, confirm → payment).
 - Payment `/orders/:id/pay` (card via Stripe Checkout, bank transfer details), `/payment/success`
@@ -473,8 +505,15 @@ viewer with an append-only trigger, promo codes for managers; migration `admin`)
   `GET /orders/{id}` with the price breakdown; Stripe returns to the frontend pages with the
   production `FRONTEND_URL` guard; the mock checkout page redirects like Stripe.
 
-Next: personal account (spec 06).
-Backend test suite: 690 tests. Frontend: 219 tests.
+`feature/frontend-client-orders` (PR to `develop`): the client cabinet (spec 06).
+- `/cabinet/orders` (server tabs, abandoned bookings hidden), `/cabinet/orders/:id` (history,
+  tour facts, documents, money and refunds, pending transfer, cancellation and cancellation
+  request), `/cabinet/orders/:id/review` (form, status, one correction), notification bell.
+- Backend, no migration: `client_actions`, `group`, order page facts, form rules endpoints.
+- `gen:api` keeps `src/api/openapi.json`; status dictionary test against it.
+
+Next: profile (spec 08).
+Backend test suite: 716 tests. Frontend: 285 tests.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
@@ -485,8 +524,8 @@ Backlog, in order (one branch each):
 6. `feature/admin` — **done** (PR #10)
 7. `feature/frontend-public` — catalog (**done**, PR #12), tour page (**done**, PR #14), auth
    (**done**, `feature/frontend-auth`), home page (**done**, `feature/frontend-home`), checkout
-   and payment (**done**, `feature/frontend-checkout`: PR #17 + the payment PR), personal account; plain antd
-   (also set up `frontend/`).
+   and payment (**done**, `feature/frontend-checkout`: PR #17, #18), client orders cabinet (**done**,
+   `feature/frontend-client-orders`), profile (spec 08); plain antd (also set up `frontend/`).
    - Home page follow-ups (not done in `feature/frontend-home`; the first two need backend work):
      - `GET /reference/countries?with_tours=true` with `tours_count`, to replace the per-country
        catalog requests in `pages/home/useDestinations.ts`;
@@ -494,15 +533,6 @@ Backlog, in order (one branch each):
        «Відгуки туристів» block on the home page (3 latest: rating, excerpt, tour link);
      - the catalog reading `featured=true` from the URL (`catalogParams.ts`), so «Гарячі
        пропозиції» can link to "all".
-   - Note for `docs/frontend/06-client-orders-pages.md`: finished tours return 404, so the
-     client's order details page shows the tour data stored with the order (title, dates, hotel,
-     price) and links to `/tours/:id` only while the tour is still for sale.
-   - Note for spec 06: orders cancelled while still in `checkout` (abandoned bookings) are hidden
-     from «Мої замовлення» or shown separately, not as normal cancellations. The order details
-     page can use the price breakdown of `GET /api/orders/{id}`.
-   - Note for spec 06: while a bank transfer is pending, the order details show its details
-     (recipient, IBAN, amount, purpose, pay until) with copy buttons and a link to
-     `/orders/:id/pay`; today «Зрозуміло» after a transfer leads to the `/cabinet/orders` placeholder.
    - Backlog note (no work yet): limit unpaid bank-transfer orders per client — a transfer holds
      seats for `bank_transfer_hold_hours` (48 h) without any money.
    - Note for spec 08: saved passports need a birth date for full autofill at checkout (backend
@@ -512,11 +542,17 @@ Backlog, in order (one branch each):
    `title_asc`, hotel facts, Kyiv dates everywhere, `payments.origin`, seed with photos and
    reviews, catalog UI.
 9. `feature/frontend-backoffice` — manager, finance, admin pages; antd + pro-components
-   (ProLayout, ProTable, ProForm/StepsForm)
+   (ProLayout, ProTable, ProForm/StepsForm). Reuse `src/constants/orderStatus.ts` and `StatusTag`.
+   - Note for spec 10: until `feature/order-snapshot` exists, the backend must forbid changing the
+     title, hotel and dates of a tour that has paid orders (old orders show the live tour row).
+   - Note for spec 12: finance must see failed refunds clearly (the client cabinet hides them).
 10. `feature/favorites-history` 11. `feature/notifications-email` (also: password recovery by
     e-mail, needs a reset-token table, i.e. a migration) 12. `feature/reports` (Excel/PDF)
 13. `feature/loyalty` 14. `feature/i18n-en` 15. `feature/monitoring` 16. `feature/docker`
-17. `feature/auth-rate-limit` — ТЗ 5.4 brute-force protection: limit login attempts per login and
+17. `feature/order-snapshot` — store the tour title, hotel and key facts (country, resort,
+    departure city, transport, meal plan) in the order at confirm, so old orders never change
+    with the tour (needs a migration); then the order page reads them from the order.
+18. `feature/auth-rate-limit` — ТЗ 5.4 brute-force protection: limit login attempts per login and
     IP, answer **429** (the frontend already shows «Забагато спроб входу. Спробуйте пізніше.»).
 
 When a feature is merged: tick it in `README.md` "Етапи", update this section, and if a
