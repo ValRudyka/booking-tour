@@ -131,3 +131,28 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+.tour-reviews-link {
+  padding: 0 !important;
+  height: auto !important;
+}
+
+.reviews-score {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.review-author {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.review-scores {
+  margin: 4px 0 8px;
+}
+
+.review-text {
+  margin: 0 0 6px;
+  white-space: pre-line;
+}

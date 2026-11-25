@@ -1,5 +1,5 @@
-import { Breadcrumb, Col, Flex, Grid, Result, Row, Skeleton, Tabs, Tag, Typography } from 'antd'
-import { useState } from 'react'
+import { Breadcrumb, Button, Col, Flex, Grid, Result, Row, Skeleton, Tabs, Tag, Typography } from 'antd'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useParams } from 'react-router'
 import { ApiError, mediaUrl } from '../../api/client'
@@ -16,6 +16,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { mealLabel } from '../../i18n/labels'
 import { formatRating, nearestBookableDate } from '../../utils/format'
 import { BookingPanel, MobileBookingBar } from './BookingPanel'
+import { TourReviews } from './TourReviews'
 import { DescriptionTab, HotelTab, ProgramTab } from './TourSections'
 import { parseTourId, type TourTab, useTourTab } from './tourParams'
 import './TourDetailsPage.css'
@@ -70,7 +71,8 @@ function TourContent({ tour }: { tour: TourDetail }) {
   const location = useLocation()
   const screens = Grid.useBreakpoint()
   const isDesktop = Boolean(screens.lg)
-  const { tab, setTab } = useTourTab()
+  const { tab, setTab, reviewsPage, setReviewsPage } = useTourTab()
+  const tabsRef = useRef<HTMLDivElement>(null)
   const startBooking = useStartBooking()
   const firstDate = nearestBookableDate(tour.departure_from, tour.departure_to)
   const [date, setDate] = useState<string | null>(firstDate)
@@ -86,7 +88,16 @@ function TourContent({ tour }: { tour: TourDetail }) {
     { key: 'description', label: t('tourPage.tabDescription'), children: <DescriptionTab tour={tour} /> },
     { key: 'program', label: t('tourPage.tabProgram'), children: <ProgramTab tour={tour} /> },
     { key: 'hotel', label: t('tourPage.tabHotel'), children: <HotelTab tour={tour} /> },
+    {
+      key: 'reviews', label: t('tourPage.tabReviews', { count: tour.reviews_count ?? 0 }),
+      children: <TourReviews tour={tour} page={reviewsPage} onPageChange={setReviewsPage}
+        active={tab === 'reviews'} />,
+    },
   ]
+  const openReviews = () => {
+    setTab('reviews')
+    tabsRef.current?.scrollIntoView({ block: 'start' })
+  }
   const panel = (
     <BookingPanel tour={tour} firstDate={firstDate} date={date} onDateChange={setDate} onBook={book} />
   )
@@ -103,7 +114,7 @@ function TourContent({ tour }: { tour: TourDetail }) {
       </nav>
 
       <Typography.Title level={1} className="tour-title">{tour.title_uk}</Typography.Title>
-      <TourHeaderLine tour={tour} />
+      <TourHeaderLine tour={tour} onOpenReviews={openReviews} />
 
       <Row gutter={[24, 24]} className="tour-body">
         <Col xs={24} lg={16}>
@@ -111,8 +122,10 @@ function TourContent({ tour }: { tour: TourDetail }) {
             {photos.length > 0 ? <PhotoViewer photos={photos} variant="gallery" /> : <PhotoPlaceholder height={360} />}
           </section>
           {!isDesktop && <div className="tour-panel-mobile">{panel}</div>}
-          <Tabs activeKey={tab} onChange={(key) => setTab(key as TourTab)} items={tabs}
-            aria-label={t('tourPage.tabs')} className="tour-tabs" />
+          <div ref={tabsRef}>
+            <Tabs activeKey={tab} onChange={(key) => setTab(key as TourTab)} items={tabs}
+              aria-label={t('tourPage.tabs')} className="tour-tabs" />
+          </div>
         </Col>
         {isDesktop && <Col lg={8}><div className="tour-panel-sticky">{panel}</div></Col>}
       </Row>
@@ -122,8 +135,9 @@ function TourContent({ tour }: { tour: TourDetail }) {
   )
 }
 
-/** Hotel, stars, meal plan and the hotel's rating. The rating covers all reviews of the hotel. */
-function TourHeaderLine({ tour }: { tour: TourDetail }) {
+/** Hotel, stars, meal plan, «Рейтинг готелю … · N відгуків про тур». The rating covers every
+ * published review of the hotel; the count only this tour's (they are different numbers). */
+function TourHeaderLine({ tour, onOpenReviews }: { tour: TourDetail; onOpenReviews: () => void }) {
   const { t } = useTranslation()
   const { hotel } = tour
   return (
@@ -135,6 +149,14 @@ function TourHeaderLine({ tour }: { tour: TourDetail }) {
         {hotel.rating_avg !== null ? t('tourPage.hotelRating', { rating: formatRating(hotel.rating_avg) })
           : t('tour.noReviews')}
       </Typography.Text>
+      {(tour.reviews_count ?? 0) > 0 && (
+        <>
+          <span aria-hidden>·</span>
+          <Button type="link" className="tour-reviews-link" onClick={onOpenReviews}>
+            {t('tourPage.reviewsLink', { count: tour.reviews_count ?? 0 })}
+          </Button>
+        </>
+      )}
     </Flex>
   )
 }
