@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation } from 'react-router'
 import type { UserRole } from '../../api/types'
 import { BackToCatalogButton } from '../../components/BackToCatalogButton'
+import { MaintenancePage } from '../../components/MaintenancePage'
 import { loginPath } from './redirect'
 import { useAuth } from './useAuth'
 
@@ -11,6 +12,8 @@ import { useAuth } from './useAuth'
  * A page for signed-in users only. A guest goes to /login and comes back afterwards
  * (?redirect=); a signed-in user with another role sees 403. Rights are checked again by the
  * backend on every request (require_roles), this only spares the visitor a broken page.
+ * In maintenance mode (GET /auth/me answered 503) the maintenance page is shown instead: a 503
+ * is never a reason to go to /login.
  */
 export function RequireAuth({ roles, children }: { roles?: readonly UserRole[]; children: ReactNode }) {
   const { t } = useTranslation()
@@ -18,6 +21,7 @@ export function RequireAuth({ roles, children }: { roles?: readonly UserRole[]; 
   const location = useLocation()
 
   if (status === 'loading') return <Skeleton active={false} paragraph={{ rows: 4 }} />
+  if (status === 'maintenance') return <MaintenancePage />
   if (!user) return <Navigate to={loginPath(`${location.pathname}${location.search}`)} replace />
   if (roles && !roles.includes(user.role)) {
     return (

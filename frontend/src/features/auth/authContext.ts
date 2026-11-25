@@ -3,8 +3,16 @@ import type { User } from '../../api/types'
 
 export interface AuthContextValue {
   user: User | null
-  /** loading = a stored token is being checked with GET /auth/me (after a reload). */
-  status: 'loading' | 'guest' | 'user'
+  /** loading = a stored token is being checked with GET /auth/me (after a reload).
+   * maintenance = GET /auth/me answered 503 (maintenance mode, form 4.6.4.1 field 7): the token is
+   * kept and nobody is signed out; protected pages show the maintenance page. */
+  status: 'loading' | 'guest' | 'user' | 'maintenance'
+  /** The API's maintenance text while status is 'maintenance', else null. */
+  maintenanceMessage: string | null
+  /** Ask GET /auth/me again (the maintenance page's «Спробувати ще раз»). */
+  recheck: () => Promise<void>
+  /** A recheck is running. */
+  rechecking: boolean
   login: (username: string, password: string) => Promise<User>
   logout: () => void
   /** The profile was saved: the header and every page show the new data at once. */

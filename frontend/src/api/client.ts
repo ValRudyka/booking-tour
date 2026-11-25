@@ -89,6 +89,15 @@ export function onUnauthorized(handler: (() => void) | null) {
   unauthorizedHandler = handler
 }
 
+/** Called for a maintenance 503 on a request that carried a token (maintenance switched on while
+ * someone is signed in). AuthProvider sets it: check GET /auth/me again, which answers 503 to
+ * everyone but an admin, so the protected pages show the maintenance page instead of their
+ * errors. A 503 never signs anyone out. */
+let maintenanceHandler: (() => void) | null = null
+export function onMaintenance(handler: (() => void) | null) {
+  maintenanceHandler = handler
+}
+
 export function createApiClient(): AxiosInstance {
   const client = axios.create({
     baseURL: `${API_URL}/api`,
@@ -110,6 +119,12 @@ export function createApiClient(): AxiosInstance {
       const sentToken = error.config?.headers?.has?.('Authorization')
       const isLogin = (error.config?.url ?? '').endsWith('/auth/login')
       if (sentToken && !isLogin && !error.config?.skipAuthRedirect) unauthorizedHandler?.()
+    }
+    // /auth/me itself is the check, and a refused login is shown by the login form.
+    if (apiError.kind === 'maintenance' && error instanceof AxiosError) {
+      const sentToken = error.config?.headers?.has?.('Authorization')
+      const url = error.config?.url ?? ''
+      if (sentToken && !url.endsWith('/auth/me') && !url.endsWith('/auth/login')) maintenanceHandler?.()
     }
     return Promise.reject(apiError)
   })

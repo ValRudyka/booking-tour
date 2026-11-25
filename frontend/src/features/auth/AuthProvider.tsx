@@ -2,12 +2,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { fetchMe, loginRequest } from '../../api/auth'
-import { ApiError, onUnauthorized } from '../../api/client'
+import { ApiError, onMaintenance, onUnauthorized } from '../../api/client'
 import type { User } from '../../api/types'
 import { AuthContext, ME_KEY, type AuthContextValue, type LoginLocationState } from './authContext'
 import { clearAllDrafts } from '../booking/bookingDraft'
 import { loginPath } from './redirect'
 import { clearToken, getToken, onTokenChangeInOtherTab, setToken } from './tokenStorage'
+
+/** How often the maintenance page asks GET /auth/me again by itself. */
+export const MAINTENANCE_RECHECK_MS = 60_000
+
+const isMaintenance = (error: unknown) => error instanceof ApiError && error.kind === 'maintenance'
 
 /**
  * Who is signed in. After a reload the user is restored by asking the backend (GET /auth/me),
@@ -27,6 +32,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // A stored token the backend refuses after a reload simply means "guest": drop it quietly
   // (no redirect from a public page; a protected page goes to /login through RequireAuth).
+  // A 503 (maintenance) is not a refusal: the token stays and the status is 'maintenance', so
+  // RequireAuth shows the maintenance page instead of sending staff to /login, where they would
+  // log in and come back to the same 503 (the login loop). While it lasts, /auth/me is asked again
+  // every minute and when the window gets focus; an admin gets 200 there and is never affected.
   const me = useQuery({
     queryKey: ME_KEY,
     queryFn: async (): Promise<User | null> => {
@@ -43,7 +52,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     enabled: token !== null,
     retry: false,
     staleTime: Infinity,
+    refetchInterval: (query) => (isMaintenance(query.state.error) ? MAINTENANCE_RECHECK_MS : false),
+    refetchOnWindowFocus: (query) => (isMaintenance(query.state.error) ? 'always' : false),
   })
+  const { refetch: refetchMe } = me
 
   const forget = useCallback(() => {
     clearToken()
@@ -61,6 +73,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     return () => onUnauthorized(null)
   }, [forget, navigate])
+
+  // Maintenance switched on while signed in: a request answered 503, so check /auth/me again
+  // (an in-flight check is not restarted when several requests fail at once).
+  useEffect(() => {
+    onMaintenance(() => {
+      if (getToken() !== null) void queryClient.refetchQueries({ queryKey: ME_KEY }, { cancelRefetch: false })
+    })
+    return () => onMaintenance(null)
+  }, [queryClient])
+
+  const recheck = useCallback(async () => {
+    await refetchMe()
+  }, [refetchMe])
 
   // Sign-in or sign-out in another tab.
   useEffect(() => onTokenChangeInOtherTab((next) => {
@@ -101,10 +126,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [forget, navigate])
 
   const value = useMemo<AuthContextValue>(() => {
-    const user = token !== null && me.data ? me.data : null
-    const status = user ? 'user' : token !== null && me.isPending ? 'loading' : 'guest'
-    return { user, status, login, logout, setUser, endSessionAfterPasswordChange }
-  }, [token, me.data, me.isPending, login, logout, setUser, endSessionAfterPasswordChange])
+    // The last check decides: a user restored before maintenance began is not shown as signed in.
+    const down = token !== null && me.isError && isMaintenance(me.error)
+    const user = !down && token !== null && me.data ? me.data : null
+    const status = down ? 'maintenance' : user ? 'user' : token !== null && me.isPending ? 'loading' : 'guest'
+    return {
+      user, status, login, logout, setUser, endSessionAfterPasswordChange, recheck,
+      maintenanceMessage: down ? (me.error as ApiError).message : null,
+      rechecking: me.isFetching,
+    }
+  }, [token, me.data, me.isPending, me.isError, me.error, me.isFetching, login, logout, setUser,
+    endSessionAfterPasswordChange, recheck])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
