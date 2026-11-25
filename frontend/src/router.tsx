@@ -4,7 +4,8 @@ import { CatalogPage } from './pages/catalog/CatalogPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { RouteErrorPage } from './pages/RouteErrorPage'
-import { TourDetailsPlaceholder } from './pages/TourDetailsPlaceholder'
+import { BookingPlaceholder } from './pages/BookingPlaceholder'
+import { TourDetailsPage } from './pages/tour/TourDetailsPage'
 
 export const routes: RouteObject[] = [
   {
@@ -14,7 +15,8 @@ export const routes: RouteObject[] = [
       // No home page yet: the catalog is the start page.
       { index: true, element: <Navigate to="/tours" replace /> },
       { path: 'tours', element: <CatalogPage /> },
-      { path: 'tours/:id', element: <TourDetailsPlaceholder /> },
+      { path: 'tours/:id', element: <TourDetailsPage /> },
+      { path: 'booking/:tourId', element: <BookingPlaceholder /> },
       { path: 'about', element: <PlaceholderPage page="about" /> },
       { path: 'login', element: <PlaceholderPage page="login" /> },
       { path: 'register', element: <PlaceholderPage page="register" /> },

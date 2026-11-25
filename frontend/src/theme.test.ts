@@ -41,7 +41,18 @@ describe('theme contrast', () => {
     expect(contrastRatio(color, bg)).toBeGreaterThanOrEqual(MIN)
   })
 
-  it('body text is readable on the sand background', () => {
-    expect(contrastRatio(TEXT_COLOR, SAND_BG)).toBeGreaterThanOrEqual(MIN)
+  // The booking panel on the tour page has the sand background. Tags keep their own light
+  // background (tested above).
+  it.each([
+    ['body text', TEXT_COLOR],
+    ['secondary text', tokens.colorTextSecondary],
+    ['description text', tokens.colorTextDescription],
+  ])('%s is readable on the sand background', (_name, color) => {
+    expect(contrastRatio(color, SAND_BG)).toBeGreaterThanOrEqual(MIN)
+  })
+
+  it('the price never sits directly on sand: it is too light there, so the panel puts it on white', () => {
+    expect(contrastRatio(PRICE_COLOR, SAND_BG)).toBeLessThan(MIN)
+    expect(contrastRatio(PRICE_COLOR, '#FFFFFF')).toBeGreaterThanOrEqual(MIN)
   })
 })

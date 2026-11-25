@@ -20,8 +20,9 @@ describe('routes', () => {
     expect(router.state.location.pathname).toBe('/tours')
   })
 
-  it('has a placeholder tour page', () => {
-    renderRoute('/tours/42')
-    expect(screen.getByRole('heading', { level: 1, name: 'Тур №42' })).toBeInTheDocument()
+  it('has a placeholder booking page until the checkout exists', () => {
+    renderRoute('/booking/42?date=2099-06-10')
+    expect(screen.getByRole('heading', { level: 1, name: 'Бронювання туру №42' })).toBeInTheDocument()
+    expect(screen.getByText(/10\.06\.2099/)).toBeInTheDocument()
   })
 })

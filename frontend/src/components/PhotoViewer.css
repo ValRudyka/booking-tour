@@ -1,0 +1,43 @@
+.photo-viewer button {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.photo-viewer img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-viewer-main {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 440px;
+}
+
+.photo-viewer-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.photo-viewer-thumb {
+  width: 120px;
+  height: 75px;
+}
+
+.photo-viewer-thumbs .photo-viewer-thumb {
+  flex: 0 0 auto;
+}
+
+.photo-viewer-thumbs-only .photo-viewer-thumb,
+.photo-viewer-thumbs .photo-viewer-thumb:only-child {
+  width: 120px;
+}
