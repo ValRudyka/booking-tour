@@ -1,0 +1,47 @@
+.cabinet-layout {
+  background: transparent;
+  gap: 24px;
+}
+
+@media (max-width: 767px) {
+  .cabinet-layout {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+.cabinet-sider {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  align-self: flex-start;
+  overflow: hidden;
+}
+
+.cabinet-menu {
+  border-inline-end: none !important;
+}
+
+.cabinet-menu-button {
+  align-self: flex-start;
+}
+
+.cabinet-content {
+  min-width: 0;
+}
+
+.cabinet-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+
+.cabinet-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.cabinet-muted {
+  color: rgba(15, 23, 42, 0.65);
+}

@@ -113,6 +113,18 @@ export function formatRate(value: string): string {
   return rateFormat.format(value as DecimalString)
 }
 
+/** An API timestamp as its Kyiv date "27.11.2026" (when an order was created). */
+export function formatKyivDate(timestamp: string): string {
+  const format = (timeZone: string) => new Intl.DateTimeFormat('uk-UA', {
+    timeZone, day: '2-digit', month: '2-digit', year: 'numeric',
+  }).format(new Date(timestamp))
+  try {
+    return format(BUSINESS_TIMEZONE)
+  } catch {
+    return format('Europe/Kiev')
+  }
+}
+
 /** An API timestamp as Kyiv date and time "27.11.2026, 09:52" (a transfer's pay-until, long holds). */
 export function formatKyivDateTime(timestamp: string): string {
   const format = (timeZone: string) => new Intl.DateTimeFormat('uk-UA', {

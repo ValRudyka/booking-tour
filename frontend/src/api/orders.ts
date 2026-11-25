@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from './client'
 import type {
-  OrderCreate, OrderDetailWithPrice, OrderSummaryPage, OrderUpdate, OrderWithPrice, Price,
+  OrderCreate, OrderDetail, OrderDetailWithPrice, OrderSummaryPage, OrderUpdate, OrderWithPrice, Price,
   QuoteRequest, SavedPassport, ServiceOption,
 } from './types'
 
@@ -28,8 +28,9 @@ export async function confirmOrder(orderId: number): Promise<OrderWithPrice> {
   return (await api.post<OrderWithPrice>(`/orders/${orderId}/confirm`, { accept_offer: true })).data
 }
 
-export async function cancelOrder(orderId: number): Promise<void> {
-  await api.post(`/orders/${orderId}/cancel`)
+/** Cancel an unpaid order at once; answers the cancelled order (without the price). */
+export async function cancelOrder(orderId: number): Promise<OrderDetail> {
+  return (await api.post<OrderDetail>(`/orders/${orderId}/cancel`)).data
 }
 
 /** Read-only, with the price breakdown (calculated on read, never saved). */

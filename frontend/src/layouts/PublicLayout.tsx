@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { useSiteContacts } from '../api/site'
 import { AppLink } from '../components/AppLink'
+import { NotificationBell } from '../components/NotificationBell'
 import { shortName } from '../features/auth/authContext'
 import { STAFF_ROLES } from '../features/auth/redirect'
 import { useAuth } from '../features/auth/useAuth'
@@ -40,7 +41,7 @@ export function PublicLayout() {
   const userItems = user ? [
     ...(STAFF_ROLES.includes(user.role)
       ? [{ key: '/office', label: t('nav.office') }]
-      : [{ key: '/cabinet', label: t('nav.cabinet') }, { key: '/cabinet/orders', label: t('nav.myOrders') }]),
+      : [{ key: '/cabinet/orders', label: t('nav.myOrders') }, { key: '/cabinet/profile', label: t('nav.profile') }]),
     { type: 'divider' as const },
     { key: 'logout', label: t('nav.logout') },
   ] : []
@@ -49,6 +50,8 @@ export function PublicLayout() {
     if (key === 'logout') logout()
     else navigate(key)
   }
+  // In-app notifications (spec 06, §5): clients only for now; staff get them in the back office.
+  const bell = user?.role === 'client' ? <NotificationBell /> : null
   const authButtons = (
     <>
       <Button onClick={() => go('/login')}>{t('nav.login')}</Button>
@@ -74,11 +77,14 @@ export function PublicLayout() {
               <nav aria-label={t('nav.mainMenu')} className="public-nav">
                 <Menu mode="horizontal" items={items} selectedKeys={selected} disabledOverflow />
               </nav>
-              {user ? userMenu : <Space>{authButtons}</Space>}
+              {user ? <Space>{bell}{userMenu}</Space> : <Space>{authButtons}</Space>}
             </>
           ) : (
-            <Button className="menu-button" icon={<MenuOutlined aria-hidden />} aria-label={t('nav.menu')}
-              aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} />
+            <Space>
+              {bell}
+              <Button className="menu-button" icon={<MenuOutlined aria-hidden />} aria-label={t('nav.menu')}
+                aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} />
+            </Space>
           )}
         </Flex>
       </Header>
