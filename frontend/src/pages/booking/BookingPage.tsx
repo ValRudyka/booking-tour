@@ -420,6 +420,8 @@ function BookingWizard({ tour, user, refetchTour }: {
     <HelpGuide content={{
       title: t('help.bookingTitle'),
       steps: (['1', '2', '3', '4', '5'] as const).map((n) => t(`help.bookingSteps.${n}`)),
+      // A new tab: the wizard and its seat hold stay open.
+      link: { to: '/faq#hold', label: t('help.toHoldFaq'), newTab: true },
     }} />
   )
 

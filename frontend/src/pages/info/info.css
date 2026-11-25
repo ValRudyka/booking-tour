@@ -1,0 +1,41 @@
+.info-page {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.info-title {
+  margin-top: 0 !important;
+}
+
+.info-demo-note {
+  margin-bottom: 24px;
+}
+
+.info-lead {
+  font-size: 16px;
+}
+
+.info-section {
+  margin-top: 32px;
+}
+
+.info-section-title {
+  font-size: 22px !important;
+}
+
+.info-list {
+  margin: 0 0 1em;
+  padding-left: 20px;
+}
+
+.info-list li + li {
+  margin-top: 8px;
+}
+
+.info-contacts {
+  font-size: 16px;
+}
+
+.faq-collapse {
+  margin-top: 24px;
+}
