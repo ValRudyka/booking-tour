@@ -8,8 +8,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, str_enum
-from app.models.enums import (Currency, NameDisplay, PaymentMethod, PaymentType, ReviewStatus,
-                              TransactionStatus)
+from app.models.enums import (Currency, NameDisplay, PaymentMethod, PaymentOrigin, PaymentType,
+                              ReviewStatus, TransactionStatus)
 
 
 class Payment(TimestampMixin, Base):
@@ -43,6 +43,10 @@ class Payment(TimestampMixin, Base):
     stripe_payment_intent: Mapped[str | None] = mapped_column(String(255))
     stripe_refund_id: Mapped[str | None] = mapped_column(String(255), unique=True)  # webhook lookup
     confirmed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    # app = real (or Stripe test) money movement; demo_seed = written by scripts.seed_demo.
+    origin: Mapped[PaymentOrigin] = mapped_column(str_enum(PaymentOrigin, "payment_origin"),
+                                                  default=PaymentOrigin.APP,
+                                                  server_default=PaymentOrigin.APP.value, index=True)
 
     order: Mapped["Order"] = relationship(back_populates="payments")
 

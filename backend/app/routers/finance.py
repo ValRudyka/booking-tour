@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 
 from app.core.deps import DbSession, require_roles
 from app.models import Order, Payment, User
-from app.models.enums import PaymentMethod, PaymentType, TransactionStatus, UserRole
+from app.models.enums import PaymentMethod, PaymentOrigin, PaymentType, TransactionStatus, UserRole
 from app.schemas.common import Page
 from app.routers.order_views import staff_detail
 from app.schemas.manager_orders import ManagerOrderDetailOut
@@ -41,7 +41,8 @@ def _out(payment: Payment) -> FinancePaymentOut:
         controller_comment=payment.controller_comment, confirmed_by=payment.confirmed_by,
         stripe_session_id=payment.stripe_session_id,
         stripe_payment_intent=payment.stripe_payment_intent,
-        stripe_refund_id=payment.stripe_refund_id, created_at=payment.created_at)
+        stripe_refund_id=payment.stripe_refund_id, origin=payment.origin,
+        created_at=payment.created_at)
 
 
 @router.get("", response_model=Page[FinancePaymentOut], summary="Реєстр платежів і повернень")
@@ -52,11 +53,13 @@ def list_payments(db: DbSession, _: Finance,
                   date_from: date | None = None,
                   date_to: date | None = None,
                   order_number: Annotated[str | None, Query(max_length=30)] = None,
+                  origin: Annotated[PaymentOrigin | None, Query(
+                      description="app — лише справжні (тестові Stripe / перекази); demo_seed — демо-дані")] = None,
                   page: Annotated[int, Query(ge=1)] = 1,
                   page_size: Annotated[int, Query(ge=1, le=100)] = 20):
     items, total = finance_service.list_payments(
         db, status=status, method=method, kind=kind, date_from=date_from, date_to=date_to,
-        order_number=order_number, page=page, page_size=page_size)
+        order_number=order_number, page=page, page_size=page_size, origin=origin)
     return Page(items=[_out(p) for p in items], total=total, page=page, page_size=page_size)
 
 

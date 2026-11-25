@@ -96,6 +96,13 @@ class PaymentMethod(str, enum.Enum):
     BANK_TRANSFER = "bank_transfer"  # ручний переказ, підтверджує фін. контролер
 
 
+class PaymentOrigin(str, enum.Enum):
+    """Where a payment row came from. Finance pages and reports must be able to leave demo money
+    out: `demo_seed` rows are written by scripts.seed_demo (dev only), no money ever moved."""
+    APP = "app"              # made by the application: Stripe (test mode), mock gateway, bank transfer
+    DEMO_SEED = "demo_seed"  # demo data, not a real (or test) payment
+
+
 class TransactionStatus(str, enum.Enum):
     PENDING = "pending"
     SUCCEEDED = "succeeded"
