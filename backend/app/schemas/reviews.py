@@ -66,4 +66,5 @@ class OrderReviewOut(BaseModel):
     can_write: bool                # the trip took place and there is no review yet
     premoderation: bool            # setting review_premoderation: published after moderation
     photos: UploadLimitsOut        # form 4.6.1.4, field 6 (MAX_REVIEW_PHOTOS, MAX_REVIEW_PHOTO_MB)
+    max_text: int                  # fields 4–5, characters each
     review: MyReviewOut | None

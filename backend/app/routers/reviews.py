@@ -43,7 +43,7 @@ def order_review(order_id: int, db: DbSession, client: Client):
     return OrderReviewOut(
         can_write=review_service.review_refusal(db, order) is None,
         premoderation=review_premoderation(db),
-        photos=UploadLimitsOut(**review_service.photo_limits()),
+        photos=UploadLimitsOut(**review_service.photo_limits()), max_text=review_service.MAX_TEXT,
         review=my_review(review) if review else None)
 
 

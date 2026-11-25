@@ -161,7 +161,8 @@ def cancel_order(order_id: int, db: DbSession, client: Client):
             summary="Що потрібно формі клопотання: обмеження файлів-довідок")
 def cancel_request_form(order_id: int, db: DbSession, client: Client):
     _own(db, client, order_id)
-    return CancelRequestFormOut(evidence=UploadLimitsOut(**cancellation.evidence_limits()))
+    return CancelRequestFormOut(evidence=UploadLimitsOut(**cancellation.evidence_limits()),
+                                max_details=cancellation.MAX_DETAILS)
 
 
 @router.post("/{order_id}/cancel-request", response_model=OrderDetailOut,

@@ -197,7 +197,8 @@ def test_cancel_request_form_limits(client, db, customer, customer_headers, tour
     monkeypatch.setattr(settings, "max_document_mb", 7)
     order = order_in(db, customer, tour, S.PAID)
     body = client.get(f"/api/orders/{order.id}/cancel-request", headers=customer_headers).json()
-    assert body == {"evidence": {"max_files": 3, "max_file_mb": 7, "file_types": ["jpg", "pdf"]}}
+    assert body == {"evidence": {"max_files": 3, "max_file_mb": 7, "file_types": ["jpg", "pdf"]},
+                    "max_details": 2000}
 
 
 def test_review_state_of_an_order(client, db, customer, customer_headers, tour, monkeypatch):
@@ -207,7 +208,7 @@ def test_review_state_of_an_order(client, db, customer, customer_headers, tour, 
     assert body == {"can_write": True, "premoderation": True,
                     "photos": {"max_files": 4, "max_file_mb": settings.max_review_photo_mb,
                                "file_types": ["jpg", "png"]},
-                    "review": None}
+                    "max_text": 2000, "review": None}
 
     review = make_review(db, order, status=ReviewStatus.REJECTED, reject_reason="Лайка")
     body = client.get(f"/api/orders/{order.id}/review", headers=customer_headers).json()

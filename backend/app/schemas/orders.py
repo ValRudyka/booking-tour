@@ -185,3 +185,4 @@ class UploadLimitsOut(BaseModel):
 class CancelRequestFormOut(BaseModel):
     """GET /orders/{id}/cancel-request: what form 4.6.1.3 needs from the server."""
     evidence: UploadLimitsOut
+    max_details: int           # field 3, characters
