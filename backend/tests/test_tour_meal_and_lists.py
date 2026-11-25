@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app.models.enums import MealPlan, TourStatus
-from tests.factories import make_active_tour, make_hotel, make_tour
+from tests.factories import copy_dates, error_text, make_active_tour, make_hotel, make_tour
 from tests.test_manager_tours import URL, create, payload
 
 CATALOG = "/api/tours"
@@ -50,7 +50,7 @@ def test_lists_default_to_empty(client, manager_headers, hotel):
 ])
 def test_list_limits(client, manager_headers, hotel, field, values, message):
     response = client.post(URL, headers=manager_headers, json=payload(hotel.id, **{field: values}))
-    assert response.status_code == 422 and response.json()["detail"] == message
+    assert response.status_code == 422 and error_text(response) == message
 
 
 def test_unknown_meal_plan_is_rejected(client, manager_headers, hotel):
@@ -60,7 +60,7 @@ def test_unknown_meal_plan_is_rejected(client, manager_headers, hotel):
 
 def test_copy_keeps_meal_plan_and_lists(client, manager_headers, hotel):
     tour = create(client, manager_headers, hotel, meal_plan="hb", included=["Сніданки й вечері"])
-    copy = client.post(f"{URL}/{tour['id']}/copy", headers=manager_headers).json()
+    copy = client.post(f"{URL}/{tour['id']}/copy", json=copy_dates(), headers=manager_headers).json()
     assert (copy["meal_plan"], copy["included"]) == ("hb", ["Сніданки й вечері"])
 
 

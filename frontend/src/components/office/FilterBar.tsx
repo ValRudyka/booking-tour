@@ -1,7 +1,7 @@
 import { ClearOutlined, SearchOutlined } from '@ant-design/icons'
 import { Button, DatePicker, Form, Input, Select, Space, Switch } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 /**
@@ -13,7 +13,8 @@ import { useTranslation } from 'react-i18next'
  */
 export type FilterField =
   | { kind: 'text'; name: string; label: string; placeholder?: string; maxLength?: number }
-  | { kind: 'select'; name: string; label: string; options: { value: string; label: string }[]; multiple?: boolean }
+  /** `clears`: fields emptied when this one changes (a resort list that depends on the country). */
+  | { kind: 'select'; name: string; label: string; options: { value: string; label: string }[]; multiple?: boolean; clears?: string[] }
   /** Two URL keys, e.g. created_from / created_to. */
   | { kind: 'dateRange'; name: string; label: string; from: string; to: string }
   /** `true` in the URL when on. */
@@ -73,19 +74,23 @@ interface Props {
   onApply: (values: FilterValues) => void
   /** Accessible name of the form, e.g. «Пошук і фільтри». */
   label?: string
+  /** The values while the user edits them (before «Знайти»), e.g. to load dependent options. */
+  onDraftChange?: (values: FilterValues) => void
 }
 
-export function FilterBar({ fields, values, onApply, label }: Props) {
+export function FilterBar({ fields, values, onApply, label, onDraftChange }: Props) {
   const { t } = useTranslation()
   const [form] = Form.useForm<FormValues>()
 
   // The URL is the state: going back in history or a link changes the fields too.
-  // Compared by content (fields are plain data), so a new array on every render of the page
-  // does not overwrite what the user is typing.
-  const key = JSON.stringify([fields, values])
+  // Only a change of the values themselves (compared by content) is applied, so new option
+  // lists (a resort list loaded for the country being chosen) never overwrite what the user is
+  // typing or choosing.
+  const fieldsRef = useRef(fields)
+  useEffect(() => { fieldsRef.current = fields })
+  const key = JSON.stringify(values)
   useEffect(() => {
-    const [currentFields, currentValues] = JSON.parse(key) as [FilterField[], FilterValues]
-    form.setFieldsValue(toForm(currentFields, currentValues))
+    form.setFieldsValue(toForm(fieldsRef.current, JSON.parse(key) as FilterValues))
   }, [form, key])
 
   const reset = () => {
@@ -96,7 +101,15 @@ export function FilterBar({ fields, values, onApply, label }: Props) {
 
   return (
     <Form form={form} layout="inline" className="office-filter-bar" aria-label={label ?? t('office.filters.title')}
-      initialValues={toForm(fields, values)} onFinish={(form) => onApply(fromForm(fields, form))}>
+      initialValues={toForm(fields, values)} onFinish={(form) => onApply(fromForm(fields, form))}
+      onValuesChange={(changed: FormValues) => {
+        for (const field of fields) {
+          if (field.kind === 'select' && field.clears && field.name in changed) {
+            form.setFieldsValue(Object.fromEntries(field.clears.map((name) => [name, undefined])))
+          }
+        }
+        onDraftChange?.(fromForm(fields, form.getFieldsValue()))
+      }}>
       {fields.map((field) => (
         <Form.Item key={field.name} name={field.name} label={field.label}
           valuePropName={field.kind === 'switch' ? 'checked' : 'value'}>

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from './client'
-import type { City, Country, Resort } from './types'
+import type { City, Country, Hotel, Resort } from './types'
 
 const REFERENCE_STALE_MS = 10 * 60_000 // reference lists change only through the admin
 
@@ -34,4 +34,18 @@ export function useResorts(countryId: number | undefined) {
 export function useCities() {
   return useQuery({ queryKey: ['reference', 'cities'], queryFn: fetchCities,
     staleTime: REFERENCE_STALE_MS })
+}
+
+export async function fetchHotels(resortId: number): Promise<Hotel[]> {
+  return (await api.get<Hotel[]>('/reference/hotels', { params: { resort_id: resortId } })).data
+}
+
+/** Hotels depend on the resort (form 4.6.2.1, field 5): nothing is loaded without one. */
+export function useHotels(resortId: number | undefined) {
+  return useQuery({
+    queryKey: ['reference', 'hotels', resortId],
+    queryFn: () => fetchHotels(resortId!),
+    enabled: resortId !== undefined,
+    staleTime: REFERENCE_STALE_MS,
+  })
 }

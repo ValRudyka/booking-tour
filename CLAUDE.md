@@ -160,6 +160,30 @@ Conventions:
   `GET /manager/managers`, `GET /manager/orders/document-rules`. Order documents (`services/order_documents.py`) are private
   files `upload_dir/private/orders/<id>/`; the client sees trip documents from `confirmed` on,
   `cancel_evidence` (client's files for a cancellation request) is staff-only.
+- Tour management (spec 10, `services/tours.py`, `services/tour_actions.py`):
+  - One tour = **one date range** (`departure_from..departure_to`, any start date inside it) with
+    one nights value, one price pair and one quota (form 4.6.2.1, field 10). Another price period
+    is a copy of the tour.
+  - `tour_actions` (`TourAction`: edit, publish, unpublish, archive, restore, copy) like
+    `staff_actions`: listed by status (`ALLOWED_TRANSITIONS`), `allowed`/`reason` from the
+    endpoints' own refusals (`edit_refusal`, `publish_refusal`, `archive_refusal`). Only a draft
+    is edited (ТЗ 4.4.1); archived → draft is «Відновити» (audited).
+  - `locked_fields`: `LOCKED_FIELDS` (titles, hotel, dates, nights, transport, departure city,
+    meal plan — what order pages read live until `feature/order-snapshot`) are locked while an
+    order of the tour was **ever paid** (`paid` in its history) or a booking is **active**
+    (checkout / awaiting_payment with an unexpired hold, or a partly paid transfer). PATCH may send
+    them unchanged; a change is 409 with `loc`. Prices stay editable (orders freeze theirs).
+  - Unpublish keeps active bookings payable (`confirm_order` accepts a draft tour for an existing
+    checkout order). Archive cancels the unpaid bookings like the expiry job (sessions closed,
+    clients notified, numbers in the tour's audit entry; a late card payment is refunded by the
+    webhook) and is refused while a transfer is partly paid. The dialogs show `active_bookings` /
+    `archive_cancels` from the API.
+  - Quota ≥ seats sold + seats in unexpired holds. Copy takes the new range in the body
+    (`TourCopyIn`), «Копія — …», not featured. Field errors carry `loc` (422 `type: "tour_rule"`).
+    An edit keeps the tour's own archived hotel / city; publishing re-checks them.
+  - `GET /manager/tours`: `q`, `status`, `country_id`, `resort_id`, `departure_from/to` (range
+    overlap), `sort=updated_desc|departure_asc|title_asc`; `GET /manager/tours/rules` (photo and
+    text limits).
 - Refunds (`services/payments/refunds.py`): refund rows point at their payment (`refund_of_id`);
   amount = succeeded payments − live refunds − ФПВ (`orders.fpv_uah`), split newest payment first.
   Stripe parts use the key `refund-<payment id>-<n>` (n = refund rows of that payment + 1); the
@@ -430,6 +454,23 @@ Lives in `frontend/` in this repository (same Git Flow branches as the backend).
       children), so such tables set `expandable={{ childrenColumnName: … }}`.
     - Office tests: `test/officeFixtures.ts`; the test files preload the lazy pages and raise
       `asyncUtilTimeout` (the first Table mount is slow on a loaded machine).
+  - **Tours (spec 10, `pages/office/tours/`):**
+    - `/office/tours` (FilterBar + server Table, `officeToursParams.ts`), `/office/tours/new`,
+      `/office/tours/:id/edit?step=`. Status buttons only from `tour_actions`
+      (`TourActionButtons`, refused = disabled with the reason as tooltip and description).
+    - The editor is `Steps` + **one** antd Form whose step sections all stay mounted (hidden), so
+      «Назад» keeps values and saving validates every step; `tourForm.ts` maps form ↔ API
+      (`payloadOf` numbers program days by position, prices stay strings). A new tour is created
+      when leaving step 3 (photos need its id). An active / archived tour is read-only.
+    - Locked fields are disabled with the server's reason (`LockNote`). Never pass
+      `disabled={false}` to a control inside a disabled Form: it overrides the form (use
+      `undefined`). Server `loc` errors go under their field and open its step.
+    - Photos are saved at once (upload / delete / order; first = main) and never count as unsaved.
+    - `features/office/tourRules.ts` mirrors `services/tours.py` (flight format, money); limits come
+      from `GET /manager/tours/rules`. `useActionRunner` is the core of `useOfficeAction` /
+      `useTourAction`. `hooks/useUnsavedChanges` takes optional texts and returns `allowNext()`.
+    - FilterBar applies only changed *values*, never new option lists, so a dependent list (resorts
+      of the chosen country, `clears`, `onDraftChange`) does not wipe what is being typed.
   - **Admin pages (spec 13, `pages/office/admin/`):**
     - `/office/users` (tabs «Персонал» / «Клієнти», user Drawer `?user=`), `/office/references`
       (a tab per directory, archived hidden until «Показати архівні»; hotels in a Drawer with the
@@ -438,8 +479,8 @@ Lives in `frontend/` in this repository (same Git Flow branches as the backend).
       raw JSON collapsed). API hooks in `api/admin.ts`, fixtures in `test/adminFixtures.ts`.
     - Buttons only from `user_actions` / `admin_actions`: `components/office/ServerActionButton`
       (refused = disabled + tooltip + `aria-describedby` reason).
-    - `features/admin/useAdminAction.ts` wraps `useOfficeAction` unchanged (spec 10 generalises
-      it) and refreshes the admin queries.
+    - `features/admin/useAdminAction.ts` wraps `useOfficeAction` (built on spec 10's
+      `useActionRunner`) and refreshes the admin queries.
     - Dialog field names must not repeat a FilterBar field on the same page (`role` →
       `new_role` / `staff_role`): ids are per page, so the label would point at the filter.
     - Under test antd gives every dialog the same `aria-labelledby` id: a Modal over a Drawer is
@@ -662,6 +703,18 @@ favorites (spec 08).
   through support, not in the profile (4.5.1.1 step 4 says the user may change it).
 - No loyalty UI: `users.loyalty_points` / `loyalty_transactions` exist, but nothing awards points.
 
+`feature/backoffice-tours` (PR to `develop`): manager tours (spec 10), no migration.
+- Backend: `tour_actions` and `locked_fields` (ever-paid orders or active bookings), unpublish keeps
+  bookings payable, archive cancels unpaid bookings (audited, clients notified, refused while a
+  transfer is partly paid), restore, copy with new dates, quota ≥ sold + held, `loc` field errors,
+  list filters / sort / columns, `GET /manager/tours/rules`, a draft keeps its archived hotel.
+- Frontend: `/office/tours` (filters in the URL, actions with reasons and booking counts),
+  editor `/office/tours/new` and `/:id/edit` (5 steps, program, one date range, prices as strings,
+  photos with main / order, locked fields, unsaved prompt), copy dialog.
+- Spec 10 §5 «two departures» reads as one range with at least two start dates (a different price
+  period is a copy; noted in `docs/frontend/10-office-tours.md`).
+
+
 `feature/backoffice-admin` (PR to `develop`): the administrator's office (spec 13).
 - Backend, no migration: `user_actions` / `admin_actions` with reasons, blocking ends sessions,
   client data not edited by the admin, no self-reset, server-generated temporary staff password,
@@ -676,8 +729,10 @@ favorites (spec 08).
 - For the ТЗ update: the contact address and the maintenance message are settings now (form
   4.6.4.1).
 
-Next: spec 10 (manager tours), then `fix/maintenance-staff-message`.
-Backend test suite: 776 tests. Frontend: 405 tests.
+
+Next: spec 11 (moderation, promo codes, statistics; in progress in its own branch), then
+`fix/maintenance-staff-message`, then spec 12.
+Backend test suite: 811 tests. Frontend: 428 tests.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
@@ -708,9 +763,9 @@ Backlog, in order (one branch each):
    "UI library"). Reuse `src/constants/orderStatus.ts`, `StatusTag`, `FilterBar`, `FormModal`,
    `useOfficeAction` and `features/office/menu.ts` (set `built: true`).
    - Spec 09 (layout, manager orders) — **done** (`feature/backoffice-orders`).
+   - Spec 10 (manager tours) — **done** (`feature/backoffice-tours`). Its field locks are the
+     interim protection of old orders until `feature/order-snapshot` (backlog 17).
    - Spec 13 (administrator) — **done** (`feature/backoffice-admin`).
-   - Note for spec 10: until `feature/order-snapshot` exists, the backend must forbid changing the
-     title, hotel and dates of a tour that has paid orders (old orders show the live tour row).
    - Note for spec 12: finance must see failed refunds clearly (the client cabinet hides them).
 10. `feature/search-history` (favorites are done in `feature/frontend-client-profile`; the
     `search_history` table exists) 11. `feature/notifications-email` (also: password recovery by

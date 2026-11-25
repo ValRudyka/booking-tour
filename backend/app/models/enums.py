@@ -112,6 +112,24 @@ class ReferenceAction(str, enum.Enum):
     DISABLE = "disable"                        # languages: PATCH {is_enabled: false}
 
 
+class TourAction(str, enum.Enum):
+    """What a manager may do with a tour (ManagerTourOut.tour_actions, spec 10).
+    Computed by services/tour_actions.py from the refusals the endpoints enforce. Not stored."""
+    EDIT = "edit"                              # PATCH /manager/tours/{id}, photos
+    PUBLISH = "publish"                        # POST .../publish
+    UNPUBLISH = "unpublish"                    # POST .../unpublish
+    ARCHIVE = "archive"                        # POST .../archive (cancels unpaid bookings)
+    RESTORE = "restore"                        # POST .../restore (archived -> draft)
+    COPY = "copy"                              # POST .../copy (new draft with new dates)
+
+
+class ManagerTourSort(str, enum.Enum):
+    """Sort of the back-office tour list."""
+    UPDATED_DESC = "updated_desc"
+    DEPARTURE_ASC = "departure_asc"
+    TITLE_ASC = "title_asc"
+
+
 class ManagerQueue(str, enum.Enum):
     """Tabs of «Вхідні заявки»: new (paid, nobody responsible), mine, all (not archived)."""
     NEW = "new"
