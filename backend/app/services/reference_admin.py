@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.models import Base, City, Country, Hotel, InsuranceType, Language, Resort, TransferType, User
 from app.services.audit import audit, changed, snapshot
 from app.services.errors import DomainError
+from app.services.text_lists import clean_text_list
 
 
 @dataclass(frozen=True)
@@ -38,7 +39,9 @@ KINDS: dict[str, Kind] = {
     "countries": Kind(Country, "country", "Країна", ("iso_code", "name_uk", "name_en", "is_archived"), "name_uk"),
     "cities": Kind(City, "city", "Місто", ("country_id", "name_uk", "name_en", "iata_code", "is_archived"), "name_uk"),
     "resorts": Kind(Resort, "resort", "Курорт", ("country_id", "name_uk", "name_en", "is_archived"), "name_uk"),
-    "hotels": Kind(Hotel, "hotel", "Готель", ("resort_id", "name", "stars", "description", "is_archived"), "name"),
+    "hotels": Kind(Hotel, "hotel", "Готель", ("resort_id", "name", "stars", "description", "beach_line",
+                                              "distance_to_beach_m", "distance_to_airport_km", "check_in",
+                                              "check_out", "amenities", "room_types", "is_archived"), "name"),
     "insurance-types": Kind(InsuranceType, "insurance_type", "Тип страхування",
                             ("name_uk", "price_uah", "is_default", "is_archived"), "price_uah"),
     "transfer-types": Kind(TransferType, "transfer_type", "Тип трансферу",
@@ -98,6 +101,41 @@ def _parent(db: Session, model: type, parent_id: Any) -> None:
         raise DomainError(archived, 409)
 
 
+MAX_DISTANCE_TO_BEACH_M = 50_000
+MAX_DISTANCE_TO_AIRPORT_KM = 1_000
+
+
+def _whole_number(value: Any, label: str, low: int, high: int) -> int | None:
+    if value is None:
+        return None
+    if not low <= value <= high:
+        raise DomainError(f"«{label}» — від {low} до {high}", 422)
+    return value
+
+
+def _hotel_facts(data: dict[str, Any], has) -> dict[str, Any]:
+    """Hotel facts for the tour page (form 4.6.4.2). Pydantic has already checked the types
+    (whole numbers, HH:MM times, lists of strings)."""
+    out: dict[str, Any] = {}
+    if has("beach_line"):
+        out["beach_line"] = _whole_number(data.get("beach_line"), "Лінія пляжу", 1, 5)
+    if has("distance_to_beach_m"):
+        out["distance_to_beach_m"] = _whole_number(data.get("distance_to_beach_m"),
+                                                   "Відстань до пляжу, м", 0, MAX_DISTANCE_TO_BEACH_M)
+    if has("distance_to_airport_km"):
+        out["distance_to_airport_km"] = _whole_number(data.get("distance_to_airport_km"),
+                                                      "Відстань до аеропорту, км", 0,
+                                                      MAX_DISTANCE_TO_AIRPORT_KM)
+    for field in ("check_in", "check_out"):
+        if has(field):
+            out[field] = data.get(field)
+    if has("amenities"):
+        out["amenities"] = clean_text_list(data.get("amenities"), "Зручності")
+    if has("room_types"):
+        out["room_types"] = clean_text_list(data.get("room_types"), "Типи номерів")
+    return out
+
+
 def _clean(db: Session, kind: str, data: dict[str, Any], item=None) -> dict[str, Any]:
     """Validated values for the fields that were sent (create: all required ones)."""
     creating = item is None
@@ -141,6 +179,7 @@ def _clean(db: Session, kind: str, data: dict[str, Any], item=None) -> dict[str,
             out["stars"] = stars
         if has("description"):
             out["description"] = _text(data.get("description"), "Опис", False, 5000)
+        out.update(_hotel_facts(data, has))
     if kind in DEFAULT_KINDS and (creating or has("price_uah")):
         price = data.get("price_uah")
         if price is None or Decimal(price) < 0 or Decimal(price) > Decimal("1000000"):

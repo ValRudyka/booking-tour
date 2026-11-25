@@ -1,4 +1,5 @@
 """Read-only reference lists (довідники) used by the catalog filters and the tour form."""
+from datetime import time
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
@@ -40,6 +41,18 @@ class HotelOut(BaseModel):
     name: str
     stars: int | None
     rating_avg: Decimal | None
+
+
+class HotelDetailOut(HotelOut):
+    """The hotel on the tour page: HotelOut + facts (form 4.6.4.2). Catalog cards and reference
+    lists keep the light HotelOut, so a page of cards carries no amenity lists."""
+    beach_line: int | None
+    distance_to_beach_m: int | None
+    distance_to_airport_km: int | None
+    check_in: time | None
+    check_out: time | None
+    amenities: list[str]
+    room_types: list[str]
 
 
 class ServiceOptionOut(BaseModel):

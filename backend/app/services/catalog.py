@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models import CurrencyRate, Hotel, Resort, Tour
 from app.models.enums import MealPlan, TourStatus, TransportType
-from app.schemas.reference import CityOut, CountryOut, HotelOut, ResortOut
+from app.schemas.reference import CityOut, CountryOut, HotelDetailOut, HotelOut, ResortOut
 from app.schemas.tours import ProgramDayOut, TourCardOut, TourDetailOut, TourImageOut
 from app.services import clock
 from app.services.errors import DomainError
@@ -150,7 +150,7 @@ def get_public_tour(db: Session, tour_id: int) -> TourDetailOut:
     child_price = tour.child_price if tour.child_price is not None else tour.base_price
     reviews_count, service_rating_avg = tour_review_stats(db, tour.id)
     return TourDetailOut(
-        **_card_fields(tour, price, free),
+        **_card_fields(tour, price, free) | {"hotel": HotelDetailOut.model_validate(tour.hotel)},
         child_price=tour.child_price,
         child_price_uah=(child_price * rate).quantize(Decimal("0.01"), ROUND_HALF_UP),  # = SQL ROUND
         flight_out=tour.flight_out, flight_back=tour.flight_back, description=tour.description,

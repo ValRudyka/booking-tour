@@ -10,7 +10,7 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.models.enums import Currency, MealPlan, TourStatus, TransportType
-from app.schemas.reference import CityOut, CountryOut, HotelOut, ResortOut
+from app.schemas.reference import CityOut, CountryOut, HotelDetailOut, HotelOut, ResortOut
 
 
 # ---------- manager input
@@ -165,6 +165,7 @@ class TourCardOut(BaseModel):
 
 
 class TourDetailOut(TourCardOut):
+    hotel: HotelDetailOut               # the card's hotel + its facts
     child_price: Decimal | None
     child_price_uah: Decimal
     flight_out: str | None

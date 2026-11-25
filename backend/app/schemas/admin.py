@@ -1,5 +1,5 @@
 """Administrator schemas: users, reference data, settings, audit log (ТЗ 4.5.8, form 4.6.4.1)."""
-from datetime import datetime
+from datetime import datetime, time
 from decimal import Decimal
 from typing import Any
 
@@ -138,7 +138,18 @@ class ResortAdminOut(BaseModel):
     is_archived: bool
 
 
-class HotelIn(_Strict):
+class HotelFacts(_Strict):
+    """Hotel facts for the tour page (form 4.6.4.2); all optional."""
+    beach_line: int | None = Field(default=None, description="Лінія пляжу, 1–5")
+    distance_to_beach_m: int | None = Field(default=None, description="До пляжу, м (0 — на пляжі)")
+    distance_to_airport_km: int | None = Field(default=None, description="До аеропорту, км")
+    check_in: time | None = Field(default=None, description="Заїзд з, HH:MM")
+    check_out: time | None = Field(default=None, description="Виїзд до, HH:MM")
+    amenities: list[str] = Field(default=[], description="Зручності, до 20 пунктів")
+    room_types: list[str] = Field(default=[], description="Типи номерів, до 20 пунктів")
+
+
+class HotelIn(HotelFacts):
     resort_id: int
     name: str
     stars: int | None = None
@@ -150,6 +161,13 @@ class HotelPatch(_Strict):
     name: str | None = None
     stars: int | None = None
     description: str | None = None
+    beach_line: int | None = None
+    distance_to_beach_m: int | None = None
+    distance_to_airport_km: int | None = None
+    check_in: time | None = None
+    check_out: time | None = None
+    amenities: list[str] | None = None
+    room_types: list[str] | None = None
 
 
 class HotelAdminOut(BaseModel):
@@ -159,6 +177,13 @@ class HotelAdminOut(BaseModel):
     name: str
     stars: int | None
     description: str | None
+    beach_line: int | None
+    distance_to_beach_m: int | None
+    distance_to_airport_km: int | None
+    check_in: time | None
+    check_out: time | None
+    amenities: list[str]
+    room_types: list[str]
     rating_avg: Decimal | None          # read-only: from published reviews
     is_archived: bool
 
