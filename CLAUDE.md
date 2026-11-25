@@ -274,7 +274,18 @@ Lives in `frontend/` in this repository (same Git Flow branches as the backend).
     - `components/ApiErrorState` (maintenance Result / error Alert + retry);
     - `PhotoPlaceholder`;
     - `PhotoViewer` (every photo is a button; fullscreen via `Image.PreviewGroup`);
-    - `StarIcons` (one `role="img"` with a Ukrainian label, not a disabled `Rate`).
+    - `StarIcons` (one `role="img"` with a Ukrainian label, not a disabled `Rate`);
+    - `pages/info/InfoPage` + `InfoSection` (h1, text up to 760 px, optional course-project note).
+  - **Info pages (feature/frontend-info-pages, spec 14):**
+    - Long texts stay in `uk.json` with their markup and render through
+      `<Trans components={RICH_TEXT}>` (`pages/info/richText.tsx`: p, ul/li, strong, router links).
+      Section and question keys are listed in `pages/info/infoContent.ts`.
+    - FAQ anchors are the question keys (`/faq#cancel`; list in `FAQ_KEYS`): the hash opens,
+      scrolls to and focuses the question, also for links between answers. Link to them, never
+      repeat an answer elsewhere.
+    - The texts describe the backend rules; change them together. They never name the seat hold or
+      the transfer hold length (both admin settings) and never invent company details.
+    - `HelpGuide` `link.newTab` for pages with unsaved work (the booking wizard opens `/faq#hold`).
   - «Забронювати» always goes through `features/booking/startBooking.ts`: a guest is sent to
     `/login?redirect=<booking URL>` and comes back there after signing in.
   - **Auth (feature/frontend-auth):**
@@ -464,7 +475,7 @@ viewer with an append-only trigger, promo codes for managers; migration `admin`)
   the maintenance screen, the optional blocks hide themselves.
 - No reviews block (no public list of recent reviews). Frontend only, no backend changes.
 
-`feature/frontend-checkout`: booking (spec 04, merged in PR #17) and payment (spec 05, PR to `develop`).
+`feature/frontend-checkout`: booking (spec 04, merged in PR #17) and payment (spec 05, merged in PR #18).
 - Booking wizard `/booking/:tourId` (4 steps, order created at step 1, hold timer, server prices,
   draft without passport numbers, resume of the same tour's order, confirm → payment).
 - Payment `/orders/:id/pay` (card via Stripe Checkout, bank transfer details), `/payment/success`
@@ -473,8 +484,21 @@ viewer with an append-only trigger, promo codes for managers; migration `admin`)
   `GET /orders/{id}` with the price breakdown; Stripe returns to the frontend pages with the
   production `FRONTEND_URL` guard; the mock checkout page redirects like Stripe.
 
+`feature/frontend-info-pages` (spec 14, PR to `develop`): static pages only.
+- `/about`, `/contacts` (support phone and e-mail from `GET /site/contacts`, empty fields hidden),
+  `/terms` and `/privacy` (short demo texts with the course-project note), `/faq` (10 questions
+  with anchors).
+- Header: FAQ and contacts; footer «Інформація» with all pages; «Забули пароль?» → `/faq#password`;
+  the booking HelpGuide → `/faq#hold` in a new tab. Frontend only, no backend changes.
+- Not done (spec 14 §2): support requests. The backend has none (no table or endpoint; only the
+  support contacts). ТЗ: online chat with support is out of MVP (2.7), priority support belongs to
+  loyalty. A minimum would be a `support_requests` table (client, optional own order, topic,
+  text, status open/answered/closed, answer, answered by/at) with a migration, client create/list,
+  manager list/answer, notifications; the client page needs the cabinet (spec 06), the manager page
+  the back office. Contacts address and working hours would need new settings fields (form 4.6.4.1).
+
 Next: personal account (spec 06).
-Backend test suite: 690 tests. Frontend: 219 tests.
+Backend test suite: 690 tests. Frontend: 241 tests.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
@@ -485,7 +509,8 @@ Backlog, in order (one branch each):
 6. `feature/admin` — **done** (PR #10)
 7. `feature/frontend-public` — catalog (**done**, PR #12), tour page (**done**, PR #14), auth
    (**done**, `feature/frontend-auth`), home page (**done**, `feature/frontend-home`), checkout
-   and payment (**done**, `feature/frontend-checkout`: PR #17 + the payment PR), personal account; plain antd
+   and payment (**done**, `feature/frontend-checkout`: PR #17 + PR #18), info pages (**done**,
+   `feature/frontend-info-pages`), personal account; plain antd
    (also set up `frontend/`).
    - Home page follow-ups (not done in `feature/frontend-home`; the first two need backend work):
      - `GET /reference/countries?with_tours=true` with `tours_count`, to replace the per-country
