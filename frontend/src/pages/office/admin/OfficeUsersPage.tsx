@@ -345,7 +345,8 @@ function TemporaryPasswordModal({ created, onClose }: { created: StaffCreated | 
   const password = created?.temporary_password
   return (
     <Modal open={created !== null} title={t('admin.users.temp.title')} onCancel={onClose} onOk={onClose}
-      okText={t('admin.users.temp.ok')} cancelButtonProps={{ hidden: true }} maskClosable={false} destroyOnHidden>
+      okText={t('admin.users.temp.ok')} mask={{ closable: false }} destroyOnHidden
+      footer={(_, { OkBtn }) => <OkBtn />}>
       {created && (
         <Flex vertical gap={12}>
           <Typography.Paragraph>

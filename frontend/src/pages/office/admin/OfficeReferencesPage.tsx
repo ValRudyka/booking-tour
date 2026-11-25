@@ -392,7 +392,7 @@ function HotelDrawer({ hotel, countries, resorts, action, error, onClose }: {
   const close = () => { action.clearError(); onClose() }
 
   return (
-    <Drawer open size={640} destroyOnHidden onClose={close} maskClosable={action.busy === null}
+    <Drawer open size={640} destroyOnHidden onClose={close} mask={{ closable: action.busy === null }}
       title={hotel ? t('admin.references.editTitle.hotels') : t('admin.references.add.hotels')}
       footer={(
         <Flex justify="end" gap={8}>
