@@ -29,6 +29,8 @@ export function PublicLayout() {
   const items: MenuProps['items'] = [
     { key: '/tours', label: <Link to="/tours">{t('nav.tours')}</Link> },
     { key: '/about', label: <Link to="/about">{t('nav.about')}</Link> },
+    { key: '/faq', label: <Link to="/faq">{t('nav.faq')}</Link> },
+    { key: '/contacts', label: <Link to="/contacts">{t('nav.contacts')}</Link> },
   ]
   const selected = items.map((item) => String(item?.key)).filter((key) => pathname.startsWith(key))
 
@@ -127,9 +129,17 @@ export function PublicLayout() {
               </Typography.Text>
             )}
           </Space>
+          <nav aria-label={t('footer.info')}>
+            <Space orientation="vertical" size={4}>
+              <Typography.Text strong>{t('footer.info')}</Typography.Text>
+              <AppLink to="/about">{t('nav.about')}</AppLink>
+              <AppLink to="/contacts">{t('nav.contacts')}</AppLink>
+              <AppLink to="/faq">{t('nav.faq')}</AppLink>
+              <AppLink to="/terms">{t('footer.terms')}</AppLink>
+              <AppLink to="/privacy">{t('footer.privacy')}</AppLink>
+            </Space>
+          </nav>
           <Space orientation="vertical" size={4}>
-            <AppLink to="/terms">{t('footer.terms')}</AppLink>
-            <AppLink to="/privacy">{t('footer.privacy')}</AppLink>
             <Typography.Text type="secondary">
               {t('footer.copyright', { year: YEAR, site: SITE_NAME })}
             </Typography.Text>

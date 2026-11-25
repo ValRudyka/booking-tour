@@ -8,6 +8,10 @@ import { RegisterPage } from './pages/auth/RegisterPage'
 import { BookingPage } from './pages/booking/BookingPage'
 import { CatalogPage } from './pages/catalog/CatalogPage'
 import { HomePage } from './pages/home/HomePage'
+import { AboutPage } from './pages/info/AboutPage'
+import { ContactsPage } from './pages/info/ContactsPage'
+import { FaqPage } from './pages/info/FaqPage'
+import { PrivacyPage, TermsPage } from './pages/info/LegalPages'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { RouteErrorPage } from './pages/RouteErrorPage'
@@ -35,9 +39,12 @@ export const routes: RouteObject[] = [
           { path: 'cabinet/orders', element: <RequireAuth roles={['client']}><PlaceholderPage page="cabinetOrders" /></RequireAuth> },
           // The back office comes in feature/frontend-backoffice.
           { path: 'office', element: <RequireAuth roles={STAFF_ROLES}><PlaceholderPage page="office" /></RequireAuth> },
-          { path: 'about', element: <PlaceholderPage page="about" /> },
-          { path: 'terms', element: <PlaceholderPage page="terms" /> },
-          { path: 'privacy', element: <PlaceholderPage page="privacy" /> },
+          // Static information pages (spec 14): texts in i18n, contacts from the admin's settings.
+          { path: 'about', element: <AboutPage /> },
+          { path: 'contacts', element: <ContactsPage /> },
+          { path: 'terms', element: <TermsPage /> },
+          { path: 'privacy', element: <PrivacyPage /> },
+          { path: 'faq', element: <FaqPage /> },
           { path: '*', element: <NotFoundPage /> },
         ],
       },

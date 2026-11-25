@@ -11,7 +11,7 @@ describe('PublicLayout', () => {
     const nav = screen.getByRole('navigation', { name: 'Головне меню' })
     expect(within(nav).getByRole('link', { name: 'Тури' })).toHaveAttribute('href', '/tours')
     expect(screen.getByRole('button', { name: 'Увійти' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Умови' })).toHaveAttribute('href', '/terms')
+    expect(screen.getByRole('link', { name: 'Умови бронювання' })).toHaveAttribute('href', '/terms')
   })
 
   it('hides the menu in a Drawer on mobile', async () => {
