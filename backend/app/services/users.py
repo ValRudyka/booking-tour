@@ -1,6 +1,6 @@
 """User business rules: registration, authentication, profile changes."""
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.security import DUMMY_HASH, hash_password, verify_password
 from app.models import Country, User
 from app.models.enums import UserRole
+from app.services import clock
 
 
 class UserError(Exception):
@@ -17,6 +18,21 @@ class UserError(Exception):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
+
+
+ADULT_AGE = 18
+NOT_ADULT = f"Реєстрація доступна лише з {ADULT_AGE} років"
+
+
+def age_on(birth_date: date, day: date) -> int:
+    """Full years on `day` (a 29 February birthday counts from 1 March in other years)."""
+    return day.year - birth_date.year - ((day.month, day.day) < (birth_date.month, birth_date.day))
+
+
+def check_adult(birth_date: date | None) -> None:
+    """ТЗ form 4.6.1.1, field 6: the client must be 18 or older, by the Kyiv business date."""
+    if birth_date is not None and age_on(birth_date, clock.today()) < ADULT_AGE:
+        raise UserError(NOT_ADULT, 422)
 
 
 CYRILLIC_NAME = re.compile(r"^[А-ЩЬЮЯҐЄІЇа-щьюяґєії'’ʼ\- ]+$")
@@ -57,6 +73,8 @@ def ensure_unique(db: Session, phone: str | None, email: str | None, exclude_id:
 def create_user(db: Session, *, phone: str, email: str, password: str, last_name: str,
                 first_name: str, role: UserRole = UserRole.CLIENT, birth_date=None,
                 citizenship_id: int | None = None, consent: bool = False) -> User:
+    if role == UserRole.CLIENT:
+        check_adult(birth_date)
     check_name_alphabet(db, last_name, first_name, citizenship_id)
     ensure_unique(db, phone, email)
     user = User(phone=phone, email=email.lower(), password_hash=hash_password(password), role=role,
@@ -93,6 +111,8 @@ def update_profile(db: Session, user: User, changes: dict) -> User:
     first_name = changes.get("first_name", user.first_name)
     citizenship_id = changes.get("citizenship_id", user.citizenship_id)
     check_name_alphabet(db, last_name, first_name, citizenship_id)
+    if changes.get("birth_date") is not None and user.role == UserRole.CLIENT:
+        check_adult(changes["birth_date"])
     if "email" in changes and changes["email"]:
         changes["email"] = changes["email"].lower()
         ensure_unique(db, None, changes["email"], exclude_id=user.id)
