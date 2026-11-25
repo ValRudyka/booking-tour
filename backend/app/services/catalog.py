@@ -13,7 +13,7 @@ from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import CurrencyRate, Hotel, Resort, Tour
-from app.models.enums import TourStatus, TransportType
+from app.models.enums import MealPlan, TourStatus, TransportType
 from app.schemas.reference import CityOut, CountryOut, HotelOut, ResortOut
 from app.schemas.tours import ProgramDayOut, TourCardOut, TourDetailOut, TourImageOut
 from app.services import clock
@@ -21,7 +21,11 @@ from app.services.errors import DomainError
 from app.services.reviews import tour_review_stats
 from app.services.seats import free_seats_expr
 
-SortKey = Literal["price_asc", "price_desc", "date_asc", "date_desc", "rating_desc"]
+SortKey = Literal["price_asc", "price_desc", "date_asc", "date_desc", "rating_desc", "title_asc"]
+
+# Ukrainian alphabetical order (Є after Е, І/Ї after И, Ґ after Г). The migration c3d8a1f5b742
+# refuses to run on a PostgreSQL without this ICU collation.
+UKRAINIAN_COLLATION = "uk-x-icu"
 
 
 @dataclass
@@ -38,6 +42,7 @@ class CatalogFilters:
     price_min: Decimal | None = None
     price_max: Decimal | None = None
     stars: list[int] = field(default_factory=list)
+    meal_plans: list[MealPlan] = field(default_factory=list)
     featured: bool | None = None
     has_seats: bool | None = None
 
@@ -87,6 +92,8 @@ def _apply_filters(query: Select, f: CatalogFilters, expr: dict) -> Select:
         query = query.where(expr["price_uah"] <= f.price_max)
     if f.stars:
         query = query.where(Hotel.stars.in_(f.stars))
+    if f.meal_plans:   # tours without a stated meal plan never match
+        query = query.where(Tour.meal_plan.in_(f.meal_plans))
     if f.featured is not None:
         query = query.where(Tour.is_featured == f.featured)
     if f.has_seats is True:
@@ -103,6 +110,7 @@ def _order(query: Select, sort: SortKey, expr: dict) -> Select:
         "date_asc": Tour.departure_from.asc(),
         "date_desc": Tour.departure_from.desc(),
         "rating_desc": Hotel.rating_avg.desc().nulls_last(),  # from published reviews
+        "title_asc": Tour.title_uk.collate(UKRAINIAN_COLLATION).asc(),
     }[sort]
     return query.order_by(order, Tour.id)  # id keeps pages stable when values are equal
 
@@ -116,7 +124,7 @@ def _card_fields(tour: Tour, price_uah: Decimal, free_seats: int) -> dict:
         departure_city=CityOut.model_validate(tour.departure_city) if tour.departure_city else None,
         departure_from=tour.departure_from, departure_to=tour.departure_to, nights=tour.nights,
         currency=tour.currency, base_price=tour.base_price, price_from_uah=price_uah,
-        free_seats=max(free_seats, 0), is_featured=tour.is_featured,
+        free_seats=max(free_seats, 0), is_featured=tour.is_featured, meal_plan=tour.meal_plan,
         image_url=f"/uploads/{tour.images[0].file_path}" if tour.images else None,
     )
 
@@ -146,6 +154,7 @@ def get_public_tour(db: Session, tour_id: int) -> TourDetailOut:
         child_price=tour.child_price,
         child_price_uah=(child_price * rate).quantize(Decimal("0.01"), ROUND_HALF_UP),  # = SQL ROUND
         flight_out=tour.flight_out, flight_back=tour.flight_back, description=tour.description,
+        included=list(tour.included), excluded=list(tour.excluded),
         hotel_description=tour.hotel.description,
         program_days=[ProgramDayOut.model_validate(d) for d in tour.program_days],
         images=[TourImageOut.model_validate(i) for i in tour.images],

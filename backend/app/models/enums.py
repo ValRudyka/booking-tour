@@ -18,6 +18,17 @@ class TourStatus(str, enum.Enum):
     ARCHIVED = "archived"      # Архівний
 
 
+class MealPlan(str, enum.Enum):
+    """Board basis of a tour (form 4.6.2.1, «Тип харчування»; added in feature/catalog-improvements).
+    On the tour, not the hotel: the same hotel is sold with different boards."""
+    RO = "ro"      # Без харчування (room only)
+    BB = "bb"      # Сніданок
+    HB = "hb"      # Сніданок і вечеря
+    FB = "fb"      # Повний пансіон
+    AI = "ai"      # Все включено
+    UAI = "uai"    # Ультра все включено
+
+
 class TransportType(str, enum.Enum):
     AIR = "air"                # Авіа
     BUS = "bus"                # Автобус

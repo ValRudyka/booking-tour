@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.deps import DbSession
-from app.models.enums import TransportType
+from app.models.enums import MealPlan, TransportType
 from app.schemas.common import Page
 from app.schemas.tours import TourCardOut, TourDetailOut
 from app.services import catalog as catalog_service
@@ -31,6 +31,7 @@ def search_tours(
     price_min: Annotated[Decimal | None, Query(ge=0, description="Ціна «від», грн")] = None,
     price_max: Annotated[Decimal | None, Query(ge=0, description="Ціна «до», грн")] = None,
     stars: Annotated[list[int] | None, Query(description="Зірковість, можна кілька: stars=4&stars=5")] = None,
+    meal_plan: Annotated[list[MealPlan] | None, Query(description="Харчування, можна кілька: meal_plan=ai&meal_plan=uai")] = None,
     featured: Annotated[bool | None, Query(description="Лише «Гарячі пропозиції»")] = None,
     has_seats: Annotated[bool | None, Query(description="Лише тури з вільними місцями")] = None,
     sort: SortKey = "date_asc",
@@ -41,7 +42,8 @@ def search_tours(
                              departure_city_id=departure_city_id, transport_type=transport_type,
                              date_from=date_from, date_to=date_to, nights_min=nights_min,
                              nights_max=nights_max, price_min=price_min, price_max=price_max,
-                             stars=stars or [], featured=featured, has_seats=has_seats)
+                             stars=stars or [], meal_plans=meal_plan or [], featured=featured,
+                             has_seats=has_seats)
     items, total = catalog_service.search_tours(db, filters, sort, page, page_size)
     return Page(items=items, total=total, page=page, page_size=page_size)
 

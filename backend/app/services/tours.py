@@ -16,6 +16,7 @@ from app.models.enums import TourStatus, TransportType
 from app.services import clock
 from app.services import images as image_files
 from app.services.errors import DomainError
+from app.services.text_lists import clean_text_list
 
 STATUS_LABELS = {TourStatus.DRAFT: "Чернетка", TourStatus.ACTIVE: "Активний",
                  TourStatus.ARCHIVED: "Архівний"}
@@ -31,7 +32,8 @@ ALLOWED_TRANSITIONS: dict[TourStatus, set[TourStatus]] = {
 # Editable columns of form 4.6.2.1 (everything except status, quota usage and authorship).
 TOUR_FIELDS = ("title_uk", "title_en", "hotel_id", "transport_type", "departure_city_id",
                "flight_out", "flight_back", "departure_from", "departure_to", "nights",
-               "seats_total", "base_price", "child_price", "currency", "description", "is_featured")
+               "seats_total", "base_price", "child_price", "currency", "description", "is_featured",
+               "meal_plan", "included", "excluded")
 REQUIRED_LABELS = {"title_en": "назва туру англійською", "hotel_id": "готель",
                    "transport_type": "тип транспорту", "departure_from": "дата заїзду «від»",
                    "departure_to": "дата заїзду «до»", "nights": "тривалість (ночей)",
@@ -139,6 +141,8 @@ def _check_fields(db: Session, d: dict[str, Any], seats_sold: int) -> dict[str, 
         raise _error("Ціна для дитини не може бути від'ємною")
     if d.get("description") is not None and len(d["description"]) > MAX_DESCRIPTION:
         raise _error(f"Опис туру — не довше {MAX_DESCRIPTION} символів")
+    d["included"] = clean_text_list(d.get("included"), "Що включено")
+    d["excluded"] = clean_text_list(d.get("excluded"), "Що не включено")
     return d
 
 
