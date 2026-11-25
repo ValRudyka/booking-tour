@@ -18,6 +18,8 @@ class MockGateway(PaymentGateway):
 
     def __init__(self) -> None:
         self.sessions: dict[str, GatewaySession] = {}
+        # Where the mock payment page sends the browser back, like Stripe: (success, cancel).
+        self.return_urls: dict[str, tuple[str, str]] = {}
         self.created: list[str] = []
         self.expire_calls: list[str] = []
         self.refunds: list[dict] = []
@@ -44,6 +46,8 @@ class MockGateway(PaymentGateway):
             metadata={"order_id": str(order_id), "payment_id": str(payment_id),
                       "order_number": order_number})
         self.sessions[session_id] = session
+        self.return_urls[session_id] = (success_url.replace("{CHECKOUT_SESSION_ID}", session_id),
+                                        cancel_url)
         self.created.append(session_id)
         return session
 

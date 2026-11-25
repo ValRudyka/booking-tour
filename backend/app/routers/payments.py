@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from app.core.deps import DbSession
 from app.models.enums import PaymentStatus, TransactionStatus
@@ -93,15 +93,19 @@ def mock_checkout_page(session_id: str, gateway: Gateway):
         raise HTTPException(status_code=404, detail="Сесію оплати не знайдено") from None
     sid = escape(session_id)
     amount = payment_service.from_minor(session.amount_total or 0)
+    cancel_url = escape(mock.return_urls.get(session_id, ("", ""))[1], quote=True)
+    # Like the Stripe page: paying returns to success_url, «back» to cancel_url (the session stays
+    # open until it expires). ?return_to_site=1 makes the buttons redirect instead of answering JSON.
     return f"""<!doctype html><meta charset="utf-8"><title>Тестова оплата</title>
 <h1>Тестова оплата (mock)</h1>
 <p>Замовлення {escape(session.metadata.get("order_number", ""))}, сума {amount} грн,
 статус сесії: {escape(session.status)}.</p>
-<form method="post" action="/api/payments/mock/{sid}/succeed"><button>Оплата успішна</button></form>
-<form method="post" action="/api/payments/mock/{sid}/expire"><button>Сесія минула</button></form>"""
+<form method="post" action="/api/payments/mock/{sid}/succeed?return_to_site=1"><button>Оплата успішна</button></form>
+<form method="post" action="/api/payments/mock/{sid}/expire?return_to_site=1"><button>Сесія минула</button></form>
+<p><a href="{cancel_url}">Повернутися без оплати</a></p>"""
 
 
-def _mock_event(db, gateway: PaymentGateway, session_id: str, succeed: bool) -> dict:
+def _mock_event(db, gateway: PaymentGateway, session_id: str, succeed: bool, return_to_site: bool):
     mock = _mock(gateway)
     try:
         event = mock.complete(session_id) if succeed else mock.expire(session_id)
@@ -109,14 +113,17 @@ def _mock_event(db, gateway: PaymentGateway, session_id: str, succeed: bool) -> 
         raise HTTPException(status_code=404, detail="Сесію оплати не знайдено") from None
     result = payment_service.handle_event(db, event, mock)
     db.commit()
+    if return_to_site and session_id in mock.return_urls:   # the browser, from the mock page
+        success_url, cancel_url = mock.return_urls[session_id]
+        return RedirectResponse(success_url if succeed else cancel_url, status_code=303)
     return {"event": event.type, "result": result}
 
 
 @router.post("/mock/{session_id}/succeed", include_in_schema=False)
-def mock_succeed(session_id: str, db: DbSession, gateway: Gateway):
-    return _mock_event(db, gateway, session_id, succeed=True)
+def mock_succeed(session_id: str, db: DbSession, gateway: Gateway, return_to_site: bool = False):
+    return _mock_event(db, gateway, session_id, succeed=True, return_to_site=return_to_site)
 
 
 @router.post("/mock/{session_id}/expire", include_in_schema=False)
-def mock_expire(session_id: str, db: DbSession, gateway: Gateway):
-    return _mock_event(db, gateway, session_id, succeed=False)
+def mock_expire(session_id: str, db: DbSession, gateway: Gateway, return_to_site: bool = False):
+    return _mock_event(db, gateway, session_id, succeed=False, return_to_site=return_to_site)
