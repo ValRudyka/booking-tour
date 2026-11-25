@@ -5,20 +5,41 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.models.enums import UserRole
+from app.models.enums import ReferenceAction, UserAdminAction, UserRole
 from app.schemas.auth import UserOut, normalize_phone
 
 
 # ---------- users
+class UserActionOut(BaseModel):
+    """One action of services/admin_actions.py: allowed, or refused with the server's reason
+    (shown next to a disabled button)."""
+    action: UserAdminAction
+    allowed: bool
+    reason: str | None
+
+
+class ReferenceActionOut(BaseModel):
+    action: ReferenceAction
+    allowed: bool
+    reason: str | None
+
+
 class AdminUserOut(UserOut):
     updated_at: datetime
+    user_actions: list[UserActionOut] = []
+
+
+class StaffCreatedOut(AdminUserOut):
+    temporary_password: str | None = Field(
+        None, description="Згенерований тимчасовий пароль: показується один раз, ніде не зберігається")
 
 
 class StaffCreate(BaseModel):
     role: UserRole
     phone: str
     email: EmailStr
-    password: str = Field(min_length=8, max_length=128, description="Початковий пароль")
+    password: str | None = Field(None, min_length=8, max_length=128,
+                                 description="Початковий пароль; без нього сервер згенерує тимчасовий")
     last_name: str = Field(min_length=1, max_length=100)
     first_name: str = Field(min_length=1, max_length=100)
 
@@ -91,6 +112,7 @@ class CountryAdminOut(BaseModel):
     name_uk: str
     name_en: str | None
     is_archived: bool
+    admin_actions: list[ReferenceActionOut] = []
 
 
 class CityIn(_Strict):
@@ -115,6 +137,7 @@ class CityAdminOut(BaseModel):
     name_en: str | None
     iata_code: str | None
     is_archived: bool
+    admin_actions: list[ReferenceActionOut] = []
 
 
 class ResortIn(_Strict):
@@ -136,6 +159,7 @@ class ResortAdminOut(BaseModel):
     name_uk: str
     name_en: str | None
     is_archived: bool
+    admin_actions: list[ReferenceActionOut] = []
 
 
 class HotelFacts(_Strict):
@@ -186,6 +210,7 @@ class HotelAdminOut(BaseModel):
     room_types: list[str]
     rating_avg: Decimal | None          # read-only: from published reviews
     is_archived: bool
+    admin_actions: list[ReferenceActionOut] = []
 
 
 class ServiceTypeIn(_Strict):
@@ -207,6 +232,7 @@ class ServiceTypeAdminOut(BaseModel):
     price_uah: Decimal
     is_default: bool
     is_archived: bool
+    admin_actions: list[ReferenceActionOut] = []
 
 
 class LanguageIn(_Strict):
@@ -225,6 +251,7 @@ class LanguageOut(BaseModel):
     code: str
     name: str
     is_enabled: bool
+    admin_actions: list[ReferenceActionOut] = []
 
 
 # ---------- global settings (form 4.6.4.1)

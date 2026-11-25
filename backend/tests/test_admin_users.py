@@ -1,5 +1,5 @@
 """Administrator: staff accounts, roles, blocking, password reset and their safety rules."""
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import select
@@ -93,14 +93,24 @@ def test_role_change_applies_to_the_old_token(client, db, admin, admin_headers):
     assert (entry.old_value, entry.new_value) == ({"role": "manager"}, {"role": "finance"})
 
 
-def test_block_rejects_the_old_token_and_unblock_restores(client, db, admin_headers):
-    manager = make_user(db, role=UserRole.MANAGER)
-    token = headers_for(manager)
+def test_block_ends_sessions_also_after_unblock(client, db, admin_headers):
+    """Blocking sets tokens_valid_after (spec 13 §1): a token issued before the block stays
+    invalid after an unblock; the user signs in again."""
+    manager = make_user(db, role=UserRole.MANAGER, phone="+380671239999")
+    manager.password_hash = hash_password("Pass-word-1")
+    db.flush()
+    issued = datetime.now(timezone.utc) - timedelta(seconds=5)
+    token = {"Authorization": f"Bearer {create_access_token(manager.id, 'manager', issued_at=issued)}"}
+    assert client.get("/api/auth/me", headers=token).status_code == 200
     assert client.patch(f"{URL}/{manager.id}", json={"is_active": False}, headers=admin_headers).status_code == 200
     assert client.get("/api/auth/me", headers=token).status_code == 401
+    assert login(client, "+380671239999", "Pass-word-1").status_code == 401       # blocked: no login
     assert client.patch(f"{URL}/{manager.id}", json={"is_active": True}, headers=admin_headers).status_code == 200
-    assert client.get("/api/auth/me", headers=token).status_code == 200
-    assert [e.action for e in logs(db, manager.id)] == ["blocked", "unblocked"]
+    assert client.get("/api/auth/me", headers=token).status_code == 401           # old session stays ended
+    assert login(client, "+380671239999", "Pass-word-1").status_code == 200
+    blocked, unblocked = logs(db, manager.id)
+    assert (blocked.action, unblocked.action) == ("blocked", "unblocked")
+    assert "sessions_ended_at" in blocked.new_value
 
 
 def test_client_role_cannot_change_but_client_can_be_blocked(client, db, admin_headers):
@@ -129,9 +139,9 @@ def test_edit_profile_fields(client, db, admin_headers):
 # ---------- safety rules
 def test_admin_cannot_block_or_demote_themselves(client, db, admin, admin_headers):
     make_user(db, role=UserRole.ADMIN)                          # not the last admin
-    for change in ({"is_active": False}, {"role": "manager"}):
+    for change, text in (({"is_active": False}, "заблокувати себе"), ({"role": "manager"}, "власну роль")):
         response = client.patch(f"{URL}/{admin.id}", json=change, headers=admin_headers)
-        assert response.status_code == 409 and "себе" in response.json()["detail"]
+        assert response.status_code == 409 and text in response.json()["detail"]
     assert client.patch(f"{URL}/{admin.id}", json={"last_name": "Новий"}, headers=admin_headers).status_code == 200
 
 

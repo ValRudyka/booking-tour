@@ -75,7 +75,13 @@ def test_referenced_item_is_archived_not_deleted(client, db, customer, manager, 
     tour = make_active_tour(db, manager)
     refused = client.delete(f"{URL}/hotels/{tour.hotel_id}", headers=admin_headers)
     assert refused.status_code == 409
-    assert "tours.hotel_id" in refused.json()["detail"] and "архівуйте" in refused.json()["detail"]
+    assert refused.json()["detail"] == "Готель використовується (тури: 1) — архівуйте замість видалення"
+
+    # A published tour uses the hotel: archiving is refused until the tour leaves the catalog.
+    published = client.post(f"{URL}/hotels/{tour.hotel_id}/archive", headers=admin_headers)
+    assert published.status_code == 409
+    assert published.json()["detail"] == "Використовується в 1 опублікованому турі — спершу зніміть його з продажу"
+    assert client.post(f"/api/manager/tours/{tour.id}/unpublish", headers=manager_headers).status_code == 200
 
     archived = client.post(f"{URL}/hotels/{tour.hotel_id}/archive", headers=admin_headers)
     assert archived.status_code == 200 and archived.json()["is_archived"] is True
@@ -84,7 +90,7 @@ def test_referenced_item_is_archived_not_deleted(client, db, customer, manager, 
     new_tour = client.post("/api/manager/tours", json=tour_payload(tour.hotel_id), headers=manager_headers)
     assert new_tour.status_code == 422
     # ... but the existing tour keeps it.
-    assert client.get(f"/api/tours/{tour.id}").json()["hotel"]["id"] == tour.hotel_id
+    assert client.get(f"/api/manager/tours/{tour.id}", headers=manager_headers).json()["hotel_id"] == tour.hotel_id
 
     restored = client.post(f"{URL}/hotels/{tour.hotel_id}/restore", headers=admin_headers)
     assert restored.json()["is_archived"] is False
@@ -118,7 +124,7 @@ def test_archived_service_not_offered_for_new_orders(client, db, customer, custo
     tour = make_active_tour(db, manager, days_ahead=10)
     old_order = make_order(db, customer, tour, insurance_type_id=extended.id)
     refused = client.delete(f"{URL}/insurance-types/{extended.id}", headers=admin_headers)
-    assert refused.status_code == 409 and "orders.insurance_type_id" in refused.json()["detail"]
+    assert refused.status_code == 409 and "замовлення: 1" in refused.json()["detail"]
     assert client.post(f"{URL}/insurance-types/{extended.id}/archive", headers=admin_headers).status_code == 200
     assert extended.id not in [i["id"] for i in client.get("/api/reference/insurance-types").json()]
     body = {"tour_id": tour.id, "start_date": tour.departure_from.isoformat(), "adults": 1,
