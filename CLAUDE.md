@@ -231,14 +231,31 @@ Conventions:
 - Administration (role admin; never order processing, refunds, payments, moderation or promo
   codes — ТЗ 7 separation of duties, tested in `test_separation_of_duties.py`):
   `services/admin_users.py` (staff only via admin; roles change only between staff roles; no
-  self-block/self-demote; the last active admin stays — admin rows locked before counting),
-  `services/reference_admin.py` (archive/restore; DELETE only when `references()` finds nothing;
+  self-block/self-demote; the last active admin stays — admin rows locked before counting;
+  a client's personal data is not edited by the admin; the admin reset refuses your own password;
+  blocking also sets `tokens_valid_after`; `POST /admin/users` without `password` generates a
+  temporary one, answered once in `temporary_password`, never stored or audited;
+  `GET /admin/users?staff=true|false`),
+  `services/reference_admin.py` (archive/restore; archiving a hotel, resort, country or departure
+  city is refused while a published tour uses it — the catalog does not read `is_archived`;
+  DELETE only when `references()` finds nothing, the refusal names the rows in Ukrainian;
   exactly one default insurance/transfer type, partial unique index), `services/settings_admin.py`
-  (form 4.6.4.1; keys stay in .env, only `gateway_status()`), `services/maintenance.py` (app-wide
-  dependency; open list in its docstring). Tokens carry `iat`; `users.tokens_valid_after` (whole
+  (form 4.6.4.1 plus `support_address` and `maintenance_message`, key/value rows, no migration;
+  `rules()` and `limits()` for the form; keys stay in .env, only `gateway_status()`),
+  `services/maintenance.py` (app-wide dependency; open list in its docstring; the 503 text is the
+  admin's `maintenance_message` or the default).
+- Admin actions (`services/admin_actions.py`, spec 13, the `staff_actions` pattern): every admin
+  user carries `user_actions` (edit, change_role, block, unblock, reset_password) and every
+  reference record / language `admin_actions` (edit, archive, restore, delete, make_default,
+  enable, disable), each `{action, allowed, reason}` from the refusal functions the endpoints
+  raise (`edit_refusal`, `role_refusal`, `block_refusal`, `reset_refusal`, `archive_refusal`,
+  `restore_refusal`, `delete_refusal`, `default_refusal`, `language_*_refusal`); a list reads
+  its counts in grouped queries (`refusal_context()`). The audit log answers `user_name` /
+  `user_role`. Tokens carry `iat`; `users.tokens_valid_after` (whole
   seconds, `token_cutoff()`) is set on admin password reset; `user_from_token()` checks it.
 - Audit: every admin change and every promo code change calls `services/audit.py: audit()` with
-  old/new values; fields named like password/secret/key/token/hash are dropped. `audit_log` is
+  old/new values; fields named like password/secret/key/token/hash are dropped. Every audit row
+  goes through `audit()` (never `db.add(AuditLog(...))`), so that filter always applies. `audit_log` is
   append-only (DB trigger refuses UPDATE/DELETE).
 - Promo codes are managed by managers (`services/promo_admin.py`, `/api/manager/promo-codes`);
   a code used by any order cannot be deleted or renamed, only deactivated.
@@ -454,6 +471,24 @@ Lives in `frontend/` in this repository (same Git Flow branches as the backend).
       `useTourAction`. `hooks/useUnsavedChanges` takes optional texts and returns `allowNext()`.
     - FilterBar applies only changed *values*, never new option lists, so a dependent list (resorts
       of the chosen country, `clears`, `onDraftChange`) does not wipe what is being typed.
+  - **Admin pages (spec 13, `pages/office/admin/`):**
+    - `/office/users` (tabs «Персонал» / «Клієнти», user Drawer `?user=`), `/office/references`
+      (a tab per directory, archived hidden until «Показати архівні»; hotels in a Drawer with the
+      resort depending on the country), `/office/settings` (groups with their own save, languages,
+      gateway status, maintenance card), `/office/audit-log` (read only, «поле — було — стало»,
+      raw JSON collapsed). API hooks in `api/admin.ts`, fixtures in `test/adminFixtures.ts`.
+    - Buttons only from `user_actions` / `admin_actions`: `components/office/ServerActionButton`
+      (refused = disabled + tooltip + `aria-describedby` reason).
+    - `features/admin/useAdminAction.ts` wraps `useOfficeAction` (built on spec 10's
+      `useActionRunner`) and refreshes the admin queries.
+    - Dialog field names must not repeat a FilterBar field on the same page (`role` →
+      `new_role` / `staff_role`): ids are per page, so the label would point at the filter.
+    - Under test antd gives every dialog the same `aria-labelledby` id: a Modal over a Drawer is
+      found by its title text (`dialogTitled()` in the admin tests).
+    - `features/admin/referenceRules.ts` mirrors `reference_admin.py` / `text_lists.py`;
+      `features/admin/auditDiff.ts` formats audit values and hides secret-looking fields.
+    - `MaintenanceAlert` in the admin's `OfficeLayout` while maintenance mode is on; the office user
+      menu has «Змінити пароль» (`StaffPasswordModal`, the spec 08 rules and sign-out).
   - **Profile pages (feature/frontend-client-profile, `pages/cabinet/`, spec 08):**
     - `/cabinet/profile`: `Descriptions` → «Редагувати» form; the same rules as registration
       (`features/auth/formRules.ts`, `PasswordRules`); `mapFormError()` puts `profile_rule` texts
@@ -679,8 +714,25 @@ favorites (spec 08).
 - Spec 10 §5 «two departures» reads as one range with at least two start dates (a different price
   period is a copy; noted in `docs/frontend/10-office-tours.md`).
 
-Next: spec 11 (moderation, promo codes, statistics; in progress in its own branch), then 12, 13.
-Backend test suite: 795 tests. Frontend: 401 tests.
+
+`feature/backoffice-admin` (PR to `develop`): the administrator's office (spec 13).
+- Backend, no migration: `user_actions` / `admin_actions` with reasons, blocking ends sessions,
+  client data not edited by the admin, no self-reset, server-generated temporary staff password,
+  `?staff=`, archive refused while a published tour uses the record, readable "in use" text,
+  settings `rules` / `limits` / author names, new keys `support_address` and
+  `maintenance_message`, audit `user_name` / `user_role`, every audit row through `audit()`.
+- Frontend: `/office/users`, `/office/references`, `/office/settings`, `/office/audit-log`, the
+  maintenance Alert, «Змінити пароль» for staff, the address in the footer and on `/contacts`.
+- Publishing with an archived hotel, resort, country or city was already refused
+  (`tours._validate_for_publish`); tests added, and an archived departure city is now named in the
+  refusal (it said «не знайдено»).
+- For the ТЗ update: the contact address and the maintenance message are settings now (form
+  4.6.4.1).
+
+
+Next: spec 11 (moderation, promo codes, statistics; in progress in its own branch), then
+`fix/maintenance-staff-message`, then spec 12.
+Backend test suite: 811 tests. Frontend: 428 tests.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
@@ -713,6 +765,7 @@ Backlog, in order (one branch each):
    - Spec 09 (layout, manager orders) — **done** (`feature/backoffice-orders`).
    - Spec 10 (manager tours) — **done** (`feature/backoffice-tours`). Its field locks are the
      interim protection of old orders until `feature/order-snapshot` (backlog 17).
+   - Spec 13 (administrator) — **done** (`feature/backoffice-admin`).
    - Note for spec 12: finance must see failed refunds clearly (the client cabinet hides them).
 10. `feature/search-history` (favorites are done in `feature/frontend-client-profile`; the
     `search_history` table exists) 11. `feature/notifications-email` (also: password recovery by
@@ -727,6 +780,14 @@ Backlog, in order (one branch each):
     with the tour (needs a migration); then the order page reads them from the order.
 18. `feature/auth-rate-limit` — ТЗ 5.4 brute-force protection: limit login attempts per login and
     IP, answer **429** (the frontend already shows «Забагато спроб входу. Спробуйте пізніше.»).
+19. `fix/maintenance-staff-message` — **next after `feature/backoffice-admin`**. In maintenance mode
+    a manager or finance user who reloads the office is treated as a guest (`GET /auth/me` → 503
+    in `AuthProvider`), sent to `/login`, signs in and is sent back: a loop. Keep the rule (only
+    admins work); staff get a clear «Технічні роботи» screen instead.
+20. Admin back-office extras (spec 13, not in the backend yet): last login and a block reason
+    (columns, i.e. a migration), IP and result in the audit log (audit_log columns), audit export
+    (Excel/CSV, with `feature/reports`), system logs and errors, load report (ТЗ «Переглянути
+    системні логи та помилки», «Сформувати звіт про навантаження»; with `feature/monitoring`).
 
 When a feature is merged: tick it in `README.md` "Етапи", update this section, and if a
 ТЗ 2.7 "out of MVP" item got implemented, note it for the ТЗ update.

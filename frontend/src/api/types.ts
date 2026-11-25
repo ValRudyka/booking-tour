@@ -110,3 +110,30 @@ export type TourCopyIn = Schemas['TourCopyIn']
 export type TourRules = Schemas['TourRulesOut']
 /** Query parameters of GET /api/manager/tours, exactly as the backend declares them. */
 export type ManagerToursQuery = NonNullable<operations['list_tours_api_manager_tours_get']['parameters']['query']>
+
+// ---------- administration (spec 13, backend routers/admin_*.py)
+export type AdminUser = Schemas['AdminUserOut']
+export type AdminUserPage = Schemas['Page_AdminUserOut_']
+export type StaffCreate = Schemas['StaffCreate']
+export type StaffCreated = Schemas['StaffCreatedOut']
+export type UserPatch = Schemas['UserPatch']
+export type UserAdminAction = Schemas['UserAdminAction']
+export type UserActionInfo = Schemas['UserActionOut']
+export type ReferenceAction = Schemas['ReferenceAction']
+export type ReferenceActionInfo = Schemas['ReferenceActionOut']
+export type CountryAdmin = Schemas['CountryAdminOut']
+export type CityAdmin = Schemas['CityAdminOut']
+export type ResortAdmin = Schemas['ResortAdminOut']
+export type HotelAdmin = Schemas['HotelAdminOut']
+export type HotelIn = Schemas['HotelIn']
+export type ServiceTypeAdmin = Schemas['ServiceTypeAdminOut']
+export type Language = Schemas['LanguageOut']
+export type AdminSettings = Schemas['SettingsOut']
+export type SettingsIn = Schemas['SettingsIn']
+export type SettingRule = Schemas['SettingRule']
+export type GatewayStatus = Schemas['GatewayStatusOut']
+export type AuditEntry = Schemas['AuditLogOut']
+export type AuditPage = Schemas['Page_AuditLogOut_']
+/** Query parameters of GET /api/admin/users and /api/admin/audit-log, as the backend declares them. */
+export type AdminUsersQuery = NonNullable<operations['list_users_api_admin_users_get']['parameters']['query']>
+export type AuditLogQuery = NonNullable<operations['audit_log_api_admin_audit_log_get']['parameters']['query']>

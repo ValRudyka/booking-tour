@@ -23,7 +23,10 @@ import { FaqPage } from './pages/info/FaqPage'
 import { PrivacyPage, TermsPage } from './pages/info/LegalPages'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { COMING_SOON } from './features/office/menu'
-import { OfficeLayout, OfficeOrderPage, OfficeOrdersPage, OfficeToursPage, TourEditorPage } from './pages/office/lazyPages'
+import {
+  OfficeAuditLogPage, OfficeLayout, OfficeOrderPage, OfficeOrdersPage, OfficeReferencesPage, OfficeSettingsPage,
+  OfficeToursPage, OfficeUsersPage, TourEditorPage,
+} from './pages/office/lazyPages'
 import { OfficeComingSoon, OfficeHome, RequireOfficeRole } from './pages/office/OfficeHome'
 import { PayPage } from './pages/payment/PayPage'
 import { PaymentCancelPage, PaymentSuccessPage } from './pages/payment/PaymentResultPages'
@@ -108,6 +111,23 @@ export const routes: RouteObject[] = [
           {
             path: 'tours/:id/edit',
             element: <RequireOfficeRole role="manager">{suspended(<TourEditorPage />)}</RequireOfficeRole>,
+          },
+          // Administration (spec 13).
+          {
+            path: 'users',
+            element: <RequireOfficeRole role="admin">{suspended(<OfficeUsersPage />)}</RequireOfficeRole>,
+          },
+          {
+            path: 'references',
+            element: <RequireOfficeRole role="admin">{suspended(<OfficeReferencesPage />)}</RequireOfficeRole>,
+          },
+          {
+            path: 'settings',
+            element: <RequireOfficeRole role="admin">{suspended(<OfficeSettingsPage />)}</RequireOfficeRole>,
+          },
+          {
+            path: 'audit-log',
+            element: <RequireOfficeRole role="admin">{suspended(<OfficeAuditLogPage />)}</RequireOfficeRole>,
           },
           ...COMING_SOON.map((section) => ({
             path: section.path,

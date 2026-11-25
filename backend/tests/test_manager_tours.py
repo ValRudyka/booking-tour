@@ -117,7 +117,7 @@ def test_unknown_or_archived_hotel_and_city(client, db, manager_headers, hotel):
     response = client.post(URL, json=payload(hotel.id, transport_type="bus", departure_city_id=kyiv.id),
                            headers=manager_headers)
     assert response.status_code == 422
-    assert error_text(response) == "Місто відправлення не знайдено"
+    assert error_text(response) == "Місто відправлення або його країна в архіві — оберіть інше місто"
 
 
 # ---------- edit

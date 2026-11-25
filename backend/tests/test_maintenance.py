@@ -85,7 +85,7 @@ def test_admin_keeps_working_and_switches_it_off(client, db, admin, admin_header
     assert off.status_code == 200 and off.json()["maintenance_mode"] is False
     assert client.get("/api/tours").status_code == 200
     assert client.get("/api/orders", headers=customer_headers).status_code == 200
-    actions = db.scalars(select(AuditLog.new_value).where(AuditLog.entity == "settings")).all()
+    actions = db.scalars(select(AuditLog.new_value).where(AuditLog.entity == "settings").order_by(AuditLog.id)).all()
     assert actions == [{"maintenance_mode": True}, {"maintenance_mode": False}]
 
 

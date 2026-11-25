@@ -13,10 +13,11 @@ from datetime import timedelta
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import AuditLog, Order, Tour, User
+from app.models import Order, Tour, User
 from app.models.enums import ManagerOrderSort, ManagerQueue, UserRole
 from app.models.enums import OrderStatus as S
 from app.services import clock, notifications, order_documents
+from app.services.audit import audit
 from app.services.errors import DomainError
 from app.services.order_status import STATUS_LABELS, change_status
 from app.services.payments.refunds import refund_finished
@@ -207,8 +208,8 @@ def assign(db: Session, manager: User, order_id: int, new_manager_id: int) -> Or
         raise DomainError("Відповідальним можна призначити лише активного менеджера", 422)
     if target.id == order.manager_id:
         return order
-    db.add(AuditLog(user_id=manager.id, entity="order", entity_id=str(order.id), action="manager_assigned",
-                    old_value={"manager_id": order.manager_id}, new_value={"manager_id": target.id}))
+    audit(db, manager, "order", order.id, "manager_assigned",
+          {"manager_id": order.manager_id}, {"manager_id": target.id})
     order.manager_id = target.id
     notifications.notify(db, target.id, f"Вам передано замовлення {order.number}",
                          f"Менеджер {short_name(manager)} передав вам супровід замовлення.", order)

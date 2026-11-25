@@ -1,4 +1,4 @@
-import { DesktopOutlined, DownOutlined, MailOutlined, MenuOutlined, PhoneOutlined, UserOutlined } from '@ant-design/icons'
+import { DesktopOutlined, DownOutlined, EnvironmentOutlined, MailOutlined, MenuOutlined, PhoneOutlined, UserOutlined } from '@ant-design/icons'
 import { Button, Drawer, Dropdown, Flex, Grid, Layout, Menu, Space, Typography } from 'antd'
 import type { MenuProps } from 'antd'
 import { useState } from 'react'
@@ -125,7 +125,7 @@ export function PublicLayout() {
         <Flex wrap gap={24} justify="space-between" className="public-container">
           {/* Support contacts from the admin's settings; nothing is shown until they are set. */}
           <Space orientation="vertical" size={4}>
-            {(contacts.data?.phone || contacts.data?.email) && (
+            {(contacts.data?.phone || contacts.data?.email || contacts.data?.address) && (
               <Typography.Text strong>{t('footer.contacts')}</Typography.Text>
             )}
             {contacts.data?.phone && (
@@ -138,6 +138,11 @@ export function PublicLayout() {
               <Typography.Text>
                 <MailOutlined aria-hidden /> {t('footer.email')}:{' '}
                 <a href={`mailto:${contacts.data.email}`}>{contacts.data.email}</a>
+              </Typography.Text>
+            )}
+            {contacts.data?.address && (
+              <Typography.Text>
+                <EnvironmentOutlined aria-hidden /> {t('footer.address')}: {contacts.data.address}
               </Typography.Text>
             )}
           </Space>

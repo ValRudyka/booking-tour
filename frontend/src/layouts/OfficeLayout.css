@@ -282,3 +282,8 @@
     width: 100%;
   }
 }
+
+/* Maintenance mode is on (spec 13 §3): above every page of the admin's office. */
+.office-maintenance-alert {
+  margin-bottom: 16px;
+}

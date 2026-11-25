@@ -58,7 +58,8 @@ def audit(db: Session, user: User | None, entity: str, entity_id: Any, action: s
 
 def list_entries(db: Session, *, user_id: int | None, entity: str | None, entity_id: str | None,
                  action: str | None, date_from: datetime | None, date_to: datetime | None,
-                 page: int, page_size: int) -> tuple[list[AuditLog], int]:
+                 page: int, page_size: int) -> tuple[list[tuple[AuditLog, User | None]], int]:
+    """(entry, author) pairs, newest first; author None = the System."""
     query = select(AuditLog)
     if user_id is not None:
         query = query.where(AuditLog.user_id == user_id)
@@ -73,6 +74,8 @@ def list_entries(db: Session, *, user_id: int | None, entity: str | None, entity
     if date_to is not None:
         query = query.where(AuditLog.created_at < date_to)
     total = db.scalar(select(func.count()).select_from(query.subquery()))
-    items = db.scalars(query.order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
-                       .offset((page - 1) * page_size).limit(page_size)).all()
-    return list(items), total
+    entries = db.scalars(query.order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+                         .offset((page - 1) * page_size).limit(page_size)).all()
+    ids = {entry.user_id for entry in entries if entry.user_id is not None}
+    authors = {u.id: u for u in db.scalars(select(User).where(User.id.in_(ids)))} if ids else {}
+    return [(entry, authors.get(entry.user_id)) for entry in entries], total

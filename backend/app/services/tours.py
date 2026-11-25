@@ -17,11 +17,12 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
-from app.models import (AuditLog, City, Country, Hotel, Order, OrderStatusHistory, Resort, Tour,
+from app.models import (City, Country, Hotel, Order, OrderStatusHistory, Resort, Tour,
                         TourImage, TourProgramDay, User)
 from app.models.enums import ManagerTourSort, OrderStatus, PaymentStatus, TourStatus, TransportType
 from app.services import clock, order_status
 from app.services import images as image_files
+from app.services.audit import audit
 from app.services.catalog import UKRAINIAN_COLLATION
 from app.services.errors import DomainError
 from app.services.payments.sessions import close_open_sessions
@@ -187,8 +188,11 @@ def _check_city(db: Session, city_id: int, keep_archived: bool = False) -> None:
     city = db.get(City, city_id)
     if city is not None and keep_archived:
         return
-    if city is None or city.is_archived or db.get(Country, city.country_id).is_archived:
+    if city is None:
         raise _error("Місто відправлення не знайдено", field="departure_city_id")
+    # The reason, so the manager knows what to do (spec 13: publishing names the archived record).
+    if city.is_archived or db.get(Country, city.country_id).is_archived:
+        raise _error("Місто відправлення або його країна в архіві — оберіть інше місто", field="departure_city_id")
 
 
 def _normalize_flight(value: str | None, field: str) -> str | None:
@@ -371,9 +375,7 @@ def change_status(db: Session, tour: Tour, new_status: TourStatus, user: User,
         if cancelled:
             new_value["cancelled_orders"] = cancelled
     tour.status = new_status
-    db.add(AuditLog(user_id=user.id, entity="tour", entity_id=str(tour.id), action="status_change",
-                    old_value={"status": old_status.value}, new_value=new_value))
-    db.flush()
+    audit(db, user, "tour", tour.id, "status_change", {"status": old_status.value}, new_value)
     return tour
 
 

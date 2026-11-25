@@ -1,4 +1,4 @@
-import { MailOutlined, PhoneOutlined } from '@ant-design/icons'
+import { EnvironmentOutlined, MailOutlined, PhoneOutlined } from '@ant-design/icons'
 import { Alert, Skeleton, Space, Typography } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { useSiteContacts } from '../../api/site'
@@ -14,6 +14,7 @@ export function ContactsPage() {
   const contacts = useSiteContacts()
   const phone = contacts.data?.phone
   const email = contacts.data?.email
+  const address = contacts.data?.address
 
   let body
   if (contacts.isPending) {
@@ -21,7 +22,7 @@ export function ContactsPage() {
   } else if (contacts.isError) {
     body = <ApiErrorState error={contacts.error} onRetry={() => void contacts.refetch()}
       title={t('info.contacts.loadFailed')} />
-  } else if (!phone && !email) {
+  } else if (!phone && !email && !address) {
     body = <Alert type="info" title={t('info.contacts.empty')} />
   } else {
     body = (
@@ -34,6 +35,11 @@ export function ContactsPage() {
         {email && (
           <Typography.Text>
             <MailOutlined aria-hidden /> {t('footer.email')}: <a href={`mailto:${email}`}>{email}</a>
+          </Typography.Text>
+        )}
+        {address && (
+          <Typography.Text>
+            <EnvironmentOutlined aria-hidden /> {t('footer.address')}: {address}
           </Typography.Text>
         )}
       </Space>

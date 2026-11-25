@@ -19,10 +19,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import frontend_base_url, settings
-from app.models import AuditLog, Order, Payment, User
+from app.models import Order, Payment, User
 from app.models.enums import (OrderStatus, PaymentMethod, PaymentStatus, PaymentType,
                               TransactionStatus)
 from app.services import order_status
+from app.services.audit import audit
 from app.services.app_settings import bank_transfer_hold_hours
 from app.services.errors import DomainError
 from app.services.orders import HoldExpired, expire_if_due
@@ -175,11 +176,9 @@ def extend_hold(db: Session, order: Order, user: User | None, reason: str) -> No
     """Bank transfers take days: hold the seats for bank_transfer_hold_hours from now."""
     new_hold = utcnow() + timedelta(hours=bank_transfer_hold_hours(db))
     if order.hold_expires_at is None or new_hold > order.hold_expires_at:
-        db.add(AuditLog(user_id=user.id if user else None, entity="order", entity_id=str(order.id),
-                        action="hold_extended",
-                        old_value={"hold_expires_at": order.hold_expires_at.isoformat()
-                                   if order.hold_expires_at else None},
-                        new_value={"hold_expires_at": new_hold.isoformat(), "reason": reason}))
+        audit(db, user, "order", order.id, "hold_extended",
+              {"hold_expires_at": order.hold_expires_at.isoformat() if order.hold_expires_at else None},
+              {"hold_expires_at": new_hold.isoformat(), "reason": reason})
         order.hold_expires_at = new_hold
 
 
