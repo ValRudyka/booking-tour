@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.config import settings
+from app.config import check_startup_settings, settings
 from app.db import get_db
 from app.routers import (admin_reference, admin_settings, admin_users, auth, catalog, finance,
                          manager_orders, manager_promo, manager_reviews, manager_tours,
@@ -42,7 +42,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Startup: start the System jobs (an interval of 0 turns a job off, as in tests):
     - expiry: cancel orders whose seat hold ran out (ORDER_EXPIRY_INTERVAL_SEC, 60);
     - completion: «Завершено» after the trip (ORDER_COMPLETION_INTERVAL_SEC, 3600).
-    Shutdown: stop them."""
+    Shutdown: stop them.
+    Settings that would hurt real clients stop the start (check_startup_settings)."""
+    check_startup_settings()
     tasks = []
     if settings.order_expiry_interval_sec > 0:
         tasks.append(asyncio.create_task(periodic(

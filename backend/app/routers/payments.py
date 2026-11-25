@@ -58,8 +58,9 @@ MESSAGES = {
 @router.get("/result", response_model=PaymentResultOut, summary="Результат оплати (повернення зі Stripe)")
 def payment_result(db: DbSession, session_id: Annotated[str, Query(max_length=255)],
                    cancelled: bool = False):
-    """Opened by the client's browser after Stripe, so there is no token: the unguessable
-    session id is the key, and only statuses are shown."""
+    """No sign-in: the unguessable session id is the key, and only statuses are shown. Stripe
+    returns clients to the frontend's /payment/success and /payment/cancel (return_urls); this
+    page stays for support and for sessions created before that."""
     try:
         payment = payment_service.payment_result(db, session_id)
     except DomainError as error:

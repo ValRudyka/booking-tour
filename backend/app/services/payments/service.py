@@ -18,7 +18,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.config import settings
+from app.config import frontend_base_url, settings
 from app.models import AuditLog, Order, Payment, User
 from app.models.enums import (OrderStatus, PaymentMethod, PaymentStatus, PaymentType,
                               TransactionStatus)
@@ -86,12 +86,12 @@ def bank_details(order: Order, payment: Payment) -> dict:
             "pay_until": order.hold_expires_at}
 
 
-def return_urls() -> tuple[str, str]:
-    """Where Stripe sends the client back. Until the frontend exists: the API's result page."""
-    base = settings.frontend_url.rstrip("/")
-    page = f"{base}/payment/result" if base else f"{settings.api_base_url.rstrip('/')}/api/payments/result"
-    success = f"{page}?session_id={{CHECKOUT_SESSION_ID}}"
-    return success, success + "&cancelled=1"
+def return_urls(order: Order) -> tuple[str, str]:
+    """Where Stripe sends the client back: the frontend's pages (spec 05). The success page only
+    waits for the webhook (it never marks anything paid); Stripe fills in {CHECKOUT_SESSION_ID}."""
+    base = frontend_base_url()
+    return (f"{base}/payment/success?order_id={order.id}&session_id={{CHECKOUT_SESSION_ID}}",
+            f"{base}/payment/cancel?order_id={order.id}")
 
 
 @dataclass
@@ -135,7 +135,7 @@ def _pay_by_card(db: Session, client: User, order: Order, gateway: PaymentGatewa
             raise DomainError("Оплата вже обробляється — оновіть сторінку за хвилину", 409)
         payment.status = TransactionStatus.FAILED                     # expired or gone
 
-    success_url, cancel_url = return_urls()
+    success_url, cancel_url = return_urls(order)
     try:
         with db.begin_nested():               # no payment row is kept if Stripe refuses
             payment = Payment(order_id=order.id, type=PaymentType.PAYMENT, method=PaymentMethod.CARD,

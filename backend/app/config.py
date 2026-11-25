@@ -41,8 +41,10 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""          # test-mode key only; never commit it
     stripe_webhook_secret: str = ""      # whsec_... from `stripe listen` or the Dashboard
     stripe_api_version: str = "2026-11-18.endive"
-    # Where Stripe sends the client back. Empty until the frontend exists: then the API's own
-    # result page at API_BASE_URL/api/payments/result is used.
+    # The frontend's origin: Stripe sends the client back to its /payment/success and
+    # /payment/cancel pages. Empty in development/test = the Vite dev server (DEV_FRONTEND_URL);
+    # in production it must be set, or the API refuses to start (check_startup_settings), so real
+    # clients are never sent back to localhost.
     frontend_url: str = ""
     api_base_url: str = "http://127.0.0.1:8000"
     # Bank transfer details shown to the client (demo values; set real ones in .env).
@@ -68,3 +70,29 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+DEV_ENVIRONMENTS = ("development", "test")
+# The Vite dev server (frontend/vite.config.ts, strictPort): where payments return in development.
+DEV_FRONTEND_URL = "http://localhost:5173"
+FRONTEND_URL_MISSING = ("FRONTEND_URL is not set. Stripe sends clients back to the frontend after "
+                        "paying, so outside development/test it must be the site's public address, "
+                        "e.g. FRONTEND_URL=https://tour.example.com in backend/.env "
+                        "(or set APP_ENV=development on your own machine).")
+
+
+def frontend_base_url(config: "Settings | None" = None) -> str:
+    """The frontend origin without a trailing slash (payment return pages)."""
+    config = config or settings
+    url = config.frontend_url.strip().rstrip("/")
+    if url:
+        return url
+    if config.app_env in DEV_ENVIRONMENTS:
+        return DEV_FRONTEND_URL
+    raise RuntimeError(FRONTEND_URL_MISSING)
+
+
+def check_startup_settings(config: "Settings | None" = None) -> None:
+    """Refuse to start with settings that would hurt real clients (called from the app lifespan).
+    Production without FRONTEND_URL would send clients back to localhost after paying."""
+    frontend_base_url(config)
