@@ -1,0 +1,28 @@
+.payment-subtitle {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.payment-method-body {
+  margin-top: 16px;
+}
+
+.payment-bank .ant-descriptions {
+  margin-bottom: 12px;
+}
+
+.payment-bank-note {
+  margin-top: 12px;
+}
+
+.payment-error {
+  margin-top: 16px;
+}
+
+/* Prices on white: the price colour stays above 4.5:1 (theme.test.ts). */
+.payment-price {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #E2E8F0;
+}

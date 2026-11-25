@@ -2,7 +2,8 @@ import { AxiosError, type AxiosResponse } from 'axios'
 import { vi } from 'vitest'
 import { api } from '../api/client'
 import type {
-  City, Country, HotelDetail, PublicReview, Resort, ReviewPage, TourCard, TourDetail, TourPage, User,
+  City, Country, HotelDetail, OrderWithPrice, Price, PublicReview, Resort, ReviewPage, TourCard, TourDetail,
+  TourPage, User,
 } from '../api/types'
 import { TOKEN_KEY } from '../features/auth/tokenStorage'
 
@@ -185,4 +186,32 @@ export function mockServer(routes: Record<string, Route>) {
     return response
   }
   return calls
+}
+
+// ---------- checkout and payment
+export function makePrice(overrides: Partial<Price> = {}): Price {
+  return {
+    adults: 2, children: 0, currency: 'EUR', base_price: '700.00', child_price: '350.00', rate: '45.1234',
+    tour_uah: '63172.76', insurance_id: 1, insurance_name: 'Базове', insurance_per_tourist_uah: '350.00',
+    insurance_uah: '700.00', transfer_id: 5, transfer_name: 'Груповий', transfer_uah: '0.00',
+    subtotal_uah: '63872.76', promo_code: null, discount_uah: '0.00', total_uah: '63872.76', ...overrides,
+  }
+}
+
+export const TOURISTS = [
+  { id: 11, last_name_lat: 'KOVALENKO', first_name_lat: 'OLENA', birth_date: '1990-05-14', passport_number: 'FX123456', passport_expiry: '2105-01-01' },
+  { id: 12, last_name_lat: 'KOVALENKO', first_name_lat: 'IVAN', birth_date: '1988-02-01', passport_number: 'FX654321', passport_expiry: '2105-01-01' },
+]
+
+/** An order of the checkout (booking wizard, payment pages): tour 7, hold for 15 more minutes. */
+export function makeCheckoutOrder(overrides: Partial<OrderWithPrice> = {}): OrderWithPrice {
+  return {
+    id: 1, number: 'TU-2099-000001', status: 'checkout', payment_status: 'awaiting', tour_id: 7,
+    tour_title_uk: 'Coral Bay Resort, Хургада', hotel_name: 'Coral Bay Resort', start_date: '2099-06-10', end_date: '2099-06-17',
+    adults: 2, children: 0, insurance_type_id: 1, transfer_type_id: 5, promo_code: null, wishes: null,
+    total_uah: '63872.76', discount_uah: '0.00', rate_used: '45.1234',
+    hold_expires_at: new Date(Date.now() + 15 * 60_000).toISOString(), offer_accepted_at: null, pnr: null,
+    reject_reason: null, cancel_reason_code: null, cancel_reason: null, fpv_uah: null,
+    created_at: new Date().toISOString(), tourists: [], history: [], payments: [], price: makePrice(), ...overrides,
+  }
 }

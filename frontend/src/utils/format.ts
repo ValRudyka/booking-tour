@@ -112,3 +112,15 @@ const rateFormat = new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, ma
 export function formatRate(value: string): string {
   return rateFormat.format(value as DecimalString)
 }
+
+/** An API timestamp as Kyiv date and time "27.11.2026, 09:52" (a transfer's pay-until, long holds). */
+export function formatKyivDateTime(timestamp: string): string {
+  const format = (timeZone: string) => new Intl.DateTimeFormat('uk-UA', {
+    timeZone, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(new Date(timestamp))
+  try {
+    return format(BUSINESS_TIMEZONE)
+  } catch {
+    return format('Europe/Kiev')
+  }
+}

@@ -48,7 +48,8 @@ class PayOut(BaseModel):
 
 
 class PaymentResultOut(BaseModel):
-    """Where Stripe sends the client back (until the frontend exists)."""
+    """Status of a payment by its Checkout Session id (no sign-in). Stripe now returns clients to
+    the frontend pages; this stays for support and for sessions created before that."""
     order_number: str
     order_status: OrderStatus
     payment_status: PaymentStatus

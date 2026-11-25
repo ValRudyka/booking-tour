@@ -1,8 +1,10 @@
 import { ClockCircleOutlined } from '@ant-design/icons'
 import { Alert } from 'antd'
 import { useTranslation } from 'react-i18next'
-import { formatKyivTime } from '../../utils/format'
+import { formatKyivDateTime, formatKyivTime } from '../../utils/format'
 import { SECONDS_PHASE_MS } from './holdClock'
+
+const LONG_HOLD_MS = 60 * 60_000
 
 /** «Місця утримуються до 14:35 (залишилось 12 хв)» above the form while seats are held. */
 export function HoldTimer({ expiresAt, remaining }: { expiresAt: string; remaining: number }) {
@@ -10,8 +12,9 @@ export function HoldTimer({ expiresAt, remaining }: { expiresAt: string; remaini
   const time = formatKyivTime(expiresAt)
   const lastMinutes = remaining <= SECONDS_PHASE_MS
   const seconds = Math.max(0, Math.ceil(remaining / 1000))
-  const text = lastMinutes
-    ? t('checkout.hold.seconds', { time, left: `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` })
+  // A long hold (a bank transfer: 48 h) shows the date and time only, not thousands of minutes.
+  const text = remaining > LONG_HOLD_MS ? t('checkout.hold.until', { time: formatKyivDateTime(expiresAt) })
+    : lastMinutes ? t('checkout.hold.seconds', { time, left: `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` })
     : t('checkout.hold.minutes', { time, minutes: Math.ceil(remaining / 60_000) })
   // role="timer": a countdown whose every change is NOT read out (its implicit aria-live is off);
   // the form stays usable with a screen reader while the seconds run.
