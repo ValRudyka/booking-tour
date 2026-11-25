@@ -8,10 +8,11 @@ becomes «Скасовано» and the seats return to the quota.
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import AuditLog, Order, User
+from app.models import Order, User
 from app.models.enums import CancelReason
 from app.models.enums import OrderStatus as S
 from app.services import notifications, order_documents, private_files
+from app.services.audit import audit
 from app.services.errors import DomainError
 from app.services.order_documents import FileUpload
 from app.services.order_status import STATUS_LABELS, change_status
@@ -61,10 +62,9 @@ def request_cancellation(db: Session, client: User, order: Order, *, reason: Can
     try:
         order.cancel_reason_code, order.cancel_reason = reason, details
         # Field 5: the consent is legally relevant, so its time is kept in the audit log.
-        db.add(AuditLog(user_id=client.id, entity="order", entity_id=str(order.id),
-                        action="cancel_requested", new_value={
-                            "reason": reason.value, "penalty_policy_accepted_at": utcnow().isoformat(),
-                            "evidence_files": [d.id for d in evidence]}))
+        audit(db, client, "order", order.id, "cancel_requested", new={
+            "reason": reason.value, "penalty_policy_accepted_at": utcnow().isoformat(),
+            "evidence_files": [d.id for d in evidence]})
         label = REASON_LABELS[reason]
         change_status(db, order, S.CANCEL_REQUESTED, client, f"{label}: {details}" if details else label)
     except BaseException:
