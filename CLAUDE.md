@@ -255,7 +255,7 @@ Conventions:
   seconds, `token_cutoff()`) is set on admin password reset; `user_from_token()` checks it.
 - Audit: every admin change and every promo code change calls `services/audit.py: audit()` with
   old/new values; fields named like password/secret/key/token/hash are dropped. Every audit row
-  goes through `audit()` (except `services/tours.py`, left to spec 10's rewrite). `audit_log` is
+  goes through `audit()` (never `db.add(AuditLog(...))`), so that filter always applies. `audit_log` is
   append-only (DB trigger refuses UPDATE/DELETE).
 - Promo codes are managed by managers (`services/promo_admin.py`, `/api/manager/promo-codes`);
   a code used by any order cannot be deleted or renamed, only deactivated.
