@@ -70,7 +70,8 @@ npm run gen:api      # src/api/schema.d.ts from http://127.0.0.1:8000/openapi.js
 
 `backend/.env` (never committed; template in `.env.example`): `DATABASE_URL`,
 `TEST_DATABASE_URL`, `SECRET_KEY`, optional `CORS_ORIGINS` (JSON list, default the Vite dev origin), `UPLOAD_DIR`/`MAX_IMAGE_MB`/`MAX_IMAGES_PER_TOUR`/`ORDER_EXPIRY_INTERVAL_SEC`, payments: `PAYMENT_GATEWAY` (stripe|mock), `STRIPE_SECRET_KEY` (test key),
-`STRIPE_WEBHOOK_SECRET`, `FRONTEND_URL`, `API_BASE_URL`, `BANK_*`; order processing:
+`STRIPE_WEBHOOK_SECRET`, `FRONTEND_URL` (empty = `http://localhost:5173` in development/test;
+**required in production**, the API refuses to start without it), `API_BASE_URL`, `BANK_*`; order processing:
 `MAX_DOCUMENT_MB`, `MAX_DOCUMENTS_PER_ORDER`, `MAX_CANCEL_EVIDENCE_FILES`, `BUSINESS_TIMEZONE`
 (Europe/Kyiv), `ORDER_COMPLETION_INTERVAL_SEC` (3600; 0 = off, as in tests); reviews:
 `MAX_REVIEW_PHOTOS` (10, form 4.6.1.4), `MAX_REVIEW_PHOTO_MB` (5). Tests force the mock gateway.
@@ -230,6 +231,13 @@ Conventions:
 - Moving to `paid` must re-check free seats under the tour row lock; `seats_sold` must never
   exceed `seats_total` (`change_status()` already does this and raises 409 if seats are gone —
   that case must also lead to an automatic refund).
+- Return URLs (`service.py: return_urls(order)`, feature/frontend-checkout):
+  `{FRONTEND_URL}/payment/success?order_id=…&session_id={CHECKOUT_SESSION_ID}` and
+  `/payment/cancel?order_id=…`. Coming back changes nothing; the success page waits for the
+  webhook. `config.py: check_startup_settings()` (app lifespan) refuses production without
+  `FRONTEND_URL`. The old `GET /api/payments/result` stays for support.
+- Mock gateway page: «Оплата успішна» / «Сесія минула» with `?return_to_site=1` redirect (303) to
+  the success / cancel URL like Stripe; without it they answer JSON (tests).
 
 ## Frontend
 
@@ -302,6 +310,16 @@ Lives in `frontend/` in this repository (same Git Flow branches as the backend).
     - `features/booking/bookingRules.ts` mirrors `services/orders.py` and `services/passports.py`
       (same texts); change both together. Business texts of the order endpoints are shown as is
       (`bookingErrors.ts`), unlike auth. Checkout amounts use `formatMoney()` (kopecks).
+  - **Payment pages (feature/frontend-checkout, `pages/payment/`, spec 05):**
+    - `features/payment/orderOutcome.ts: paymentOutcome()` is the one place that reads where an
+      order stands (paid / late_refund / payable / expired / checkout / cancelled / closed).
+      Late refund = cancelled, never `paid` in the history, and refunded.
+    - `/orders/:id/pay`: card → `browser.assign(checkout_url)` (replaceable in tests); a pending
+      transfer is shown again with the same details (POST pay is idempotent, no second hold
+      extension); zero total → pay at once → success page; `PayPageState.priceChanged` before the
+      pay button; the test card hint only under `import.meta.env.DEV`.
+    - `/payment/success` polls `GET /orders/{id}` (`POLLING`: 2 s, 30 s) and never shows an error
+      for a slow webhook. `useOrder` has `staleTime: 0` (live status).
 - **UI library:** `antd` 6 + `@ant-design/icons` 6 — keep their major versions in step.
   No Tailwind.
   - `feature/frontend-public` (catalog, tour page, auth, checkout, personal account): plain antd.
@@ -446,8 +464,17 @@ viewer with an append-only trigger, promo codes for managers; migration `admin`)
   the maintenance screen, the optional blocks hide themselves.
 - No reviews block (no public list of recent reviews). Frontend only, no backend changes.
 
-Next: checkout, personal account.
-Backend test suite: 672 tests. Frontend: 178 tests.
+`feature/frontend-checkout` (PR #17 to `develop`, specs 04 + 05): booking and payment.
+- Booking wizard `/booking/:tourId` (4 steps, order created at step 1, hold timer, server prices,
+  draft without passport numbers, resume of the same tour's order, confirm → payment).
+- Payment `/orders/:id/pay` (card via Stripe Checkout, bank transfer details), `/payment/success`
+  (polling, late refund), `/payment/cancel`.
+- Backend, no migrations: `PATCH {tourists: []}` clears the list; tourist errors with `loc`;
+  `GET /orders/{id}` with the price breakdown; Stripe returns to the frontend pages with the
+  production `FRONTEND_URL` guard; the mock checkout page redirects like Stripe.
+
+Next: personal account (spec 06).
+Backend test suite: 690 tests. Frontend: 219 tests.
 
 Backlog, in order (one branch each):
 1. `feature/tours-catalog` — **done** (PR #4)
@@ -457,8 +484,9 @@ Backlog, in order (one branch each):
 5. `feature/reviews` — **done** (PR #9)
 6. `feature/admin` — **done** (PR #10)
 7. `feature/frontend-public` — catalog (**done**, PR #12), tour page (**done**, PR #14), auth
-   (**done**, `feature/frontend-auth`), home page (**done**, `feature/frontend-home`), checkout,
-   personal account; plain antd (also set up `frontend/`).
+   (**done**, `feature/frontend-auth`), home page (**done**, `feature/frontend-home`), checkout
+   and payment (**done**, `feature/frontend-checkout`, PR #17), personal account; plain antd
+   (also set up `frontend/`).
    - Home page follow-ups (not done in `feature/frontend-home`; the first two need backend work):
      - `GET /reference/countries?with_tours=true` with `tours_count`, to replace the per-country
        catalog requests in `pages/home/useDestinations.ts`;
@@ -472,6 +500,11 @@ Backlog, in order (one branch each):
    - Note for spec 06: orders cancelled while still in `checkout` (abandoned bookings) are hidden
      from «Мої замовлення» or shown separately, not as normal cancellations. The order details
      page can use the price breakdown of `GET /api/orders/{id}`.
+   - Note for spec 06: while a bank transfer is pending, the order details show its details
+     (recipient, IBAN, amount, purpose, pay until) with copy buttons and a link to
+     `/orders/:id/pay`; today «Зрозуміло» after a transfer leads to the `/cabinet/orders` placeholder.
+   - Backlog note (no work yet): limit unpaid bank-transfer orders per client — a transfer holds
+     seats for `bank_transfer_hold_hours` (48 h) without any money.
    - Note for spec 08: saved passports need a birth date for full autofill at checkout (backend
      change with a migration); today «Заповнити з мого профілю» gives the birth date and only
      Latin profile names.
